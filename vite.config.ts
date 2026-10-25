@@ -1,7 +1,41 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+name: Deploy Mimi V15
+on:
+  push:
+    branches: [ main ]
 
-export default defineConfig({
-  plugins: [react()],
-  base: '/Mimi-V15/',
-})
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - name: Build for GitHub Pages
+        run: bun run build -- --base=/Mimi-V15/
+        env:
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
