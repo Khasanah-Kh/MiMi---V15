@@ -918,19 +918,24 @@ export default function App() {
       case BottomNavTab.CURHAT:
         return (
           <CurhatScreen
-            studentName={uiState.studentName}
-            entries={curhatEntries}
-            onAddCurhatEntry={handleAddCurhatEntry}
-            onDeleteCurhatEntry={handleDeleteCurhatEntry}
-            onOpenDirectChatWithMimi={handleAskMimiTopic}
+            uiState={uiState}
+            messages={chatMessages}
+            isTyping={isMimiTyping}
+            onSendMessage={handleSendMessageToMimi}
+            milestones={milestones}
+            onAddMilestone={handleAddMilestone}
+            onDeleteMilestone={handleDeleteMilestone}
           />
         );
       case BottomNavTab.CODING:
         return (
           <CodingScreen
-            completedCodingIds={completedCodingIds}
-            onCompleteCodingLesson={handleCompleteCodingLesson}
-            onAskMimiCoding={handleAskMimiTopic}
+            uiState={uiState}
+            onAskMimiTopic={handleAskMimiTopic}
+            onAwardCodingXp={(label, xpAmount) => {
+              setXp((prev) => prev + xpAmount);
+              triggerXpToast(`${label} (+${xpAmount} XP)`);
+            }}
           />
         );
       case BottomNavTab.TANTANGAN:
@@ -981,7 +986,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-full bg-[#0B1120] text-slate-100 overflow-hidden flex flex-col">
+    <div className="h-[100dvh] w-full bg-[#0B1120] text-slate-100 overflow-hidden flex flex-col">
       {/* Share & Download Hub Dialog */}
       {isShareHubOpen && (
         <ShareAndDownloadHubDialog
@@ -1094,29 +1099,42 @@ export default function App() {
         </div>
       ) : (
         // ══════════════════════════════════════════════════════════════════
-        // MOBILE SMARTPHONE LAYOUT (Compact portrait)
+        // MOBILE SMARTPHONE LAYOUT (Ergonomic One-Handed Portrait Mode)
         // ══════════════════════════════════════════════════════════════════
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
           {/* Compact Mobile Header */}
-          <header className="px-4 py-3 bg-[#0F172A] border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
-            <div className="text-sm font-extrabold text-white whitespace-nowrap shrink-0">
-              MIMI · Asisten BelajarMu
-            </div>
-            <div className="flex items-center gap-2">
+          <header className="px-3.5 py-2.5 bg-[#131C31]/95 backdrop-blur-md border-b border-slate-800 flex items-center justify-between gap-2 shrink-0 z-20">
+            <button
+              type="button"
+              onClick={() => setCurrentTab(BottomNavTab.BERANDA)}
+              className="flex flex-col text-left min-w-0"
+            >
+              <div className="text-xs sm:text-sm font-extrabold text-white truncate flex items-center gap-1.5">
+                <span>MIMI V15</span>
+                <span className="text-[10px] font-bold text-emerald-400">
+                  ● 24 Jam
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-400 truncate">
+                {selectedEducationLevel} · {selectedClass} · {selectedSubject}
+              </div>
+            </button>
+
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsShareHubOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-medium text-slate-200 whitespace-nowrap shrink-0"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-sky-300 whitespace-nowrap shrink-0"
               >
                 Buku PDF & Share
               </button>
-              <span className="font-mono text-xs font-bold text-sky-400 tabular-nums">
+              <span className="px-2.5 py-1.5 rounded-xl bg-[#0B101E] border border-slate-800 font-mono text-[11px] font-extrabold text-emerald-400 tabular-nums shrink-0">
                 {xp} XP
               </span>
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto px-4 py-4">
+          <main className="flex-1 overflow-y-auto px-3.5 py-4 pb-24">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentTab}

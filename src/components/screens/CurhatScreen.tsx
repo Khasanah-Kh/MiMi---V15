@@ -26,43 +26,96 @@ interface CurhatScreenProps {
 const MOOD_CARDS = [
   {
     id: 'happy',
-    label: 'Lagi Senang & Semangat',
-    desc: 'Hari ini rasanya menyenangkan dan pengen berbagi cerita seru',
-    prompt: 'Mimi, hari ini aku lagi senang banget! Mau dengerin ceritaku nggak?',
+    label: 'Lagi Senang & Full Semangat',
+    desc: 'Hari ini rasanya wholesome banget dan pengen spill cerita seru',
+    prompts: [
+      'Mimi, hari ini aku lagi senang banget! Mau dengerin ceritaku nggak?',
+      'Bestie Mimi! Hari ini ada kejadian seru banget di sekolah, aku pengen cerita!',
+      'Mimi, alhamdulillah hari ini mood-ku lagi on fire dan bahagia banget!',
+    ],
     icon: Smile,
     accent: 'text-emerald-400 border-emerald-500/40 bg-emerald-950/20',
   },
   {
     id: 'tired',
-    label: 'Agak Capek & Butuh Jeda',
-    desc: 'Seharian kegiatan padat, kepala rasanya agak penuh',
-    prompt: 'Mimi, jujur hari ini aku rasanya capek banget habis sekolah dan banyak kegiatan.',
+    label: 'Capek, Burnout & Butuh Jeda',
+    desc: 'Seharian kegiatan padat, kepala rasanya overwhelmed banget',
+    prompts: [
+      'Mimi, jujur hari ini aku rasanya capek dan overwhelmed banget habis sekolah dan banyak tugas.',
+      'Duh Mimi, energiku rasanya tinggal dikit banget hari ini, butuh teman ngobrol yang menenangkan.',
+      'Mimi, hari ini kegiatanku padat banget sampai rasanya burnout. Temenin aku rehat sebentar yuk.',
+    ],
     icon: Coffee,
     accent: 'text-amber-400 border-amber-500/40 bg-amber-950/20',
   },
   {
     id: 'sad',
-    label: 'Sedih / Soal Pertemanan',
-    desc: 'Lagi ada hal yang mengganjal di hati dan butuh teman cerita',
-    prompt: 'Mimi, aku lagi agak sedih dan kepikiran sesuatu hari ini. Boleh aku cerita?',
+    label: 'Sedih / Drama Pertemanan',
+    desc: 'Ada hal yang mengganjal di hati dan butuh sahabat cerita yang peka',
+    prompts: [
+      'Mimi, aku lagi agak sedih dan kepikiran sesuatu soal pertemanan hari ini. Boleh aku curhat?',
+      'Mimi, rasanya hari ini hatiku lagi mendung dan butuh tempat cerita yang aman tanpa dihakimi.',
+      'Bestie Mimi, gimana ya cara menenangkan hati kalau lagi kecewa sama keadaan?',
+    ],
     icon: CloudRain,
     accent: 'text-sky-400 border-sky-500/40 bg-sky-950/20',
   },
   {
     id: 'future',
-    label: 'Bingung Jurusan / Masa Depan',
-    desc: 'Pengen diskusi santai soal minat, bakat, dan rencana ke depan',
-    prompt: 'Mimi, kadang aku suka bingung mikirin rencana masa depan dan minatku. Menurutmu gimana?',
+    label: 'Overthinking Masa Depan',
+    desc: 'Pengen diskusi santai soal minat, bakat, jurusan, dan langkah ke depan',
+    prompts: [
+      'Mimi, kadang aku suka overthinking dan bingung mikirin rencana masa depan serta minatku. Menurutmu gimana?',
+      'Mimi, gimana caranya biar nggak insecure waktu lihat teman lain udah tahu tujuan mereka?',
+      'Mimi, bantu aku connect the dots soal bakat dan jurusan impianku sambil ngobrol santai yuk!',
+    ],
     icon: Compass,
     accent: 'text-violet-400 border-violet-500/40 bg-violet-950/20',
   },
   {
     id: 'casual',
-    label: 'Ngobrol Santai Aja',
-    desc: 'Lagi pengen ngobrol ringan soal hobi, musik, atau keseharian',
-    prompt: 'Hai Mimi! Lagi pengen ngobrol santai aja nih di luar pelajaran sekolah.',
+    label: 'Ngobrol Random, Hobi & Bahasa',
+    desc: 'Ngobrol ringan soal musik, game, slang Inggris, atau bahasa daerah',
+    prompts: [
+      'Hai Mimi! Lagi pengen ngobrol santai aja nih soal hobi, musik, dan film di luar pelajaran sekolah.',
+      'Mimi, spill kosakata English slang, idiom keren, academic terms, sama ungkapan bahasa daerah Nusantara dong!',
+      'Kumaha damang Mimi? Lagi gabut nih, kita ngobrol santai yang seru dan anti-mainstream yuk!',
+    ],
     icon: Sparkles,
     accent: 'text-pink-400 border-pink-500/40 bg-pink-950/20',
+  },
+];
+
+const LEXICON_SHOWCASE_CHIPS = [
+  {
+    category: 'Slang & Gaul',
+    term: 'Lowkey · Ngl · Slay · Menyala',
+    prompt:
+      'Mimi, jelasin cara pakai kata slang "lowkey", "ngl", "slay", dan "valid no debat" dalam obrolan sehari-hari dong!',
+  },
+  {
+    category: 'English Idioms',
+    term: 'Hit the Books · Silver Lining · Connect the Dots',
+    prompt:
+      'Mimi, kasih aku contoh obrolan seru pakai idiom Inggris "hit the books", "silver lining", dan "connect the dots"!',
+  },
+  {
+    category: 'Academic Vocab',
+    term: 'Hypothesis · Equilibrium · Synthesize · Empirical',
+    prompt:
+      'Mimi, ajarin arti kata akademik "hypothesis", "equilibrium", "empirical", dan "synthesize" pakai analogi gampang dong!',
+  },
+  {
+    category: 'Bahasa Daerah',
+    term: 'Alon-alon · Tong Hariwang · Rancak Bana · Ewako!',
+    prompt:
+      'Mimi, ceritain makna hangat dari ungkapan daerah "alon-alon asal kelakon", "tong hariwang", "rancak bana", dan "ewako"!',
+  },
+  {
+    category: 'Peribahasa',
+    term: 'Sedikit demi Sedikit · Ringan Sama Dijinjing',
+    prompt:
+      'Mimi, kasih aku peribahasa Indonesia yang cocok buat nyemangatin diri waktu lagi berjuang belajar!',
   },
 ];
 
@@ -78,6 +131,7 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
   const [curhatInput, setCurhatInput] = useState('');
   const [journalNote, setJournalNote] = useState('');
   const [selectedMoodId, setSelectedMoodId] = useState<string | null>(null);
+  const [moodClickCount, setMoodClickCount] = useState<number>(0);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,26 +157,26 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
   return (
     <div className="space-y-8 pb-12">
       {/* 1. Header Ruang Cerita Santai & Curhat */}
-      <section className="p-7 sm:p-9 card-study space-y-6">
+      <section className="p-5 sm:p-8 card-study space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-pink-400">
               <Heart className="w-4 h-4 shrink-0" />
-              <span>Ruang Cerita Santai & Curhat Manusiawi · Mimi V15</span>
+              <span>Mode Human Random · Empatik, Variatif & Multi-Bahasa</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Gimana Perasaanmu Hari Ini, {uiState.studentName}?
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
-              Belajar itu bukan cuma soal angka dan nilai. Kalau kamu lagi capek, butuh teman ngobrol santai, atau ingin mencurahkan isi hati tanpa dihakimi, Mimi selalu siap mendengarkanmu seperti sahabat sendiri.
+              Di sini Mimi ngobrol layaknya sahabat manusia yang peka dan nggak kaku. Kamu bebas curhat, cerita keseharian, atau eksplorasi kosakata gaul, idiom Inggris, istilah akademik, hingga ungkapan hangat Nusantara.
             </p>
           </div>
         </div>
 
-        {/* Mood Selector Grid */}
+        {/* Mood Selector Grid (Rotates prompts on each tap to avoid repetition) */}
         <div className="space-y-3">
           <div className="text-xs font-bold text-slate-300">
-            Pilih suasana hatimu sekarang untuk mulai bercerita:
+            Pilih suasana hatimu sekarang untuk mulai bercerita (tiap klik memberi variasi obrolan baru):
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             {MOOD_CARDS.map((mood) => {
@@ -134,8 +188,11 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
                   type="button"
                   disabled={isTyping}
                   onClick={() => {
+                    const nextCount = moodClickCount + 1;
+                    setMoodClickCount(nextCount);
                     setSelectedMoodId(mood.id);
-                    onSendMessage(mood.prompt);
+                    const variedPrompt = mood.prompts[nextCount % mood.prompts.length];
+                    onSendMessage(variedPrompt);
                   }}
                   className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-3 ${
                     isSelected
@@ -160,6 +217,36 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Multi-Language Lexicon Explorer Bar */}
+        <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-sky-300">
+              Eksplorasi Kosakata Kaya Mimi (Slang · Idiom · Academic · Nusantara):
+            </span>
+            <span className="text-[11px] text-slate-400 hidden sm:inline">
+              Klik untuk ngobrol & memperkaya diksi
+            </span>
+          </div>
+          <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+            {LEXICON_SHOWCASE_CHIPS.map((chip, idx) => (
+              <button
+                key={idx}
+                type="button"
+                disabled={isTyping}
+                onClick={() => onSendMessage(chip.prompt)}
+                className="px-3.5 py-2 rounded-xl bg-[#0B101E] hover:bg-slate-800/90 border border-slate-800 hover:border-sky-400/50 text-left transition-all shrink-0 disabled:opacity-50"
+              >
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-sky-400">
+                  {chip.category}
+                </div>
+                <div className="text-xs font-semibold text-slate-200 mt-0.5">
+                  {chip.term}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </section>

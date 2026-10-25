@@ -1591,6 +1591,7 @@ export function getSuggestedPromptsForLevel(
       `Mimi, kasih clue & analogi seru tentang Siklus Air di buku IPAS dong!`,
       `Mimi, pecah jadi 3 langkah + 3 opsi A/B/C buat soal pecahan 3/4 + 1/2 yuk!`,
       `Mimi Profesor, kasih aku jembatan keledai biar cepat hafal materi ${subj} (${selectedClass})!`,
+      `Mimi, ajarin peribahasa Indonesia & sapaan bahasa daerah Nusantara yang seru dong!`,
     ];
   }
   if (level === EducationLevel.SMP) {
@@ -1599,6 +1600,7 @@ export function getSuggestedPromptsForLevel(
       `Mimi, pecah 3 langkah + 3 opsi A/B/C buat soal Matematika 4x - 7 = 21 dong!`,
       `Kasih clue, sumber buku Kemendikbud, & analogi seru tentang Fotosintesis Kelas 8!`,
       `Mimi Profesor, bagi hack trik hafal & jembatan keledai buat mapel ${subj} (${selectedClass})!`,
+      `Spill kosakata English slang, idiom keren, & ungkapan bahasa daerah Nusantara dong!`,
     ];
   }
   if (level === EducationLevel.SMK) {
@@ -1607,13 +1609,15 @@ export function getSuggestedPromptsForLevel(
       `Kasih clue, sumber buku Kemendikbud, & analogi gokil tentang Frontend vs Backend PPLG!`,
       `Pecah 3 langkah + 3 opsi A/B/C buat hitung Matematika BEP usaha SMK dong!`,
       `Mimi Profesor, kasih hack trik hafal cepat buat materi ${subj} (${selectedClass})!`,
+      `Kasih aku daftar English idioms & academic vocabulary buat dunia kerja/vokasi!`,
     ];
   }
   if (level === EducationLevel.UMUM) {
     return [
       `Halo bestie Mimi! Hari ini rasanya agak capek, pengen curhat santai dong 💜`,
-      `Kasih aku 5 slang Bahasa Inggris positif + academic vocabulary biar makin keren!`,
+      `Kasih aku racikan English slang, idiom, academic vocabulary, & ungkapan Nusantara!`,
       `Mimi Profesor, ajarin teknik Memory Palace & jembatan keledai biar gak gampang lupa!`,
+      `Kumaha damang Mimi? Ngobrol santai soal hobi, musik, dan motivasi hari ini yuk!`,
       `Ajarin konsep dasar belajar coding dari nol pakai analogi sehari-hari dong!`,
     ];
   }
@@ -1622,5 +1626,6 @@ export function getSuggestedPromptsForLevel(
     `Mimi, pecah 3 langkah + 3 opsi A/B/C buat cari titik stasioner f(x) = 3x² - 12x + 9`,
     `Kasih clue, sumber buku Kemendikbud, & analogi seru buat materi ${subj} ${selectedClass}!`,
     `Mimi Profesor, kasih hack trik hafal & mnemonic keren buat ${subj} (${selectedClass})!`,
+    `Spill English academic vocabulary, idiom, & peribahasa buat esai SMA dong!`,
   ];
 }

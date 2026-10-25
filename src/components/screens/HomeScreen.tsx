@@ -126,22 +126,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   return (
-    <div className="space-y-9 pb-12">
-      {/* 1. Hero Student Welcome Card */}
-      <section className="p-7 sm:p-9 card-study space-y-7">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/80 pb-6">
-          <div className="space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-sky-400 font-semibold tracking-wide">
+    <div className="space-y-6 sm:space-y-9 pb-16 sm:pb-12">
+      {/* 1. Hero Student Welcome Card (Adaptive Smartphone & PC) */}
+      <section className="p-5 sm:p-7 md:p-9 card-study space-y-5 sm:space-y-7">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 border-b border-slate-800/80 pb-5 sm:pb-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-sky-400 font-semibold tracking-wide">
               <span>MIMI — Asisten Belajar Masa Depan Indonesia</span>
               <span aria-hidden="true">·</span>
               <span className="text-emerald-400">
-                ● Asisten BelajarMu - GuruMu, AsistenMu, Teman CurhatMu
+                ● GuruMu, AsistenMu, Teman CurhatMu
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
               Halo bestie {uiState.studentName}! ✨ Semangat Belajar Hari Ini!
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
               Sumber resmi Buku Paket Kemendikbud Kurikulum Merdeka (SD, SMP, SMA, SMK & Umum). Aktivitas terakhir:{' '}
               <span className="text-white font-semibold">
                 {studyProgress.lastStudiedTopic}
@@ -149,41 +149,43 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              type="button"
-              onClick={handleSharePublicWebsiteLink}
-              className="px-4 py-3 rounded-2xl btn-tactile-sky font-extrabold text-xs flex items-center gap-2 whitespace-nowrap shrink-0"
-              title="Salin link website publik yang bisa langsung dilihat semua orang"
-            >
-              <Share2 className="w-4 h-4 shrink-0" />
-              <span>Bagikan Link Website</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenBookDriveHub}
-              className="px-4 py-3 rounded-2xl btn-tactile-slate font-extrabold text-xs flex items-center gap-2 whitespace-nowrap shrink-0"
-            >
-              <FolderSync className="w-4 h-4 text-sky-400 shrink-0" />
-              <span>Buku PDF, Drive & Classroom</span>
-            </button>
-
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
             <button
               type="button"
               onClick={() => onAskMimiTopic('Halo Mimi!')}
-              className="px-5 py-3 rounded-2xl btn-tactile-emerald font-extrabold text-xs flex items-center gap-2 whitespace-nowrap shrink-0"
+              className="px-5 py-3 rounded-2xl btn-tactile-emerald font-extrabold text-xs flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
             >
               <MessageSquare className="w-4 h-4 shrink-0" />
               <span>Chat Bareng Mimi</span>
             </button>
+
+            <div className="grid grid-cols-2 sm:flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onOpenBookDriveHub}
+                className="px-3.5 sm:px-4 py-3 rounded-2xl btn-tactile-slate font-extrabold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
+              >
+                <FolderSync className="w-4 h-4 text-sky-400 shrink-0" />
+                <span>Buku PDF & Drive</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSharePublicWebsiteLink}
+                className="px-3.5 sm:px-4 py-3 rounded-2xl btn-tactile-sky font-extrabold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
+                title="Salin link website publik yang bisa langsung dilihat semua orang"
+              >
+                <Share2 className="w-4 h-4 shrink-0" />
+                <span>Bagikan Link</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {shareToast && (
-          <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex items-center justify-between gap-2">
+          <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <span>✅ {shareToast}</span>
-            <span className="font-mono text-[11px] text-emerald-300">
+            <span className="font-mono text-[11px] text-emerald-300 break-all">
               {typeof window !== 'undefined' ? window.location.origin : ''}
             </span>
           </div>
@@ -260,10 +262,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </section>
 
       {/* 2. Hierarchy Selection: Tingkatan (SD / SMP / SMA / SMK / UMUM) -> Kelas -> Mata Pelajaran + Mimi Profesor Mode */}
-      <section className="p-7 card-study space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+      <section className="p-5 sm:p-7 card-study space-y-4 sm:space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-extrabold text-white">
+            <h2 className="text-base sm:text-lg font-extrabold text-white">
               Pilih Tingkatan, Kelas & Mata Pelajaran (SD, SMP, SMA, SMK & Umum)
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
@@ -280,119 +282,125 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </p>
           </div>
 
-          {/* Interactive Segmented Control for SD / SMP / SMA / SMK / UMUM with Framer Motion layoutId */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-[#0B101E] border-2 border-slate-800 rounded-2xl self-start">
-            {[
-              { id: EducationLevel.SD, label: 'SD (1–6)' },
-              { id: EducationLevel.SMP, label: 'SMP (7–9)' },
-              { id: EducationLevel.SMA, label: 'SMA (10–12)' },
-              { id: EducationLevel.SMK, label: 'SMK (10–12)' },
-              { id: EducationLevel.UMUM, label: 'UMUM / Random' },
-            ].map((item) => {
-              const isSelected = uiState.selectedEducationLevel === item.id;
-              return (
-                <motion.button
-                  key={item.id}
-                  type="button"
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => onSelectEducationLevel(item.id)}
-                  className={`relative px-3.5 py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
-                    isSelected
-                      ? 'text-slate-950'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {isSelected && (
-                    <motion.div
-                      layoutId="homeEducationLevelPill"
-                      className="absolute inset-0 bg-sky-400 rounded-xl"
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{item.label}</span>
-                </motion.button>
-              );
-            })}
+          {/* Interactive Segmented Control for SD / SMP / SMA / SMK / UMUM (Swipeable on Smartphone, Wrapped on PC) */}
+          <div className="w-full lg:w-auto overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 p-1.5 bg-[#0B101E] border-2 border-slate-800 rounded-2xl w-max sm:w-auto">
+              {[
+                { id: EducationLevel.SD, label: 'SD (1–6)' },
+                { id: EducationLevel.SMP, label: 'SMP (7–9)' },
+                { id: EducationLevel.SMA, label: 'SMA (10–12)' },
+                { id: EducationLevel.SMK, label: 'SMK (10–12)' },
+                { id: EducationLevel.UMUM, label: 'UMUM / Random' },
+              ].map((item) => {
+                const isSelected = uiState.selectedEducationLevel === item.id;
+                return (
+                  <motion.button
+                    key={item.id}
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => onSelectEducationLevel(item.id)}
+                    className={`relative px-3.5 py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
+                      isSelected
+                        ? 'text-slate-950'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {isSelected && (
+                      <motion.div
+                        layoutId="homeEducationLevelPill"
+                        className="absolute inset-0 bg-sky-400 rounded-xl"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{item.label}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Step 2: Class Buttons with Framer Motion */}
-        <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-slate-800/70">
-          <span className="text-xs font-semibold text-slate-400 mr-2">
+        {/* Step 2: Class Buttons (Touch Swipeable on Mobile) */}
+        <div className="pt-3 border-t border-slate-800/70 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
+          <span className="text-xs font-semibold text-slate-400 block sm:inline mr-2">
             1. Pilih Kelas:
           </span>
-          {availableClasses.map((cls) => {
-            const active = uiState.selectedClass === cls;
-            return (
-              <motion.button
-                key={cls}
-                type="button"
-                whileTap={{ scale: 0.95 }}
-                onClick={() => onSelectClass(cls)}
-                className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
-                  active
-                    ? 'text-slate-950'
-                    : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
-                }`}
-              >
-                {active && (
-                  <motion.div
-                    layoutId="homeClassPill"
-                    className="absolute inset-0 btn-tactile-sky rounded-xl"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10">{cls}</span>
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Step 3: Subject Buttons + Mimi Profesor Mode Toggle */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-slate-800/70">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-slate-400 mr-1">
-              2. Pilih Mapel:
-            </span>
-            {availableSubjects.map((subj) => {
-              const active = uiState.selectedSubject === subj;
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
+            {availableClasses.map((cls) => {
+              const active = uiState.selectedClass === cls;
               return (
                 <motion.button
-                  key={subj}
+                  key={cls}
                   type="button"
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => onSelectSubject(subj)}
+                  onClick={() => onSelectClass(cls)}
                   className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
                     active
-                      ? 'text-slate-950 font-extrabold'
+                      ? 'text-slate-950'
                       : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
                   {active && (
                     <motion.div
-                      layoutId="homeSubjectPill"
-                      className="absolute inset-0 bg-emerald-400 rounded-xl"
+                      layoutId="homeClassPill"
+                      className="absolute inset-0 btn-tactile-sky rounded-xl"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     />
                   )}
-                  <span className="relative z-10">{subj}</span>
+                  <span className="relative z-10">{cls}</span>
                 </motion.button>
               );
             })}
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+        {/* Step 3: Subject Buttons + Mimi Profesor Mode Toggle */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 pt-3 border-t border-slate-800/70">
+          <div className="space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-2 min-w-0">
+            <span className="text-xs font-semibold text-slate-400 block sm:inline mr-1">
+              2. Pilih Mapel:
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
+              {availableSubjects.map((subj) => {
+                const active = uiState.selectedSubject === subj;
+                return (
+                  <motion.button
+                    key={subj}
+                    type="button"
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => onSelectSubject(subj)}
+                    className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
+                      active
+                        ? 'text-slate-950 font-extrabold'
+                        : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    {active && (
+                      <motion.div
+                        layoutId="homeSubjectPill"
+                        className="absolute inset-0 bg-emerald-400 rounded-xl"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{subj}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:flex items-center gap-2 shrink-0">
             <motion.button
               type="button"
               whileTap={{ scale: 0.96 }}
               onClick={onToggleProfesorMode}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${
+              className={`px-4 py-2.5 sm:py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all whitespace-nowrap shrink-0 ${
                 uiState.isProfesorMode
                   ? 'bg-amber-400 text-slate-950 shadow-lg'
                   : 'bg-[#0B101E] text-amber-300 border border-amber-400/50 hover:bg-slate-900'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {uiState.isProfesorMode
                   ? 'Mimi Profesor Mode: AKTIF'
@@ -408,7 +416,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   `Mimi Profesor, kasih aku HACK TRIK HAFAL & Jembatan Keledai buat mapel ${uiState.selectedSubject} (${uiState.selectedClass}) dong! 🚀`
                 )
               }
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 whitespace-nowrap shrink-0"
+              className="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 text-center whitespace-nowrap shrink-0"
             >
               Minta Hack Hafal
             </motion.button>
@@ -635,7 +643,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       </section>
 
-      {/* 5. Interactive Two-Zone Sandbox Lesson & Simulation Modal with Framer Motion */}
+      {/* 5. Interactive Two-Zone Sandbox Lesson & Simulation Modal (Bottom-Sheet on Mobile, Centered Dialog on PC) */}
       <AnimatePresence>
       {activeModal && (
         <motion.div
@@ -644,14 +652,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            initial={{ opacity: 0, scale: 0.96, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            exit={{ opacity: 0, scale: 0.96, y: 20 }}
             transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-            className="w-full max-w-4xl card-study p-7 sm:p-9 space-y-7 my-auto max-h-[92vh] overflow-y-auto shadow-2xl"
+            className="w-full max-w-4xl card-study rounded-t-3xl sm:rounded-3xl p-5 sm:p-8 space-y-6 my-0 sm:my-auto max-h-[92dvh] overflow-y-auto shadow-2xl pb-safe"
           >
             {/* Modal Header */}
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-5">

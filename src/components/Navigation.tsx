@@ -18,15 +18,51 @@ import { BottomNavTab, MimiUiState } from '../types/mimi';
 const NAV_ITEMS: Array<{
   tab: BottomNavTab;
   label: string;
+  shortLabel: string;
   icon: React.FC<{ className?: string }>;
 }> = [
-  { tab: BottomNavTab.BERANDA, label: 'Beranda & Modul', icon: Home },
-  { tab: BottomNavTab.CURHAT, label: 'Cerita & Curhat', icon: Heart },
-  { tab: BottomNavTab.CODING, label: 'Belajar Coding', icon: Code2 },
-  { tab: BottomNavTab.PERINGKAT, label: 'Peringkat Global', icon: Trophy },
-  { tab: BottomNavTab.TANTANGAN, label: 'Tantangan', icon: Swords },
-  { tab: BottomNavTab.KUIS, label: 'Kuis Adaptif', icon: HelpCircle },
-  { tab: BottomNavTab.PROFIL, label: 'Profil & Akun', icon: UserCheck },
+  {
+    tab: BottomNavTab.BERANDA,
+    label: 'Beranda & Modul',
+    shortLabel: 'Beranda',
+    icon: Home,
+  },
+  {
+    tab: BottomNavTab.CURHAT,
+    label: 'Cerita & Curhat',
+    shortLabel: 'Curhat',
+    icon: Heart,
+  },
+  {
+    tab: BottomNavTab.CODING,
+    label: 'Belajar Coding',
+    shortLabel: 'Coding',
+    icon: Code2,
+  },
+  {
+    tab: BottomNavTab.TANTANGAN,
+    label: 'Tantangan Duel',
+    shortLabel: 'Duel',
+    icon: Swords,
+  },
+  {
+    tab: BottomNavTab.PERINGKAT,
+    label: 'Peringkat Global',
+    shortLabel: 'Rank',
+    icon: Trophy,
+  },
+  {
+    tab: BottomNavTab.KUIS,
+    label: 'Kuis Adaptif',
+    shortLabel: 'Kuis',
+    icon: HelpCircle,
+  },
+  {
+    tab: BottomNavTab.PROFIL,
+    label: 'Profil & Akun',
+    shortLabel: 'Profil',
+    icon: UserCheck,
+  },
 ];
 
 interface CyberNavigationRailProps {
@@ -173,12 +209,12 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
   onOpenShareHub,
 }) => {
   return (
-    <header className="w-full flex items-center justify-between gap-6 px-8 py-4 bg-[#131C31] border-b-2 border-slate-800/90 shrink-0">
+    <header className="w-full flex items-center justify-between gap-4 lg:gap-6 px-5 lg:px-8 py-3.5 bg-[#131C31] border-b-2 border-slate-800/90 shrink-0">
       {/* Zone 1: Brand Title */}
       <button
         type="button"
         onClick={() => onSelectTab(BottomNavTab.BERANDA)}
-        className="text-lg font-extrabold tracking-tight text-white whitespace-nowrap shrink-0 text-left flex items-center gap-2"
+        className="text-base lg:text-lg font-extrabold tracking-tight text-white whitespace-nowrap shrink-0 text-left flex items-center gap-2"
       >
         <span>Mimi V15</span>
         <span className="text-[11px] font-semibold text-emerald-400 px-2 py-0.5 rounded-md bg-emerald-950/60 border border-emerald-700/50">
@@ -186,9 +222,9 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
         </span>
       </button>
 
-      {/* Zone 2: 5 Single-Line Navigation Links with Framer Motion Underline */}
-      <nav className="hidden xl:flex items-center gap-6 text-sm font-semibold text-slate-400">
-        {NAV_ITEMS.slice(0, 5).map(({ tab, label }) => {
+      {/* Zone 2: Single-Line Navigation Links with Framer Motion Underline */}
+      <nav className="hidden xl:flex items-center gap-5 text-xs lg:text-sm font-semibold text-slate-400">
+        {NAV_ITEMS.slice(0, 6).map(({ tab, label }) => {
           const active = uiState.currentTab === tab;
           return (
             <button
@@ -213,13 +249,13 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
       </nav>
 
       {/* Zone 3: Primary Action */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2.5 shrink-0">
         {isChatOpen && (
           <button
             type="button"
             onClick={onToggleDock}
             title={isChatDocked ? 'Ubah ke Jendela Mengambang' : 'Sematkan di Panel Kanan'}
-            className="px-3.5 py-2 text-xs font-bold text-slate-200 hover:text-white bg-slate-800/90 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            className="px-3 py-2 text-xs font-bold text-slate-200 hover:text-white bg-slate-800/90 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
           >
             {isChatDocked ? (
               <>
@@ -265,21 +301,12 @@ export const CyberBottomBar: React.FC<CyberBottomBarProps> = ({
   currentTab,
   onTabSelected,
 }) => {
-  const mobileItems = [
-    { tab: BottomNavTab.BERANDA, label: 'Beranda', icon: Home },
-    { tab: BottomNavTab.CURHAT, label: 'Curhat', icon: Heart },
-    { tab: BottomNavTab.CODING, label: 'Coding', icon: Code2 },
-    { tab: BottomNavTab.PERINGKAT, label: 'Peringkat', icon: Trophy },
-    { tab: BottomNavTab.KUIS, label: 'Kuis', icon: HelpCircle },
-    { tab: BottomNavTab.PROFIL, label: 'Profil', icon: UserCheck },
-  ];
-
   return (
     <nav
-      aria-label="Navigasi Bawah"
-      className="w-full bg-[#131C31] border-t-2 border-slate-800 px-2 py-2 grid grid-cols-6 gap-1 shrink-0 z-30"
+      aria-label="Navigasi Bawah Smartphone"
+      className="w-full bg-[#131C31]/95 backdrop-blur-md border-t-2 border-slate-800 px-1.5 pt-1.5 pb-safe grid grid-cols-7 gap-0.5 shrink-0 z-30 select-none"
     >
-      {mobileItems.map(({ tab, label, icon: Icon }) => {
+      {NAV_ITEMS.map(({ tab, shortLabel, icon: Icon }) => {
         const isActive = currentTab === tab;
         return (
           <motion.button
@@ -287,9 +314,9 @@ export const CyberBottomBar: React.FC<CyberBottomBarProps> = ({
             type="button"
             whileTap={{ scale: 0.9 }}
             onClick={() => onTabSelected(tab)}
-            className={`relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
+            className={`relative flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
               isActive
-                ? 'text-sky-400 font-bold'
+                ? 'text-sky-400 font-extrabold'
                 : 'text-slate-400 hover:text-slate-200 font-medium'
             }`}
           >
@@ -301,12 +328,14 @@ export const CyberBottomBar: React.FC<CyberBottomBarProps> = ({
               />
             )}
             <motion.div
-              animate={{ y: isActive ? -1.5 : 0, scale: isActive ? 1.08 : 1 }}
+              animate={{ y: isActive ? -1 : 0, scale: isActive ? 1.06 : 1 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               className="relative z-10 flex flex-col items-center"
             >
               <Icon className="w-4 h-4 mb-1 shrink-0" />
-              <span className="text-[11px] leading-none">{label}</span>
+              <span className="text-[10px] sm:text-[11px] leading-none tracking-tight">
+                {shortLabel}
+              </span>
             </motion.div>
           </motion.button>
         );
@@ -334,18 +363,20 @@ export const MimiFloatingDockWidget: React.FC<MimiFloatingDockWidgetProps> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 320, damping: 24 }}
       className={`fixed z-30 ${
-        isWideScreen ? 'bottom-6 right-6' : 'bottom-20 right-4'
+        isWideScreen ? 'bottom-6 right-6' : 'bottom-[72px] right-3.5'
       }`}
     >
       <motion.button
         type="button"
         whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.96 }}
+        whileTap={{ scale: 0.95 }}
         onClick={onClick}
-        className="flex items-center gap-2.5 px-5 py-3.5 rounded-2xl btn-tactile-emerald font-extrabold text-xs shadow-xl whitespace-nowrap shrink-0"
+        className={`flex items-center gap-2 rounded-2xl btn-tactile-emerald font-extrabold text-xs shadow-2xl whitespace-nowrap shrink-0 ${
+          isWideScreen ? 'px-5 py-3.5' : 'px-4 py-2.5'
+        }`}
       >
         <MessageSquare className="w-4 h-4 shrink-0" />
-        <span>Ngobrol bareng Mimi (+15 XP)</span>
+        <span>{isWideScreen ? 'Ngobrol bareng Mimi (+15 XP)' : 'Chat Mimi'}</span>
       </motion.button>
     </motion.div>
   );
