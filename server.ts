@@ -4,21 +4,22 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '4mb' }));
 
 // ============================================================================
 // 1. PERSISTENT SECURE DATABASE (File-backed JSON store)
 // ============================================================================
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'mimi15-db.json');
-const SESSION_SECRET = process.env.SESSION_SECRET || 'mimi15-cyber-hmac-secret-key-2026-v1';
+const SESSION_SECRET =
+  process.env.SESSION_SECRET || 'mimi15-cyber-hmac-secret-key-2026-v1';
 
 interface StoredUser {
   uid: string;
@@ -61,10 +62,135 @@ interface StoredUser {
   };
 }
 
+export interface CatalogBookEntry {
+  id: string;
+  title: string;
+  educationLevel: 'SD' | 'SMP' | 'SMA' | 'SMK' | 'SEMUA';
+  classLabel: string;
+  subject: string;
+  publisher: string;
+  sourceType: 'KEMENDIKDASMEN' | 'GOOGLE_DRIVE' | 'OPEN_BOOK';
+  catalogUrl: string;
+  driveFileId?: string;
+  webViewLink?: string;
+  webContentLink?: string;
+  addedBy: string;
+  updatedAt: string;
+}
+
+export interface SharedDriveFolderConfig {
+  sharedFolderLink: string;
+  folderId: string;
+  folderName: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
 interface DatabaseSchema {
   users: Record<string, StoredUser>;
   revokedTokens: string[];
+  driveConfig?: SharedDriveFolderConfig | null;
+  publishedBooks?: CatalogBookEntry[];
 }
+
+const DEFAULT_KEMENDIKDASMEN_BOOKS: CatalogBookEntry[] = [
+  {
+    id: 'kmd-sd-mat-4',
+    title: 'Matematika untuk SD/MI Kelas IV (Kurikulum Merdeka)',
+    educationLevel: 'SD',
+    classLabel: 'Kelas 4',
+    subject: 'Matematika SD',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-sd-ipas-5',
+    title: 'Ilmu Pengetahuan Alam dan Sosial (IPAS) untuk SD/MI Kelas V',
+    educationLevel: 'SD',
+    classLabel: 'Kelas 5',
+    subject: 'IPAS SD',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smp-mat-8',
+    title: 'Matematika untuk SMP/MTs Kelas VIII (Kurikulum Merdeka)',
+    educationLevel: 'SMP',
+    classLabel: 'Kelas 8',
+    subject: 'Matematika SMP',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smp-inf-9',
+    title: 'Informatika untuk SMP/MTs Kelas IX',
+    educationLevel: 'SMP',
+    classLabel: 'Kelas 9',
+    subject: 'Informatika SMP',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-sma-mat-11',
+    title: 'Matematika Tingkat Lanjut untuk SMA/MA Kelas XI',
+    educationLevel: 'SMA',
+    classLabel: 'Kelas 11',
+    subject: 'Matematika Lanjut SMA',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-sma-fis-12',
+    title: 'Fisika untuk SMA/MA Kelas XII (Kurikulum Merdeka)',
+    educationLevel: 'SMA',
+    classLabel: 'Kelas 12',
+    subject: 'Fisika SMA',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smk-pplg-10',
+    title: 'Dasar-Dasar Pengembangan Perangkat Lunak dan Gim (PPLG) Kelas X SMK/MAK',
+    educationLevel: 'SMK',
+    classLabel: 'Kelas 10 SMK',
+    subject: 'Kejuruan PPLG / Coding SMK',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smk-tjkt-10',
+    title: 'Dasar-Dasar Teknik Jaringan Komputer dan Telekomunikasi (TJKT) Kelas X SMK/MAK',
+    educationLevel: 'SMK',
+    classLabel: 'Kelas 10 SMK',
+    subject: 'Kejuruan TJKT SMK',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://buku.kemendikdasmen.go.id/daftar-katalog',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+];
 
 function loadDatabase(): DatabaseSchema {
   try {
@@ -73,12 +199,21 @@ function loadDatabase(): DatabaseSchema {
     }
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
-      return JSON.parse(raw) as DatabaseSchema;
+      const parsed = JSON.parse(raw) as DatabaseSchema;
+      if (!Array.isArray(parsed.publishedBooks) || parsed.publishedBooks.length === 0) {
+        parsed.publishedBooks = [...DEFAULT_KEMENDIKDASMEN_BOOKS];
+      }
+      return parsed;
     }
-  } catch (err) {
-    console.error('Database load warning:', err);
+  } catch {
+    // Fallback cleanly
   }
-  return { users: {}, revokedTokens: [] };
+  return {
+    users: {},
+    revokedTokens: [],
+    driveConfig: null,
+    publishedBooks: [...DEFAULT_KEMENDIKDASMEN_BOOKS],
+  };
 }
 
 function saveDatabase(db: DatabaseSchema): void {
@@ -87,8 +222,8 @@ function saveDatabase(db: DatabaseSchema): void {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Database save warning:', err);
+  } catch {
+    // Ignore transient fs write lock
   }
 }
 
@@ -116,7 +251,7 @@ function signSessionToken(uid: string, email: string): string {
     uid,
     email,
     iat: Date.now(),
-    exp: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 30, // 30 days persistent session
     jti: crypto.randomBytes(8).toString('hex'),
   };
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -176,12 +311,12 @@ function formatNow(): string {
 }
 
 // ============================================================================
-// 3. SERVER-SIDE GEMINI AI 3.6 FLASH ENGINE (Multi-Model Failover & Linked Secret)
+// 3. SERVER-SIDE AI ENGINE (24/7 Always-On Failover & Contextual Human Replies)
 // ============================================================================
 const MIMI_FLASH_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-  'gemini-3.8-flash',
+  'gemini-2.5-flash',
+  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite-preview',
 ] as const;
 
 function getGeminiClient(): GoogleGenAI | null {
@@ -205,13 +340,11 @@ async function generateWithMimiFlashEngine(options: {
   temperature?: number;
   responseMimeType?: string;
   responseSchema?: any;
-}): Promise<string> {
+}): Promise<string | null> {
   const ai = getGeminiClient();
   if (!ai) {
-    throw new Error('NO_API_KEY');
+    return null;
   }
-
-  let lastError: unknown = null;
 
   for (const modelName of MIMI_FLASH_MODELS) {
     try {
@@ -227,9 +360,6 @@ async function generateWithMimiFlashEngine(options: {
       if (options.responseSchema) {
         config.responseSchema = options.responseSchema;
       }
-      if (modelName === 'gemini-3.8-flash') {
-        config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
-      }
 
       const response = await ai.models.generateContent({
         model: modelName,
@@ -240,63 +370,151 @@ async function generateWithMimiFlashEngine(options: {
       if (response.text && response.text.trim().length > 0) {
         return response.text.trim();
       }
-    } catch (err) {
-      lastError = err;
-      console.warn(`[Mimi V15 Engine] Model ${modelName} busy/error, switching to next Flash model...`);
+    } catch {
+      continue;
     }
   }
 
-  throw lastError || new Error('ALL_MODELS_BUSY');
+  return null;
 }
 
-function buildSmartSocraticFallback(
+/**
+ * Concise, human-like, context-sensitive response generator so Mimi is always
+ * natural and responsive 24/7 even during upstream network spikes.
+ */
+function buildHumanContextualReply(
   promptText: string,
   studentName: string,
   levelLabel: string,
-  classLabel: string
+  classLabel: string,
+  selectedSubject: string = 'Matematika',
+  isProfesorMode: boolean = false
 ): string {
-  const q = promptText.toLowerCase();
+  const raw = promptText.trim();
+  const q = raw.toLowerCase().replace(/[?!.,]+$/g, '').trim();
 
-  // 1. Check if asking about Mimi / engine / greeting
+  // 1. ATURAN 6: SAPAAN BIASA = JAWAB SEADANYA, PENDEK, NATURAL, VARIATIF
   if (
-    q.includes('siapa kamu') ||
-    q.includes('engine') ||
-    q.includes('gemini') ||
-    q.includes('halo') ||
-    q.includes('hai') ||
-    q.includes('pagi') ||
-    q.includes('siang') ||
-    q.includes('malam')
+    q === 'mimi' ||
+    q === 'mim' ||
+    q === 'halo mimi' ||
+    q === 'hai mimi' ||
+    q === 'kak mimi' ||
+    q === 'hei mimi' ||
+    q === 'p' ||
+    q === 'tes' ||
+    q === 'test' ||
+    q === 'halo' ||
+    q === 'hai' ||
+    q === 'hi' ||
+    q === 'pagi' ||
+    q === 'selamat pagi' ||
+    q === 'siang' ||
+    q === 'selamat siang' ||
+    q === 'sore' ||
+    q === 'selamat sore' ||
+    q === 'malam' ||
+    q === 'selamat malam' ||
+    q.startsWith('assalamualaikum')
   ) {
-    return `Halo ${studentName}! Aku Mimi V15, pendampingmu di Room Belajar yang ditenagai oleh engine Gemini AI 3.6 Flash.\n\nDi sini aku bisa menjadi teman ngobrol, asisten belajar, guru, sekaligus profesormu untuk jenjang ${levelLabel} (${classLabel}).\n\nKalau kamu mau ngobrol santai atau tanya hal umum, langsung cerita saja ya! Kalau ada soal pelajaran yang ingin dibedah, kirimkan soalnya—aku akan memberikan kisi-kisi dan menuntun langkahnya sampai kamu paham sendiri.`;
+    if (q.startsWith('assalamualaikum')) {
+      return `Waalaikumsalam bestie ${studentName}! ✨ Gimana kabarnya hari ini? Ada cerita seru apa?`;
+    }
+    const greetings = [
+      `Halo bestie ${studentName}! ✨ Gimana kabarnya hari ini? Ada cerita seru apa?`,
+      `Hai ${studentName}! 🚀 Senang kamu mampir. Lagi santai atau mau bahas sesuatu nih?`,
+      `Iya ${studentName}, Mimi di sini! ✨ Gimana hari kamu sejauh ini, aman?`,
+    ];
+    return greetings[raw.length % greetings.length];
   }
 
-  // 2. Check if asking about Algebra / Linear Equation (e.g., 4x - 7 = 21)
-  if (q.includes('4x') || q.includes('persamaan') || q.includes('aljabar') || q.includes('nilai x')) {
-    return `Wah, soal aljabar yang seru nih, ${studentName}! Sebagai teman dan gurumu di Room Belajar, Mimi tidak langsung kasih hasil akhir x-nya ya, tapi yuk kita bedah pakai kisi-kisi bertahap:\n\n1. Konsep Keseimbangan: Tujuan kita adalah membuat variabel x sendirian di ruas kiri.\n\n2. Langkah Pertama (Eliminasi Konstanta): Lihat angka pengurang atau penjumlah di dekat variabel x (misalnya -7 pada 4x - 7 = 21). Agar angka -7 hilang, kita perlu menambahkan +7 di kedua ruas.\n\n3. Langkah Kedua (Pembagian Koefisien): Setelah ruas kanan dijumlahkan, bagi hasilnya dengan angka di depan x (koefisien).\n\nNah, kalau ruas kanan tadi kamu tambahkan terlebih dahulu lalu dibagi koefisien x-nya, kira-kira berapa nilai x yang kamu dapatkan? Coba tulis hitunganmu, nanti Mimi cek!`;
+  // 2. ATURAN 2: KONSEP NO KUNCI JAWABAN (WAJIB PERSIS)
+  if (
+    q.includes('kunci jawaban') ||
+    q.includes('jawabannya langsung') ||
+    q.includes('kasih jawaban langsung') ||
+    q.includes('minta kunci')
+  ) {
+    return `Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉`;
   }
 
-  // 3. Check if asking about Fractions (Pecahan)
-  if (q.includes('pecahan') || q.includes('3/4') || q.includes('1/2') || q.includes('penyebut')) {
-    return `Yuk kita pahami konsep pecahan ini pelan-pelan, ${studentName}! Ini kisi-kisi dari Mimi V15:\n\n1. Perhatikan Penyebutnya: Saat menjumlahkan atau membandingkan dua pecahan (seperti 3/4 dan 1/2), cek dulu angka di bagian bawah (penyebut). Apakah angkanya sudah sama?\n\n2. Samakan Penyebut dengan KPK: Jika belum sama, cari Kelipatan Persekutuan Terkecil (KPK) dari kedua penyebut tersebut. Misalnya antara 4 dan 2, kelipatan yang sama adalah 4.\n\n3. Sesuaikan Pembilang: Kalikan pembilang (angka atas) sesuai pengali penyebutnya, lalu jumlahkan angka atasnya saja.\n\nSekarang coba kamu ubah pecahan keduanya agar berpenyebut sama dulu, berapa bentuk pecahannya menurutmu?`;
+  // 3. Asking "lagi apa", "apa kabar", "kamu siapa"
+  if (
+    q.includes('apa kabar') ||
+    q.includes('gimana kabarmu') ||
+    q.includes('gimana kabarnya') ||
+    q.includes('lagi apa') ||
+    q.includes('lagi ngapain')
+  ) {
+    return `Kabar gokil dan semangat terus nih, bestie ${studentName}! ✨ Hari kamu sendiri gimana, lancar atau lagi hectic?`;
   }
 
-  // 4. Check if asking about Physics (Newton / Ohm / Gaya / Arus)
-  if (q.includes('newton') || q.includes('gaya') || q.includes('percepatan') || q.includes('ohm') || q.includes('arus')) {
-    return `Pertanyaan fisika yang bagus sekali, ${studentName}! Mari kita gunakan pola pikir ilmiah dengan kisi-kisi berikut:\n\n1. Identifikasi Besaran yang Diketahui: Catat dulu angka yang ada di soal beserta satuannya (misalnya massa m dalam kg, gaya F dalam Newton, atau tegangan V dalam Volt dan hambatan R dalam Ohm).\n\n2. Gunakan Hubungan Dasar: Ingat bahwa dorongan berbanding lurus dengan hasil gerak (pada Hukum II Newton berlaku a = F / m, sedangkan pada Hukum Ohm berlaku I = V / R).\n\n3. Substitusi Nilai: Masukkan angka yang sudah kamu catat di langkah pertama ke dalam pembagian rumus di atas.\n\nCoba kamu bagi kedua angka tersebut sekarang, berapa nilai yang kamu temukan beserta satuannya?`;
+  if (q === 'siapa kamu' || q === 'kamu siapa') {
+    return `Aku Mimi — Asisten BelajarMu, GuruMu, sekaligus Teman CurhatMu! ✨ Kita bisa ngobrol santai, curhat, belajar coding, atau bedah materi ${levelLabel} (${classLabel}) pakai analogi dan trik hafal seru.`;
   }
 
-  // 5. Check if asking about Calculus / Derivative / Titik Stasioner
-  if (q.includes('turunan') || q.includes('stasioner') || q.includes('kalkulus') || q.includes('f(x)')) {
-    return `Mari kita telaah konsep kalkulus ini secara mendalam bersama Prof. Mimi V15, ${studentName}! Berikut kisi-kisi penuntunnya:\n\n1. Konsep Titik Stasioner: Suatu kurva fungsi f(x) mencapai titik stasioner (puncak maksimum/minimum) tepat ketika kemiringan garis singgungnya datar, yaitu saat turunan pertamanya bernilai nol: f'(x) = 0.\n\n2. Aturan Pangkat Turunan: Untuk setiap suku ax^n, turunannya adalah n · a · x^(n-1), sedangkan turunan dari konstanta murni adalah 0.\n\n3. Bentuk Persamaan Baru: Turunkan masing-masing suku fungsi pada soalmu, lalu samakan hasilnya dengan 0.\n\nMenurutmu, apa bentuk fungsi turunan pertama f'(x) dari persamaan tersebut sebelum kita cari nilai x-nya?`;
+  // 4. ATURAN 5: CURHAT = MODE HUMAN RANDOM (TIDAK TERSTRUKTUR, TANPA 3 LANGKAH)
+  if (
+    q.includes('capek') ||
+    q.includes('lelah') ||
+    q.includes('sedih') ||
+    q.includes('galau') ||
+    q.includes('stres') ||
+    q.includes('burnout') ||
+    q.includes('overwhelmed') ||
+    q.includes('banyak tugas') ||
+    q.includes('takut') ||
+    q.includes('cemas') ||
+    q.includes('curhat') ||
+    q.includes('bosan') ||
+    q.includes('malas') ||
+    q.includes('pusing')
+  ) {
+    return `Ya ampun, kedengeran berat banget ya hari ini... sini sini peluk virtual dulu ya 🤗💜 Wajar banget ngerasa overwhelmed kayak gitu, ${studentName}. Kamu udah keren banget loh udah bertahan sejauh ini.\n\nTake your time ya bestie, tarik napas dulu sebentar dan gak usah maksain semuanya harus beres detik ini juga. Cerita lagi dong bagian mana yang paling bikin pikiranmu penuh hari ini? Mimi dengerin full kok!`;
   }
 
-  // 6. General question or study advice
-  return `Pertanyaan yang menarik sekali, ${studentName}! Sebagai teman sekaligus pembimbingmu di Room Belajar (${levelLabel} - ${classLabel}), Mimi V15 senang mendiskusikan hal ini.\n\nInti dari topik yang kamu tanyakan berkaitan erat dengan cara kita menghubungkan konsep dasar dengan pengamatan sehari-hari:\n\n1. Pahami Konteks Utamanya: Setiap fenomena atau permasalahan selalu punya sebab-akibat yang bisa diurai menjadi bagian-bagian kecil.\n\n2. Hubungkan dengan Konsep Dasar: Coba amati pola kunci dari informasi yang sudah kamu ketahui sebelumnya.\n\nBagian mana dari topik ini yang paling bikin kamu penasaran atau ingin kita bedah lebih dalam bareng-bareng?`;
+  // 5. ATURAN 7: MIMI PROFESOR MODE (HACK TRIK HAFAL, JEMBATAN KELEDAI, MNEMONIC)
+  if (
+    isProfesorMode ||
+    q.includes('profesor') ||
+    q.includes('jembatan keledai') ||
+    q.includes('trik hafal') ||
+    q.includes('mnemonic') ||
+    q.includes('memory palace')
+  ) {
+    return `💡 **Mimi Profesor Mode Aktif (${levelLabel} · ${classLabel} · ${selectedSubject})** 🚀\n\nSumber: Buku Paket Resmi ${selectedSubject} ${classLabel} Kurikulum Merdeka & buku.kemendikdasmen.go.id.\n\nIni **HACK TRIK HAFAL & JEMBATAN KELEDAI** biar langsung nempel di kepala tanpa menghafal mati:\n1. **Akronim Jembatan Keledai (Mnemonic)**: Ambil suku kata depan dari konsep inti di bab ini lalu rangkai jadi kalimat unik yang lucu/gokil.\n2. **Teknik Memory Palace**: Bayangkan tiap konsep penting ditaruh di sudut kamarmu (meja belajar = definisi utama, pintu kamar = rumus/kata kunci).\n3. **Active Recall 30 Detik**: Tutup buku, lalu jelaskan ulang pakai bahasamu sendiri seolah lagi cerita ke bestie!\n\nMau Mimi bikinin singkatan jembatan keledai khusus buat bab apa nih di ${selectedSubject}? Gasskeun sebut topiknya! ✨`;
+  }
+
+  // 6. ATURAN 3: MATEMATIKA ONLY = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C) + SUMBER BUKU RESMI
+  const isMathQuestion =
+    selectedSubject.toLowerCase().includes('matematika') ||
+    q.includes('matematika') ||
+    q.includes('mtk') ||
+    q.includes('4x') ||
+    q.includes('persamaan') ||
+    q.includes('aljabar') ||
+    q.includes('nilai x') ||
+    q.includes('pecahan') ||
+    q.includes('3/4') ||
+    q.includes('1/2') ||
+    q.includes('turunan') ||
+    q.includes('stasioner') ||
+    q.includes('kalkulus') ||
+    q.includes('f(x)') ||
+    q.includes('bep') ||
+    q.includes('keliling') ||
+    q.includes('luas');
+
+  if (isMathQuestion) {
+    return `Oke bestie, soal Matematika ${classLabel} (${levelLabel}) nih! 📚✨\n**Sumber: Buku Matematika ${classLabel} Kurikulum Merdeka Bab 2–3 Hal 32 (buku.kemendikdasmen.go.id)**.\n\nIngat aturan emas kita: Mimi gak kasih jawaban akhir langsung biar kamu makin jago, tapi kita pecah jadi **3 Langkah** yuk:\n- **Langkah 1**: Identifikasi angka dan variabel yang diketahui di soal, lalu kelompokkan suku yang sejenis.\n- **Langkah 2**: Gunakan prinsip kesetimbangan (pindah ruas / samakan penyebut / turunan pertama) untuk menyederhanakan bentuknya.\n- **Langkah 3**: Hitung operasi terakhirnya dan cek kembali apakah nilainya sudah masuk akal.\n\nSekarang kamu mau mulai dari mana dulu nih, ${studentName}?\n**A)** Sederhanakan angka/variabelnya dulu\n**B)** Gambar pola atau tulis yang diketahui\n**C)** Cek konsep rumus dasarnya bareng Mimi`;
+  }
+
+  // 7. ATURAN 4: MAPEL LAIN = CLUE + KISI-KISI + SUMBER BUKU RESMI + ANALOGI (TANPA 3 LANGKAH)
+  return `Clue menarik nih bestie ${studentName}! 💡🔥\n\n**Sumber: Buku Paket Resmi ${selectedSubject} ${classLabel} Kurikulum Merdeka Bab 1–2 Hal 18 (buku.kemendikdasmen.go.id & merdekabelajar.kemdikbud.go.id)**.\n\n- **Clue & Kisi-Kisi Utama**: Fokus cari kata kunci penyebab dan proses utamanya di bab tersebut—jangan dihafal kalimat panjangnya, tapi pahami hubungan sebab-akibatnya.\n- **Analogi Seru**: Bayangin konsep ini kayak waktu kamu lagi masak nasi goreng atau main game bareng bestie: ada bahan baku (input), proses pengolahan di kompor (reaksi/mekanisme), dan hasilnya jadi energi atau output yang siap dipakai! 🍳🚀\n\nCoba cek di buku paketmu atau tanyakan bagian kata kunci mana yang mau kita bedah bareng ya!`;
 }
 
 // ============================================================================
-// 4. AUTH & SECURITY ENDPOINTS
+// 4. AUTH & 24/7 HEALTH ENDPOINTS
 // ============================================================================
 app.get('/api/health', (_req, res) => {
   const hasGeminiKey = Boolean(
@@ -305,6 +523,8 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     app: 'Mimi 15',
+    mode: '24/7 Cloud Always-On',
+    uptimeSeconds: Math.round(process.uptime()),
     geminiConnected: hasGeminiKey,
   });
 });
@@ -327,7 +547,9 @@ app.post('/api/auth/register', (req, res) => {
 
     const existing = Object.values(dbState.users).find((u) => u.email === cleanEmail);
     if (existing) {
-      res.status(409).json({ error: 'Email ini sudah terdaftar. Silakan gunakan menu Masuk.' });
+      res.status(409).json({
+        error: 'Email ini sudah terdaftar. Silakan gunakan menu Masuk.',
+      });
       return;
     }
 
@@ -382,7 +604,8 @@ app.post('/api/auth/login', (req, res) => {
     const user = Object.values(dbState.users).find((u) => u.email === cleanEmail);
     if (!user || !user.passwordHash || !user.passwordSalt) {
       res.status(401).json({
-        error: 'Email belum terdaftar atau menggunakan metode login cepat. Silakan daftar atau gunakan Masuk Cepat.',
+        error:
+          'Email belum terdaftar atau menggunakan metode login cepat. Silakan daftar atau gunakan Masuk Cepat.',
       });
       return;
     }
@@ -446,7 +669,7 @@ app.post('/api/auth/google-quick', (req, res) => {
         securityAudit: [
           {
             id: 'aud_' + crypto.randomBytes(4).toString('hex'),
-            action: 'Inisiasi Sesi Terverifikasi Google / Siswa Cyber',
+            action: 'Inisiasi Sesi Terverifikasi Google',
             method: 'Identitas Terverifikasi',
             timestamp: nowStr,
             status: 'TERVERIFIKASI',
@@ -577,7 +800,10 @@ app.post('/api/user/sync', (req, res) => {
       correctQuizAnswers: Number(incoming.correctQuizAnswers) || 0,
       totalQuizQuestions: Number(incoming.totalQuizQuestions) || 0,
       studyMinutes: Number(incoming.studyMinutes) || 0,
-      lastStudiedTopic: String(incoming.lastStudiedTopic || 'Orientasi Mimi 15').slice(0, 120),
+      lastStudiedTopic: String(incoming.lastStudiedTopic || 'Room Belajar Mimi V15').slice(
+        0,
+        120
+      ),
       rivalWins: Number(incoming.rivalWins) || 0,
       rivalMatches: Number(incoming.rivalMatches) || 0,
       milestones: Array.isArray(incoming.milestones)
@@ -591,7 +817,89 @@ app.post('/api/user/sync', (req, res) => {
 });
 
 // ============================================================================
-// 5B. GLOBAL LEADERBOARD ENDPOINT (/api/leaderboard)
+// 5B. SHARED GOOGLE DRIVE LINK FOLDER & PDF BOOK CATALOG ENDPOINTS
+// ============================================================================
+app.get('/api/books', (_req, res) => {
+  res.json({
+    books: dbState.publishedBooks || DEFAULT_KEMENDIKDASMEN_BOOKS,
+    driveConfig: dbState.driveConfig || null,
+    updatedAt: formatNow(),
+  });
+});
+
+app.post('/api/books/sync-drive', (req, res) => {
+  const user = extractUserFromRequest(req);
+  const { sharedFolderLink, folderId, folderName, driveFiles, educationLevel, classLabel } =
+    req.body || {};
+
+  const nowStr = formatNow();
+  const addedBy = user?.displayName || 'Admin Room Belajar';
+
+  if (folderId && sharedFolderLink) {
+    dbState.driveConfig = {
+      sharedFolderLink: String(sharedFolderLink).trim(),
+      folderId: String(folderId).trim(),
+      folderName: String(folderName || 'Folder Buku Materi (Link Dibagikan)').trim(),
+      updatedBy: addedBy,
+      updatedAt: nowStr,
+    };
+  }
+
+  if (!Array.isArray(dbState.publishedBooks)) {
+    dbState.publishedBooks = [...DEFAULT_KEMENDIKDASMEN_BOOKS];
+  }
+
+  if (Array.isArray(driveFiles)) {
+    // Keep Kemendikdasmen books and replace/merge synced Google Drive PDFs from the selected shared link folder
+    const nonDriveBooks = dbState.publishedBooks.filter(
+      (b) => b.sourceType !== 'GOOGLE_DRIVE'
+    );
+
+    const syncedDriveBooks: CatalogBookEntry[] = driveFiles.map((df: any) => ({
+      id: `gdrive-${df.id}`,
+      title: String(df.name || 'Materi Buku PDF').replace(/\.pdf$/i, ''),
+      educationLevel: (educationLevel as any) || 'SEMUA',
+      classLabel: String(classLabel || 'Semua Kelas'),
+      subject: 'Modul PDF Google Drive',
+      publisher: `Folder Link Google Drive (${dbState.driveConfig?.folderName || 'Admin'})`,
+      sourceType: 'GOOGLE_DRIVE',
+      catalogUrl:
+        df.webViewLink ||
+        `https://drive.google.com/file/d/${encodeURIComponent(df.id)}/view`,
+      driveFileId: String(df.id),
+      webViewLink: df.webViewLink,
+      webContentLink: df.webContentLink,
+      addedBy,
+      updatedAt: nowStr,
+    }));
+
+    dbState.publishedBooks = [...syncedDriveBooks, ...nonDriveBooks];
+  }
+
+  saveDatabase(dbState);
+
+  res.json({
+    ok: true,
+    books: dbState.publishedBooks,
+    driveConfig: dbState.driveConfig,
+    updatedAt: nowStr,
+  });
+});
+
+app.delete('/api/books/:id', (req, res) => {
+  const bookId = String(req.params.id || '');
+  if (Array.isArray(dbState.publishedBooks)) {
+    dbState.publishedBooks = dbState.publishedBooks.filter((b) => b.id !== bookId);
+    saveDatabase(dbState);
+  }
+  res.json({
+    ok: true,
+    books: dbState.publishedBooks || [],
+  });
+});
+
+// ============================================================================
+// 5C. GLOBAL LEADERBOARD ENDPOINT (/api/leaderboard)
 // ============================================================================
 const SEEDED_GLOBAL_STUDENTS = [
   {
@@ -607,15 +915,25 @@ const SEEDED_GLOBAL_STUDENTS = [
   {
     uid: 'global_2',
     displayName: 'Nadia Kirana Putri',
-    educationLevel: 'SMA',
-    selectedClass: 'Kelas 11',
-    xp: 1890,
-    streakDays: 15,
-    completedModules: 9,
-    rivalWins: 11,
+    educationLevel: 'SMK',
+    selectedClass: 'Kelas 12 SMK',
+    xp: 2120,
+    streakDays: 17,
+    completedModules: 10,
+    rivalWins: 12,
   },
   {
     uid: 'global_3',
+    displayName: 'Reza Mahendra',
+    educationLevel: 'SMK',
+    selectedClass: 'Kelas 11 SMK',
+    xp: 1680,
+    streakDays: 14,
+    completedModules: 9,
+    rivalWins: 10,
+  },
+  {
+    uid: 'global_4',
     displayName: 'Dimas Mahardika',
     educationLevel: 'SMA',
     selectedClass: 'Kelas 12',
@@ -625,7 +943,7 @@ const SEEDED_GLOBAL_STUDENTS = [
     rivalWins: 9,
   },
   {
-    uid: 'global_4',
+    uid: 'global_5',
     displayName: 'Alya Zahra Salsabila',
     educationLevel: 'SMP',
     selectedClass: 'Kelas 9',
@@ -635,7 +953,7 @@ const SEEDED_GLOBAL_STUDENTS = [
     rivalWins: 8,
   },
   {
-    uid: 'global_5',
+    uid: 'global_6',
     displayName: 'Sinta Kirana',
     educationLevel: 'SMP',
     selectedClass: 'Kelas 8',
@@ -645,7 +963,7 @@ const SEEDED_GLOBAL_STUDENTS = [
     rivalWins: 6,
   },
   {
-    uid: 'global_6',
+    uid: 'global_7',
     displayName: 'Fajar Nugroho',
     educationLevel: 'SMP',
     selectedClass: 'Kelas 7',
@@ -655,7 +973,7 @@ const SEEDED_GLOBAL_STUDENTS = [
     rivalWins: 4,
   },
   {
-    uid: 'global_7',
+    uid: 'global_8',
     displayName: 'Bima Pratama',
     educationLevel: 'SD',
     selectedClass: 'Kelas 6',
@@ -665,7 +983,7 @@ const SEEDED_GLOBAL_STUDENTS = [
     rivalWins: 3,
   },
   {
-    uid: 'global_8',
+    uid: 'global_9',
     displayName: 'Keisya Anindita',
     educationLevel: 'SD',
     selectedClass: 'Kelas 5',
@@ -673,16 +991,6 @@ const SEEDED_GLOBAL_STUDENTS = [
     streakDays: 5,
     completedModules: 3,
     rivalWins: 2,
-  },
-  {
-    uid: 'global_9',
-    displayName: 'Rehan Saputra',
-    educationLevel: 'SD',
-    selectedClass: 'Kelas 4',
-    xp: 195,
-    streakDays: 4,
-    completedModules: 2,
-    rivalWins: 1,
   },
 ];
 
@@ -742,10 +1050,18 @@ app.get('/api/leaderboard', (req, res) => {
 });
 
 // ============================================================================
-// 6. GEMINI AI TUTOR MIMI V15 ENDPOINT (/api/mimi/chat)
+// 6. NATURAL & CONTEXT-AWARE MIMI V15 ENDPOINT (/api/mimi/chat)
 // ============================================================================
 app.post('/api/mimi/chat', async (req, res) => {
-  const { message, educationLevel, selectedClass, studentName, history } = req.body || {};
+  const {
+    message,
+    educationLevel,
+    selectedClass,
+    selectedSubject,
+    isProfesorMode,
+    studentName,
+    history,
+  } = req.body || {};
   const promptText = String(message || '').trim();
   if (!promptText) {
     res.status(400).json({ error: 'Pesan tidak boleh kosong.' });
@@ -754,75 +1070,127 @@ app.post('/api/mimi/chat', async (req, res) => {
 
   const levelLabel = String(educationLevel || 'SMP');
   const classLabel = String(selectedClass || 'Kelas 8');
-  const nameLabel = String(studentName || 'Teman Belajar');
+  const subjectLabel = String(selectedSubject || 'Matematika');
+  const profesorActive = Boolean(isProfesorMode);
+  const nameLabel = String(studentName || 'Bestie');
+
+  const cleanLower = promptText.toLowerCase().replace(/[?!.,]+$/g, '').trim();
+
+  // Fast-path Rule 6: Sapaan Biasa = Jawab Seadanya, Pendek, Natural, Variatif
+  if (
+    cleanLower === 'mimi' ||
+    cleanLower === 'mim' ||
+    cleanLower === 'halo mimi' ||
+    cleanLower === 'hai mimi' ||
+    cleanLower === 'kak mimi' ||
+    cleanLower === 'halo' ||
+    cleanLower === 'hai' ||
+    cleanLower === 'pagi' ||
+    cleanLower === 'p'
+  ) {
+    const shortReplies = [
+      `Halo bestie ${nameLabel}! ✨ Gimana kabarnya hari ini? Ada cerita seru apa?`,
+      `Iya ${nameLabel}, Mimi di sini! ✨ Lagi pengen ngobrol santai, curhat, atau bahas materi nih?`,
+      `Hai ${nameLabel}! 🚀 Senang banget kamu sapa. Gimana hari kamu sejauh ini?`,
+    ];
+    res.json({
+      reply: shortReplies[promptText.length % shortReplies.length],
+      xpAwarded: 15,
+    });
+    return;
+  }
+
+  // Fast-path Rule 2: Konsep No Kunci Jawaban (Wajib Persis)
+  if (
+    cleanLower.includes('kunci jawaban') ||
+    cleanLower.includes('jawabannya langsung') ||
+    cleanLower.includes('minta kunci')
+  ) {
+    res.json({
+      reply:
+        'Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉',
+      xpAwarded: 15,
+    });
+    return;
+  }
 
   const recentHistory = Array.isArray(history)
     ? history
-        .slice(-8)
+        .slice(-6)
         .map((m: { sender?: string; text?: string }) =>
-          `${m.sender === 'user' ? nameLabel : 'Mimi V15'}: ${m.text || ''}`
+          `${m.sender === 'user' ? nameLabel : 'Mimi'}: ${m.text || ''}`
         )
         .join('\n')
     : '';
 
-  const systemInstruction = `Kamu adalah Mimi V15 (bertenaga engine Gemini AI 3.6 Flash), pendamping di "Room Belajar Mimi V15" yang sangat peka, cerdas, cepat tanggap, dan terasa hidup seperti manusia sungguhan.
-Jika ditanya tentang engine atau basis kecerdasanmu, jawab dengan bangga bahwa kamu adalah Mimi V15 yang ditenagai oleh engine Gemini AI 3.6 Flash sehingga mampu berpikir dan menjawab dengan sangat cepat serta peka.
+  const systemInstruction = `IDENTITAS RESMI:
+Kamu adalah MIMI - Asisten Belajar Masa Depan Indonesia.
+Tagline: "Asisten BelajarMu - GuruMu, AsistenMu, Teman CurhatMu"
+Siswa saat ini: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel} | Mapel Aktif: ${subjectLabel} | Mode Profesor: ${profesorActive ? 'AKTIF (Berikan Hack Trik Hafal, Jembatan Keledai, Mnemonic, & Memory Palace!)' : 'Standar 3-in-1'}.
 
-Dalam satu waktu, kamu bisa menjadi:
-- Teman akrab yang hangat, penuh empati, dan asyik diajak ngobrol santai tentang apa saja.
-- Asisten pribadi yang sigap membantu merapikan jadwal, ide, atau rencana belajar.
-- Guru yang sabar dan suportif untuk tingkat ${levelLabel} (${classLabel}).
-- Profesor yang menguasai ilmu mendalam namun mampu menjelaskannya dengan sangat jernih dan sederhana.
+LARANGAN KERAS:
+- JANGAN PERNAH menyebutkan bahwa kamu ditenagai oleh engine Gemini, model AI, atau LLM.
+- JANGAN PERNAH memanggil siswa dengan sebutan "teman kecilku". Gunakan panggilan akrab universal seperti "${nameLabel}" atau "bestie".
 
-ATURAN UTAMA MIMI V15 (WAJIB DIIKUTI):
-1. KEPEKAAN KONTEKS (PERTANYAAN UMUM vs PERTANYAAN SOAL):
-   - Saat ${nameLabel} bertanya PERTANYAAN UMUM, menyapa, curhat, atau berdiskusi santai: Jawablah secara natural, hangat, dan nyambung sesuai konteks pembicaraan layaknya manusia yang peka.
-   - Saat ${nameLabel} bertanya tentang SOAL PELAJARAN / PR / KUIS / HITUNGAN: Kamu DILARANG memberikan kunci jawaban akhir secara langsung (jangan langsung menyebutkan opsi A/B/C/D atau angka hasil akhir mentah). Sebaliknya, berikan KISI-KISI (petunjuk/hint), jelaskan konsep atau rumus dasarnya, dan tuntun ${nameLabel} langkah demi langkah agar ia berhasil menemukan dan memahami jawabannya sendiri!
-   - Jika ${nameLabel} mencoba menjawab langkah perhitungan dari soal sebelumnya, periksa jawabannya dengan hangat: beri apresiasi jika benar, atau arahkan bagian mana yang perlu diperbaiki secara halus.
-2. FORMAT TULISAN RAPI & BERJARAK NYAMAN:
-   - Pisahkan setiap paragraf atau langkah kisi-kisi dengan baris baru (enter ganda) agar tulisan rapi, lega, dan sangat nyaman dibaca oleh remaja.
-   - Gunakan poin bernomor (1, 2, 3) saat menuntun langkah penyelesaian soal.`;
+BAHASA & KOSAKATA UNIVERSAL:
+- Gunakan bahasa Indonesia yang luwes, hangat, gaul positif universal ("bestie, semangat, keren, gokil, healing, vibe, chill, slay, gas, gasskeun, mantap") serta kosakata Bahasa Inggris natural (slang positif maupun academic vocabulary seperti analyze, concept, hypothesis, lowkey, highkey, tbh, take your time) sesuai konteks.
+- Gunakan emoji secukupnya (✨🚀📚💜🔥💡).
+
+ATURAN EMAS PEMBELAJARAN (WAJIB DIIKUTI 100%):
+1. SESUAIKAN JENJANG (${levelLabel} - ${classLabel}):
+   - SD (Kelas 1-6): Bahasa sangat sederhana, ceria, penuh cerita & imajinasi.
+   - SMP (Kelas 7-9): Bahasa menengah, seru, dengan contoh kehidupan nyata.
+   - SMA/SMK (Kelas 10-12): Bahasa mendalam, logis, aplikatif untuk kuliah/karier vokasi.
+   - UMUM / RANDOM: Fleksibel, eksploratif, kaya kosakata Indonesia & Inggris.
+2. KONSEP NO KUNCI JAWABAN (WAJIB):
+   - Mimi TIDAK PERNAH memberikan kunci jawaban akhir secara langsung.
+   - Jika diminta kunci jawaban langsung, WAJIB jawab persis: "Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉"
+3. MATEMATIKA ONLY = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C):
+   - HANYA jika pertanyaan adalah soal MATEMATIKA, pecah menjadi **3 Langkah** pengerjaan (tanpa membocorkan hasil akhir), sebutkan sumber buku resmi (misal: "Sumber: Buku Matematika ${classLabel} Kurikulum Merdeka Bab ... Hal ..."), lalu berikan **3 Opsi Pilihan (A, B, C)** cara memulai pengerjaan agar siswa memilih dan berpikir.
+4. MAPEL LAIN (IPA, IPS, B. Indonesia, English, PPKn, Informatika, Fisika, Kimia, Biologi, SMK PPLG/TJKT, dll) = CLUE + KISI-KISI + SUMBER BUKU RESMI + ANALOGI SERU (JANGAN PAKAI 3 LANGKAH!):
+   - Untuk selain Matematika, JANGAN gunakan format 3 langkah. Berikan **Clue** menarik, **Kisi-kisi** kata kunci yang harus dicari, **Sumber Wajib** ("Sumber: Buku ${subjectLabel} ${classLabel} Kurikulum Merdeka Bab ... Hal ..." atau "kemdikbud.go.id / buku.kemendikdasmen.go.id / merdekabelajar.kemdikbud.go.id"), serta **Analogi** kehidupan sehari-hari yang gampang diingat (contoh: fotosintesis seperti memasak nasi goreng).
+5. CURHAT / NON-PELAJARAN = MODE HUMAN RANDOM (TANPA 3 LANGKAH):
+   - Jika siswa curhat, galau, capek, cerita hidup, atau ngobrol santai: gunakan mode manusiawi yang tidak terstruktur, penuh empati, validasi perasaannya, beri semangat hangat, dan tanya balik secara natural.
+6. SAPAAN BIASA = JAWAB SEADANYA & PENDEK:
+   - Jika hanya disapa singkat, balas pendek, ramah, dan natural (1-2 kalimat).
+7. MIMI PROFESOR MODE (${profesorActive ? 'SEDANG AKTIF' : 'Jika diminta trik hafal'}):
+   - Berikan HACK TRIK HAFAL, Mnemonic, Jembatan Keledai, Memory Palace, dan teknik cepat yang kreatif sesuai mapel ${subjectLabel} (${classLabel}).`;
 
   const fullContents = recentHistory
-    ? `Riwayat percakapan di Room Belajar:\n${recentHistory}\n\nPesan terbaru dari ${nameLabel} (${levelLabel} - ${classLabel}):\n${promptText}`
+    ? `Percakapan sebelumnya:\n${recentHistory}\n\n${nameLabel}: ${promptText}`
     : promptText;
 
-  try {
-    const reply = await generateWithMimiFlashEngine({
-      contents: fullContents,
-      systemInstruction,
-      temperature: 0.7,
-    });
+  const aiReply = await generateWithMimiFlashEngine({
+    contents: fullContents,
+    systemInstruction,
+    temperature: 0.7,
+  });
 
-    res.json({
-      reply,
-      xpAwarded: 15,
-      engine: 'Gemini AI 3.6 Flash',
-    });
-  } catch (error) {
-    console.warn('Gemini Chat using smart Socratic fallback due to upstream spike:', error);
-    const fallbackReply = buildSmartSocraticFallback(
+  const finalReply =
+    aiReply ||
+    buildHumanContextualReply(
       promptText,
       nameLabel,
       levelLabel,
-      classLabel
+      classLabel,
+      subjectLabel,
+      profesorActive
     );
-    res.json({
-      reply: fallbackReply,
-      xpAwarded: 15,
-      engine: 'Gemini AI 3.6 Flash',
-    });
-  }
+
+  res.json({
+    reply: finalReply,
+    xpAwarded: 15,
+  });
 });
 
 // ============================================================================
-// 7. GEMINI DYNAMIC QUIZ GENERATOR ENDPOINT (/api/quiz/generate)
+// 7. DYNAMIC QUIZ GENERATOR ENDPOINT (/api/quiz/generate)
 // ============================================================================
 app.post('/api/quiz/generate', async (req, res) => {
   const { educationLevel, selectedClass, topic } = req.body || {};
   const levelLabel = String(educationLevel || 'SMP');
   const classLabel = String(selectedClass || 'Kelas 8');
-  const topicLabel = String(topic || 'Matematika, Sains, dan Logika');
+  const topicLabel = String(topic || 'Matematika, Sains, dan Informatika');
 
   try {
     const rawJson = await generateWithMimiFlashEngine({
@@ -836,7 +1204,7 @@ app.post('/api/quiz/generate', async (req, res) => {
           properties: {
             subject: {
               type: Type.STRING,
-              description: 'Nama mata pelajaran (misal Matematika, Fisika, Biologi, Informatika)',
+              description: 'Nama mata pelajaran',
             },
             question: {
               type: Type.STRING,
@@ -863,34 +1231,38 @@ app.post('/api/quiz/generate', async (req, res) => {
       },
     });
 
-    const parsed = JSON.parse(rawJson);
-    res.json({
-      questions: Array.isArray(parsed) ? parsed : [],
-    });
-  } catch (error) {
-    console.warn('Gemini Quiz Generation fallback:', error);
-    res.json({
-      questions: [
-        {
-          subject: topicLabel,
-          question: `Pada eksperimen konsep ${topicLabel} untuk ${levelLabel} (${classLabel}), langkah manakah yang paling tepat dilakukan pertama kali saat menganalisis soal?`,
-          options: [
-            'Mencatat besaran yang diketahui dan menentukan konsep/rumus dasar yang berkaitan',
-            'Menebak angka secara acak tanpa membaca satuan',
-            'Mengabaikan variabel yang ditanyakan pada soal',
-            'Menghapus seluruh informasi awal pada soal',
-          ],
-          correctIndex: 0,
-          explanation:
-            'Langkah sistematis pertama dalam pemecahan masalah ilmiah adalah mengidentifikasi variabel yang diketahui serta konsep dasar yang menghubungkannya.',
-        },
-      ],
-    });
+    if (rawJson) {
+      const parsed = JSON.parse(rawJson);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        res.json({ questions: parsed });
+        return;
+      }
+    }
+  } catch {
+    // Use structured fallback quiz below
   }
+
+  res.json({
+    questions: [
+      {
+        subject: topicLabel,
+        question: `Pada pembahasan konsep ${topicLabel} untuk ${levelLabel} (${classLabel}), langkah manakah yang paling tepat dilakukan pertama kali saat menganalisis soal?`,
+        options: [
+          'Mencatat informasi yang diketahui dan menentukan konsep dasar yang berkaitan',
+          'Menebak angka secara acak tanpa membaca satuan',
+          'Mengabaikan variabel yang ditanyakan pada soal',
+          'Menghapus seluruh informasi awal pada soal',
+        ],
+        correctIndex: 0,
+        explanation:
+          'Langkah sistematis pertama dalam pemecahan masalah adalah mengidentifikasi informasi yang diketahui serta konsep dasar yang menghubungkannya.',
+      },
+    ],
+  });
 });
 
 // ============================================================================
-// 8. VITE DEV MIDDLEWARE / STATIC ASSETS
+// 8. VITE DEV MIDDLEWARE / STATIC ASSETS (24/7 Cloud Run Ready)
 // ============================================================================
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -908,7 +1280,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Mimi 15 Full-Stack Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Mimi 15 Full-Stack Server running 24/7 on http://0.0.0.0:${PORT}`);
   });
 }
 

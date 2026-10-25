@@ -9,15 +9,25 @@ import {
   RotateCcw,
   X,
   ArrowRight,
+  BookOpen,
+  Download,
+  ExternalLink,
+  Heart,
+  Code2,
+  FolderSync,
+  Share2,
+  Sparkles,
 } from 'lucide-react';
 import {
+  BottomNavTab,
   EducationLevel,
   LearningMilestone,
   LevelItem,
   MimiUiState,
   StudyProgress,
 } from '../../types/mimi';
-import { CLASSES_BY_LEVEL } from '../../data/curriculumData';
+import { CLASSES_BY_LEVEL, SUBJECTS_BY_LEVEL } from '../../data/curriculumData';
+import { downloadGeneratedModulePdf } from '../../services/googleDriveService';
 
 interface HomeScreenProps {
   uiState: MimiUiState;
@@ -26,12 +36,16 @@ interface HomeScreenProps {
   milestones: LearningMilestone[];
   onSelectEducationLevel: (level: EducationLevel) => void;
   onSelectClass: (cls: string) => void;
+  onSelectSubject: (subject: string) => void;
+  onToggleProfesorMode: () => void;
   onLevelClick: (levelItem: LevelItem) => void;
   onCompleteLevel: (levelItem: LevelItem) => void;
   onCloseLevelModal: () => void;
   onAskMimiTopic: (topicPrompt: string) => void;
   onAddMilestone: (title: string, xp: number) => void;
   onDeleteMilestone: (id: string) => void;
+  onNavigateTab: (tab: BottomNavTab) => void;
+  onOpenBookDriveHub: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -41,19 +55,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   milestones,
   onSelectEducationLevel,
   onSelectClass,
+  onSelectSubject,
+  onToggleProfesorMode,
   onLevelClick,
   onCompleteLevel,
   onCloseLevelModal,
   onAskMimiTopic,
   onAddMilestone,
   onDeleteMilestone,
+  onNavigateTab,
+  onOpenBookDriveHub,
 }) => {
   const [milestoneTitle, setMilestoneTitle] = useState('');
   const [milestoneXp, setMilestoneXp] = useState(40);
+  const [shareToast, setShareToast] = useState<string | null>(null);
 
   const activeModal = uiState.activeLevelModal;
-  const [simValue, setSimValue] = useState<number>(activeModal?.simulation.defaultValue ?? 5);
-  const [selectedPracticeOpt, setSelectedPracticeOpt] = useState<number | null>(null);
+  const [simValue, setSimValue] = useState<number>(
+    activeModal?.simulation.defaultValue ?? 5
+  );
+  const [selectedPracticeOpt, setSelectedPracticeOpt] = useState<number | null>(
+    null
+  );
 
   const openModuleModal = (item: LevelItem) => {
     setSimValue(item.simulation.defaultValue);
@@ -70,114 +93,206 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const availableClasses = CLASSES_BY_LEVEL[uiState.selectedEducationLevel] || [];
+  const availableSubjects = SUBJECTS_BY_LEVEL[uiState.selectedEducationLevel] || [];
   const completedCount = levels.filter((l) =>
     studyProgress.completedLevelIds.includes(l.id)
   ).length;
 
+  const handleSharePublicWebsiteLink = async () => {
+    const publicUrl = window.location.origin;
+    const shareText = `Yuk belajar seru bareng MIMI - Asisten Belajar Masa Depan Indonesia ("Asisten BelajarMu - GuruMu, AsistenMu, Teman CurhatMu")! Klik langsung tanpa ribet: ${publicUrl}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'MIMI — Asisten Belajar Masa Depan Indonesia',
+          text: shareText,
+          url: publicUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(publicUrl);
+      }
+      setShareToast('Link Website Publik berhasil disalin! Siapa pun yang membuka link ini bisa langsung melihat & belajar.');
+      setTimeout(() => setShareToast(null), 4500);
+    } catch {
+      try {
+        await navigator.clipboard.writeText(publicUrl);
+        setShareToast('Link Website Publik berhasil disalin! Siapa pun bisa langsung mengakses website ini.');
+        setTimeout(() => setShareToast(null), 4500);
+      } catch {
+        // Ignore
+      }
+    }
+  };
+
   return (
     <div className="space-y-9 pb-12">
-      {/* 1. Hero Student Welcome Card (Spacious & Tactile) */}
+      {/* 1. Hero Student Welcome Card */}
       <section className="p-7 sm:p-9 card-study space-y-7">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/80 pb-6">
           <div className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2 text-xs text-sky-400 font-semibold tracking-wide">
-              <span>Room Belajar Bersama Mimi V15</span>
+              <span>MIMI — Asisten Belajar Masa Depan Indonesia</span>
               <span aria-hidden="true">·</span>
-              <span>Engine Gemini AI 3.6 Flash</span>
-              <span aria-hidden="true">·</span>
-              <span>{uiState.cyberRank}</span>
+              <span className="text-emerald-400">
+                ● Asisten BelajarMu - GuruMu, AsistenMu, Teman CurhatMu
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
-              Halo {uiState.studentName}, Yuk Belajar Bareng Mimi V15!
+              Halo bestie {uiState.studentName}! ✨ Semangat Belajar Hari Ini!
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
-              Mimi V15 siap menjadi teman ngobrol, asisten, guru, sekaligus profesormu. Materi terakhir dipelajari:{' '}
-              <span className="text-white font-semibold">{studyProgress.lastStudiedTopic}</span>
+              Sumber resmi Buku Paket Kemendikbud Kurikulum Merdeka (SD, SMP, SMA, SMK & Umum). Aktivitas terakhir:{' '}
+              <span className="text-white font-semibold">
+                {studyProgress.lastStudiedTopic}
+              </span>
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={() =>
-                onAskMimiTopic(
-                  `Halo Mimi V15! Kita ngobrol dan bahas kisi-kisi materi penting untuk ${uiState.selectedEducationLevel} ${uiState.selectedClass} yuk.`
-                )
-              }
-              className="px-5 py-3 rounded-2xl btn-tactile-emerald font-extrabold text-xs flex items-center gap-2.5 whitespace-nowrap shrink-0"
+              onClick={handleSharePublicWebsiteLink}
+              className="px-4 py-3 rounded-2xl btn-tactile-sky font-extrabold text-xs flex items-center gap-2 whitespace-nowrap shrink-0"
+              title="Salin link website publik yang bisa langsung dilihat semua orang"
+            >
+              <Share2 className="w-4 h-4 shrink-0" />
+              <span>Bagikan Link Website</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenBookDriveHub}
+              className="px-4 py-3 rounded-2xl btn-tactile-slate font-extrabold text-xs flex items-center gap-2 whitespace-nowrap shrink-0"
+            >
+              <FolderSync className="w-4 h-4 text-sky-400 shrink-0" />
+              <span>Buku PDF, Drive & Classroom</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onAskMimiTopic('Halo Mimi!')}
+              className="px-5 py-3 rounded-2xl btn-tactile-emerald font-extrabold text-xs flex items-center gap-2 whitespace-nowrap shrink-0"
             >
               <MessageSquare className="w-4 h-4 shrink-0" />
-              <span>Ngobrol & Minta Kisi-Kisi</span>
+              <span>Chat Bareng Mimi</span>
             </button>
           </div>
         </div>
 
-        {/* 4-Column Quantitative Telemetry Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
-          <div className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800/90 space-y-1">
-            <div className="text-xs text-slate-400">Total Poin Belajar</div>
-            <div className="text-2xl font-extrabold font-mono text-sky-400 tabular-nums">
-              {uiState.xp} XP
-            </div>
-            <div className="text-xs text-slate-500 tabular-nums">
-              {150 - (uiState.xp % 150)} XP ke Level {uiState.level + 1}
-            </div>
+        {shareToast && (
+          <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex items-center justify-between gap-2">
+            <span>✅ {shareToast}</span>
+            <span className="font-mono text-[11px] text-emerald-300">
+              {typeof window !== 'undefined' ? window.location.origin : ''}
+            </span>
           </div>
+        )}
 
-          <div className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800/90 space-y-1">
-            <div className="text-xs text-slate-400">Jalur {uiState.selectedEducationLevel}</div>
-            <div className="text-2xl font-extrabold font-mono text-emerald-400 tabular-nums">
-              {completedCount} / {levels.length}
+        {/* 3 Featured Hub Cards: Curhat Manusiawi, Belajar Coding, & Katalog Buku PDF Kemendikdasmen/Drive */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            type="button"
+            onClick={() => onNavigateTab(BottomNavTab.CURHAT)}
+            className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800 hover:border-pink-400/60 text-left transition-all flex flex-col justify-between gap-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-pink-400 flex items-center gap-1.5">
+                <Heart className="w-4 h-4" />
+                <span>Kolom Cerita Santai & Curhat</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-400" />
             </div>
-            <div className="text-xs text-slate-500">
-              Unit & Simulasi Selesai
+            <div className="space-y-1">
+              <div className="text-sm font-extrabold text-white">
+                Teman Cerita yang Peka & Manusiawi
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Lagi capek belajar, kepikiran sesuatu, atau cuma pengen ngobrol santai? Curhat ke Mimi di sini.
+              </p>
             </div>
-          </div>
+          </button>
 
-          <div className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800/90 space-y-1">
-            <div className="text-xs text-slate-400">Streak Harian</div>
-            <div className="text-2xl font-extrabold font-mono text-amber-400 tabular-nums">
-              {uiState.streakDays} Hari
+          <button
+            type="button"
+            onClick={() => onNavigateTab(BottomNavTab.CODING)}
+            className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800 hover:border-sky-400/60 text-left transition-all flex flex-col justify-between gap-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-sky-400 flex items-center gap-1.5">
+                <Code2 className="w-4 h-4" />
+                <span>Kolom Belajar Coding</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-400" />
             </div>
-            <div className="text-xs text-slate-500 tabular-nums">
-              Durasi {studyProgress.studyMinutes} menit
+            <div className="space-y-1">
+              <div className="text-sm font-extrabold text-white">
+                Praktik JavaScript, Python & Web
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Editor kode interaktif lengkap dengan buku resmi PPLG Kemendikdasmen, MDN, & Eloquent JS.
+              </p>
             </div>
-          </div>
+          </button>
 
-          <div className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800/90 space-y-1">
-            <div className="text-xs text-slate-400">Target Mandiri</div>
-            <div className="text-2xl font-extrabold font-mono text-white tabular-nums">
-              {milestones.length} Target
+          <button
+            type="button"
+            onClick={onOpenBookDriveHub}
+            className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800 hover:border-emerald-400/60 text-left transition-all flex flex-col justify-between gap-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-emerald-400 flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4" />
+                <span>Unduh Buku PDF & Google Drive</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-400" />
             </div>
-            <div className="text-xs text-slate-500">
-              Jurnal Room Belajar
+            <div className="space-y-1">
+              <div className="text-sm font-extrabold text-white">
+                Katalog Kemendikdasmen & Link Drive
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Unduh materi PDF SD–SMA/SMK dan sinkronisasi otomatis dari link folder Google Drive & Classroom.
+              </p>
             </div>
-          </div>
+          </button>
         </div>
       </section>
 
-      {/* 2. Education Level (SD / SMP / SMA) & Class Selector */}
+      {/* 2. Hierarchy Selection: Tingkatan (SD / SMP / SMA / SMK / UMUM) -> Kelas -> Mata Pelajaran + Mimi Profesor Mode */}
       <section className="p-7 card-study space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="space-y-1">
-            <h2 className="text-lg font-extrabold text-white">Pilih Jenjang & Kelas Belajar</h2>
+            <h2 className="text-lg font-extrabold text-white">
+              Pilih Tingkatan, Kelas & Mata Pelajaran (SD, SMP, SMA, SMK & Umum)
+            </h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Seluruh jalur belajar, simulasi, dan gaya bahasa Mimi V15 otomatis menyesuaikan kelasmu
+              Sumber Wajib: Buku Paket Resmi Kemendikbud Kurikulum Merdeka (
+              <a
+                href="https://buku.kemendikdasmen.go.id/daftar-katalog"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:underline"
+              >
+                buku.kemendikdasmen.go.id
+              </a>
+              ) · Matematika = 3 Langkah + 3 Opsi A/B/C · Mapel Lain = Clue + Kisi + Sumber + Analogi Seru
             </p>
           </div>
 
-          {/* Interactive Segmented Control for SD / SMP / SMA */}
-          <div className="flex items-center gap-1.5 p-1.5 bg-[#0B101E] border-2 border-slate-800 rounded-2xl self-start">
+          {/* Interactive Segmented Control for SD / SMP / SMA / SMK / UMUM */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-[#0B101E] border-2 border-slate-800 rounded-2xl self-start">
             {[
-              { id: EducationLevel.SD, label: 'SD (Kelas 1–6)' },
-              { id: EducationLevel.SMP, label: 'SMP (Kelas 7–9)' },
-              { id: EducationLevel.SMA, label: 'SMA (Kelas 10–12)' },
+              { id: EducationLevel.SD, label: 'SD (1–6)' },
+              { id: EducationLevel.SMP, label: 'SMP (7–9)' },
+              { id: EducationLevel.SMA, label: 'SMA (10–12)' },
+              { id: EducationLevel.SMK, label: 'SMK (10–12)' },
+              { id: EducationLevel.UMUM, label: 'UMUM / Random' },
             ].map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => onSelectEducationLevel(item.id)}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 ${
+                className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 ${
                   uiState.selectedEducationLevel === item.id
                     ? 'bg-sky-400 text-slate-950'
                     : 'text-slate-400 hover:text-white'
@@ -189,9 +304,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
 
-        {/* Class Buttons */}
+        {/* Step 2: Class Buttons */}
         <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-slate-800/70">
-          <span className="text-xs font-semibold text-slate-400 mr-2">Kelas Aktif:</span>
+          <span className="text-xs font-semibold text-slate-400 mr-2">
+            1. Pilih Kelas:
+          </span>
           {availableClasses.map((cls) => {
             const active = uiState.selectedClass === cls;
             return (
@@ -199,7 +316,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 key={cls}
                 type="button"
                 onClick={() => onSelectClass(cls)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                   active
                     ? 'btn-tactile-sky'
                     : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
@@ -210,17 +327,74 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             );
           })}
         </div>
+
+        {/* Step 3: Subject Buttons + Mimi Profesor Mode Toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-slate-800/70">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-400 mr-1">
+              2. Pilih Mapel:
+            </span>
+            {availableSubjects.map((subj) => {
+              const active = uiState.selectedSubject === subj;
+              return (
+                <button
+                  key={subj}
+                  type="button"
+                  onClick={() => onSelectSubject(subj)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                    active
+                      ? 'bg-emerald-400 text-slate-950 font-extrabold'
+                      : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  {subj}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={onToggleProfesorMode}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${
+                uiState.isProfesorMode
+                  ? 'bg-amber-400 text-slate-950 shadow-lg'
+                  : 'bg-[#0B101E] text-amber-300 border border-amber-400/50 hover:bg-slate-900'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>
+                {uiState.isProfesorMode
+                  ? 'Mimi Profesor Mode: AKTIF'
+                  : 'Aktifkan Mimi Profesor Mode'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                onAskMimiTopic(
+                  `Mimi Profesor, kasih aku HACK TRIK HAFAL & Jembatan Keledai buat mapel ${uiState.selectedSubject} (${uiState.selectedClass}) dong! 🚀`
+                )
+              }
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 whitespace-nowrap shrink-0"
+            >
+              Minta Hack Hafal
+            </button>
+          </div>
+        </div>
       </section>
 
-      {/* 3. Duolingo-Inspired Interactive Learning Path Units */}
+      {/* 3. Interactive Learning Path Units with Official Published Book Sources & PDF Download */}
       <section className="space-y-5">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="space-y-1">
             <h2 className="text-xl font-extrabold text-white">
-              Jalur Belajar & Simulasi Interaktif ({uiState.selectedEducationLevel})
+              Modul Buku Resmi & Simulasi ({uiState.selectedEducationLevel})
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Pilih unit di bawah ini untuk mencoba laboratorium simulasi dan minta kisi-kisi ke Mimi V15
+              Setiap unit dilengkapi rujukan buku resmi Kemendikdasmen, tombol Unduh PDF, dan laboratorium interaktif
             </p>
           </div>
           <span className="text-xs font-mono font-bold text-emerald-400 tabular-nums">
@@ -234,7 +408,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             return (
               <div
                 key={lvl.id}
-                className="p-7 card-study hover:border-slate-700 transition-colors flex flex-col justify-between gap-6"
+                className="p-7 card-study hover:border-slate-700 transition-colors flex flex-col justify-between gap-5"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-400">
@@ -243,7 +417,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         Unit 0{lvl.levelNumber}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span className="font-semibold text-slate-300">{lvl.subject}</span>
+                      <span className="font-semibold text-slate-300">
+                        {lvl.subject}
+                      </span>
                       <span aria-hidden="true">·</span>
                       <span>{lvl.classRange}</span>
                     </div>
@@ -258,32 +434,73 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                     {lvl.subtitle}
                   </p>
+
+                  {/* Official Published Book Citation Badge */}
+                  <div className="p-3.5 rounded-xl bg-[#0B101E] border border-slate-800/90 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-amber-400 font-bold">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                        <span>Sumber Buku Teks Terbitan Resmi</span>
+                      </span>
+                      <a
+                        href={lvl.bookSource.catalogUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-400 hover:underline flex items-center gap-1 shrink-0"
+                      >
+                        <span>Katalog</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <div className="text-xs font-bold text-slate-100 leading-snug">
+                      {lvl.bookSource.title} ({lvl.bookSource.year})
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {lvl.bookSource.authorOrPublisher}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="pt-5 border-t border-slate-800/80 flex items-center justify-between gap-4">
-                  <div className="text-xs text-slate-400 flex items-center gap-2">
-                    {isDone ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span className="text-emerald-400 font-bold">Unit Tuntas</span>
-                      </>
-                    ) : (
-                      <span className="font-mono tabular-nums">
-                        {lvl.estimatedMinutes} menit · Simulasi Interaktif
-                      </span>
-                    )}
-                  </div>
-
+                <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => openModuleModal(lvl)}
-                    className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-2 whitespace-nowrap shrink-0 ${
-                      isDone ? 'btn-tactile-slate' : 'btn-tactile-sky'
-                    }`}
+                    onClick={() =>
+                      downloadGeneratedModulePdf({
+                        title: lvl.title,
+                        level: lvl.educationLevel,
+                        classRange: lvl.classRange,
+                        subject: lvl.subject,
+                        bookTitle: lvl.bookSource.title,
+                        publisher: lvl.bookSource.authorOrPublisher,
+                        catalogUrl: lvl.bookSource.catalogUrl,
+                        summaryPoints: lvl.summaryPoints,
+                        formula: lvl.simulation.formulaDisplay,
+                      })
+                    }
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0"
                   >
-                    <Play className="w-3.5 h-3.5 shrink-0" />
-                    <span>{isDone ? 'Ulangi Unit' : 'Mulai Belajar'}</span>
+                    <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Unduh Materi PDF</span>
                   </button>
+
+                  <div className="flex items-center gap-2.5">
+                    {isDone && (
+                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>Tuntas</span>
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openModuleModal(lvl)}
+                      className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                        isDone ? 'btn-tactile-slate' : 'btn-tactile-sky'
+                      }`}
+                    >
+                      <Play className="w-3.5 h-3.5 shrink-0" />
+                      <span>{isDone ? 'Ulangi Unit' : 'Mulai Belajar'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -295,7 +512,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <section className="p-7 card-study space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="space-y-1">
-            <h2 className="text-lg font-extrabold text-white">Jurnal Target Belajar Harian</h2>
+            <h2 className="text-lg font-extrabold text-white">
+              Jurnal Target Belajar Harian
+            </h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
               Catat target belajar yang sudah kamu capai hari ini untuk klaim bonus XP
             </p>
@@ -305,13 +524,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </span>
         </div>
 
-        <form onSubmit={handleCreateMilestone} className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
+        <form
+          onSubmit={handleCreateMilestone}
+          className="grid grid-cols-1 sm:grid-cols-12 gap-3.5"
+        >
           <div className="sm:col-span-7">
             <input
               type="text"
               value={milestoneTitle}
               onChange={(e) => setMilestoneTitle(e.target.value)}
-              placeholder="Contoh: Membahas kisi-kisi PR aljabar bersama Mimi V15..."
+              placeholder="Contoh: Membaca bab pecahan dari buku Kemendikdasmen..."
               className="w-full px-4 py-3 text-xs sm:text-sm bg-[#0B101E] border-2 border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-400"
             />
           </div>
@@ -387,6 +609,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <h2 className="text-xl sm:text-2xl font-extrabold text-white">
                   {activeModal.title}
                 </h2>
+                <div className="text-xs text-slate-400">
+                  Sumber Buku: <strong className="text-slate-200">{activeModal.bookSource.title}</strong> ({activeModal.bookSource.authorOrPublisher})
+                </div>
               </div>
               <button
                 type="button"
@@ -404,7 +629,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="lg:col-span-7 p-6 rounded-2xl bg-[#0B101E] border-2 border-slate-800 flex flex-col justify-between space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
                   <div className="space-y-0.5">
-                    <div className="text-xs text-slate-400">Laboratorium Simulasi Interaktif</div>
+                    <div className="text-xs text-slate-400">
+                      Laboratorium Simulasi Interaktif
+                    </div>
                     <div className="text-sm font-extrabold text-white">
                       {activeModal.simulation.title}
                     </div>
@@ -439,10 +666,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     {Array.from({ length: 12 }).map((_, idx) => {
                       const ratio =
                         (simValue - activeModal.simulation.min) /
-                        Math.max(1, activeModal.simulation.max - activeModal.simulation.min);
+                        Math.max(
+                          1,
+                          activeModal.simulation.max - activeModal.simulation.min
+                        );
                       const activeBars = Math.max(1, Math.round(ratio * 12));
                       const isFilled = idx < activeBars;
-                      const isTargetReached = simValue === activeModal.simulation.targetValue;
+                      const isTargetReached =
+                        simValue === activeModal.simulation.targetValue;
                       return (
                         <div
                           key={idx}
@@ -481,7 +712,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </label>
                     <button
                       type="button"
-                      onClick={() => setSimValue(activeModal.simulation.defaultValue)}
+                      onClick={() =>
+                        setSimValue(activeModal.simulation.defaultValue)
+                      }
                       className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
                     >
                       <RotateCcw className="w-3 h-3" />
@@ -507,7 +740,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Right Zone: Concept Deck & Practice Verification (5 cols) */}
               <div className="lg:col-span-5 flex flex-col justify-between space-y-5">
                 <div className="p-6 rounded-2xl bg-[#0B101E] border-2 border-slate-800 space-y-4">
-                  <h3 className="text-sm font-extrabold text-white">Intisari Konsep Utama</h3>
+                  <h3 className="text-sm font-extrabold text-white">
+                    Intisari Konsep Utama
+                  </h3>
                   <ul className="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
                     {activeModal.summaryPoints.map((pt, i) => (
                       <li key={i} className="flex items-start gap-2.5">
@@ -531,14 +766,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <div className="space-y-2">
                     {activeModal.practiceQuestion.options.map((opt, idx) => {
                       const isPicked = selectedPracticeOpt === idx;
-                      const isRight = idx === activeModal.practiceQuestion.correctIndex;
+                      const isRight =
+                        idx === activeModal.practiceQuestion.correctIndex;
                       let btnStyle =
                         'bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700';
                       if (selectedPracticeOpt !== null) {
                         if (isRight) {
-                          btnStyle = 'bg-emerald-950/70 border-emerald-500/60 text-emerald-200';
+                          btnStyle =
+                            'bg-emerald-950/70 border-emerald-500/60 text-emerald-200';
                         } else if (isPicked) {
-                          btnStyle = 'bg-red-950/70 border-red-500/60 text-red-200';
+                          btnStyle =
+                            'bg-red-950/70 border-red-500/60 text-red-200';
                         }
                       }
                       return (
@@ -565,19 +803,42 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Modal Footer Actions */}
             <div className="flex flex-wrap items-center justify-between gap-4 pt-5 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  onCloseLevelModal();
-                  onAskMimiTopic(
-                    `Mimi V15, tuntun aku memahami materi "${activeModal.title}" (${uiState.selectedEducationLevel} ${uiState.selectedClass}) dan beri aku 1 soal latihan dengan kisi-kisinya ya!`
-                  );
-                }}
-                className="px-5 py-3 rounded-2xl btn-tactile-slate text-xs font-bold flex items-center gap-2 whitespace-nowrap shrink-0"
-              >
-                <MessageSquare className="w-4 h-4 text-sky-400 shrink-0" />
-                <span>Minta Kisi-Kisi ke Mimi V15</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCloseLevelModal();
+                    onAskMimiTopic(
+                      `Mimi, kasih aku kisi-kisi singkat buat memahami materi "${activeModal.title}" dong.`
+                    );
+                  }}
+                  className="px-4 py-3 rounded-2xl btn-tactile-slate text-xs font-bold flex items-center gap-2 whitespace-nowrap shrink-0"
+                >
+                  <MessageSquare className="w-4 h-4 text-sky-400 shrink-0" />
+                  <span>Tanya Kisi-Kisi ke Mimi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadGeneratedModulePdf({
+                      title: activeModal.title,
+                      level: activeModal.educationLevel,
+                      classRange: activeModal.classRange,
+                      subject: activeModal.subject,
+                      bookTitle: activeModal.bookSource.title,
+                      publisher: activeModal.bookSource.authorOrPublisher,
+                      catalogUrl: activeModal.bookSource.catalogUrl,
+                      summaryPoints: activeModal.summaryPoints,
+                      formula: activeModal.simulation.formulaDisplay,
+                    })
+                  }
+                  className="px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-2 whitespace-nowrap shrink-0"
+                >
+                  <Download className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Unduh PDF Materi Ini</span>
+                </button>
+              </div>
 
               <button
                 type="button"

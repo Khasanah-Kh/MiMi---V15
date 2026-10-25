@@ -254,12 +254,13 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
       <section className="p-6 rounded-2xl bg-[#0F172A] border border-slate-800/90 space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Segmented Jenjang Filter */}
-          <div className="flex items-center gap-1 p-1 bg-[#0B1120] border border-slate-800 rounded-xl w-fit">
+          <div className="flex flex-wrap items-center gap-1 p-1 bg-[#0B1120] border border-slate-800 rounded-xl w-fit">
             {[
               { id: 'ALL', label: 'Semua Jenjang' },
               { id: EducationLevel.SD, label: 'SD' },
               { id: EducationLevel.SMP, label: 'SMP' },
               { id: EducationLevel.SMA, label: 'SMA' },
+              { id: EducationLevel.SMK, label: 'SMK' },
             ].map((tab) => (
               <button
                 key={tab.id}

@@ -1,13 +1,14 @@
 import React from 'react';
 import {
   Home,
+  Heart,
+  Code2,
   Swords,
   Trophy,
   HelpCircle,
-  Award,
   UserCheck,
   MessageSquare,
-  GitBranch,
+  BookOpen,
   PanelRightClose,
   PanelRightOpen,
 } from 'lucide-react';
@@ -18,12 +19,13 @@ const NAV_ITEMS: Array<{
   label: string;
   icon: React.FC<{ className?: string }>;
 }> = [
-  { tab: BottomNavTab.BERANDA, label: 'Beranda', icon: Home },
+  { tab: BottomNavTab.BERANDA, label: 'Beranda & Modul', icon: Home },
+  { tab: BottomNavTab.CURHAT, label: 'Cerita & Curhat', icon: Heart },
+  { tab: BottomNavTab.CODING, label: 'Belajar Coding', icon: Code2 },
+  { tab: BottomNavTab.PERINGKAT, label: 'Peringkat Global', icon: Trophy },
   { tab: BottomNavTab.TANTANGAN, label: 'Tantangan', icon: Swords },
-  { tab: BottomNavTab.PERINGKAT, label: 'Peringkat', icon: Trophy },
-  { tab: BottomNavTab.KUIS, label: 'Kuis', icon: HelpCircle },
-  { tab: BottomNavTab.LENCANA, label: 'Lencana', icon: Award },
-  { tab: BottomNavTab.PROFIL, label: 'Profil', icon: UserCheck },
+  { tab: BottomNavTab.KUIS, label: 'Kuis Adaptif', icon: HelpCircle },
+  { tab: BottomNavTab.PROFIL, label: 'Profil & Akun', icon: UserCheck },
 ];
 
 interface CyberNavigationRailProps {
@@ -46,10 +48,10 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
   const xpProgress = Math.min(100, Math.round(((uiState.xp % 150) / 150) * 100));
 
   return (
-    <aside className="w-72 shrink-0 h-full bg-[#131C31] border-r-2 border-slate-800/90 flex flex-col justify-between p-6 select-none">
-      <div className="space-y-7">
+    <aside className="w-72 shrink-0 h-full bg-[#131C31] border-r-2 border-slate-800/90 flex flex-col justify-between p-6 select-none overflow-y-auto">
+      <div className="space-y-6">
         {/* Brand Identity */}
-        <div className="pb-5 border-b border-slate-800/80 space-y-1.5">
+        <div className="pb-4 border-b border-slate-800/80 space-y-1.5">
           <div className="text-xl font-extrabold tracking-tight text-white whitespace-nowrap">
             Room Belajar Mimi V15
           </div>
@@ -58,7 +60,9 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
             <span aria-hidden="true">·</span>
             <span>{uiState.selectedClass}</span>
             <span aria-hidden="true">·</span>
-            <span className="font-mono text-sky-400 font-bold tabular-nums">Lv.{uiState.level}</span>
+            <span className="font-mono text-sky-400 font-bold tabular-nums">
+              Lv.{uiState.level}
+            </span>
           </div>
         </div>
 
@@ -84,8 +88,8 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
           </div>
         </div>
 
-        {/* Navigation Links (Duolingo-inspired spacious pill/rounded-2xl buttons) */}
-        <nav className="space-y-2" aria-label="Menu Utama">
+        {/* Navigation Links */}
+        <nav className="space-y-1.5" aria-label="Menu Utama">
           {NAV_ITEMS.map(({ tab, label, icon: Icon }) => {
             const isActive = currentTab === tab;
             return (
@@ -93,7 +97,7 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
                 key={tab}
                 type="button"
                 onClick={() => onTabSelected(tab)}
-                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
+                className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'btn-tactile-sky'
                     : 'text-slate-300 hover:bg-slate-800/70 hover:text-white border-2 border-transparent'
@@ -108,7 +112,7 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
       </div>
 
       {/* Bottom Action Controls */}
-      <div className="space-y-3 pt-5 border-t border-slate-800/80">
+      <div className="space-y-2.5 pt-5 border-t border-slate-800/80">
         <button
           type="button"
           onClick={onToggleChat}
@@ -117,7 +121,7 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
           }`}
         >
           <MessageSquare className="w-4 h-4 shrink-0" />
-          <span>{isChatOpen ? 'Tutup Chat Mimi V15' : 'Tanya Mimi V15'}</span>
+          <span>{isChatOpen ? 'Tutup Chat Mimi' : 'Ngobrol dengan Mimi'}</span>
         </button>
 
         <button
@@ -125,8 +129,8 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
           onClick={onOpenShareHub}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold btn-tactile-slate whitespace-nowrap shrink-0"
         >
-          <GitBranch className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-          <span>GitHub & Bagikan Web</span>
+          <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+          <span>Buku PDF, Drive & Classroom</span>
         </button>
       </div>
     </aside>
@@ -152,20 +156,22 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
   onToggleDock,
   onOpenShareHub,
 }) => {
-  // Strictly adheres to the 3-Zone Top Bar Contract
   return (
-    <header className="w-full flex items-center justify-between gap-8 px-8 py-4 bg-[#131C31] border-b-2 border-slate-800/90 shrink-0">
+    <header className="w-full flex items-center justify-between gap-6 px-8 py-4 bg-[#131C31] border-b-2 border-slate-800/90 shrink-0">
       {/* Zone 1: Brand Title */}
       <button
         type="button"
         onClick={() => onSelectTab(BottomNavTab.BERANDA)}
-        className="text-lg font-extrabold tracking-tight text-white whitespace-nowrap shrink-0 text-left"
+        className="text-lg font-extrabold tracking-tight text-white whitespace-nowrap shrink-0 text-left flex items-center gap-2"
       >
-        Mimi V15
+        <span>Mimi V15</span>
+        <span className="text-[11px] font-semibold text-emerald-400 px-2 py-0.5 rounded-md bg-emerald-950/60 border border-emerald-700/50">
+          ● Aktif 24 Jam
+        </span>
       </button>
 
       {/* Zone 2: 5 Single-Line Navigation Links */}
-      <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold text-slate-400">
+      <nav className="hidden xl:flex items-center gap-6 text-sm font-semibold text-slate-400">
         {NAV_ITEMS.slice(0, 5).map(({ tab, label }) => {
           const active = uiState.currentTab === tab;
           return (
@@ -211,9 +217,10 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
         <button
           type="button"
           onClick={onOpenShareHub}
-          className="px-3.5 py-2 text-xs font-bold rounded-xl btn-tactile-slate whitespace-nowrap shrink-0"
+          className="px-3.5 py-2 text-xs font-bold rounded-xl btn-tactile-slate flex items-center gap-1.5 whitespace-nowrap shrink-0"
         >
-          GitHub & Laporan
+          <BookOpen className="w-3.5 h-3.5 text-sky-400" />
+          <span>Buku PDF & Classroom</span>
         </button>
 
         <button
@@ -221,7 +228,7 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
           onClick={onToggleChat}
           className="px-4 py-2 text-xs font-extrabold rounded-xl btn-tactile-sky whitespace-nowrap shrink-0"
         >
-          {isChatOpen ? 'Tutup Mimi V15' : 'Tanya Mimi V15'}
+          {isChatOpen ? 'Tutup Mimi' : 'Ngobrol dengan Mimi'}
         </button>
       </div>
     </header>
@@ -237,12 +244,21 @@ export const CyberBottomBar: React.FC<CyberBottomBarProps> = ({
   currentTab,
   onTabSelected,
 }) => {
+  const mobileItems = [
+    { tab: BottomNavTab.BERANDA, label: 'Beranda', icon: Home },
+    { tab: BottomNavTab.CURHAT, label: 'Curhat', icon: Heart },
+    { tab: BottomNavTab.CODING, label: 'Coding', icon: Code2 },
+    { tab: BottomNavTab.PERINGKAT, label: 'Peringkat', icon: Trophy },
+    { tab: BottomNavTab.KUIS, label: 'Kuis', icon: HelpCircle },
+    { tab: BottomNavTab.PROFIL, label: 'Profil', icon: UserCheck },
+  ];
+
   return (
     <nav
       aria-label="Navigasi Bawah"
-      className="w-full bg-[#131C31] border-t-2 border-slate-800 px-2 py-2 grid grid-cols-6 gap-1.5 shrink-0 z-30"
+      className="w-full bg-[#131C31] border-t-2 border-slate-800 px-2 py-2 grid grid-cols-6 gap-1 shrink-0 z-30"
     >
-      {NAV_ITEMS.map(({ tab, label, icon: Icon }) => {
+      {mobileItems.map(({ tab, label, icon: Icon }) => {
         const isActive = currentTab === tab;
         return (
           <button
@@ -289,7 +305,7 @@ export const MimiFloatingDockWidget: React.FC<MimiFloatingDockWidgetProps> = ({
         className="flex items-center gap-2.5 px-5 py-3.5 rounded-2xl btn-tactile-emerald font-extrabold text-xs shadow-xl whitespace-nowrap shrink-0"
       >
         <MessageSquare className="w-4 h-4 shrink-0" />
-        <span>Ngobrol bareng Mimi V15 (+15 XP)</span>
+        <span>Ngobrol bareng Mimi (+15 XP)</span>
       </button>
     </div>
   );

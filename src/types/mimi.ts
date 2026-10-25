@@ -1,10 +1,29 @@
 export enum BottomNavTab {
   BERANDA = 'BERANDA',
+  CURHAT = 'CURHAT',
+  CODING = 'CODING',
   TANTANGAN = 'TANTANGAN',
   PERINGKAT = 'PERINGKAT',
   KUIS = 'KUIS',
   LENCANA = 'LENCANA',
   PROFIL = 'PROFIL',
+}
+
+export enum EducationLevel {
+  SD = 'SD',
+  SMP = 'SMP',
+  SMA = 'SMA',
+  SMK = 'SMK',
+  UMUM = 'UMUM',
+}
+
+export interface BookReference {
+  title: string;
+  authorOrPublisher: string;
+  year: string;
+  catalogUrl: string;
+  companionBookTitle?: string;
+  companionBookUrl?: string;
 }
 
 export interface LeaderboardEntry {
@@ -22,14 +41,14 @@ export interface LeaderboardEntry {
   isCurrentUser?: boolean;
 }
 
-export enum EducationLevel {
-  SD = 'SD',
-  SMP = 'SMP',
-  SMA = 'SMA',
-}
-
 export interface SimulationConfig {
-  type: 'RATIO_LAB' | 'CIRCUIT_LOGIC' | 'NEWTON_FORCE' | 'FRACTION_VISUAL' | 'CYBER_CIPHER' | 'ALGEBRA_BALANCE';
+  type:
+    | 'RATIO_LAB'
+    | 'CIRCUIT_LOGIC'
+    | 'NEWTON_FORCE'
+    | 'FRACTION_VISUAL'
+    | 'CYBER_CIPHER'
+    | 'ALGEBRA_BALANCE';
   title: string;
   parameterLabel: string;
   unit: string;
@@ -55,6 +74,7 @@ export interface LevelItem {
   isUnlocked: boolean;
   isCompleted: boolean;
   summaryPoints: string[];
+  bookSource: BookReference;
   practiceQuestion: {
     question: string;
     options: string[];
@@ -62,6 +82,34 @@ export interface LevelItem {
     explanation: string;
   };
   simulation: SimulationConfig;
+}
+
+export interface CodingLessonItem {
+  id: string;
+  title: string;
+  language: 'JavaScript' | 'Python' | 'HTML & CSS' | 'TypeScript & Web API';
+  levelTag: string;
+  summary: string;
+  starterCode: string;
+  expectedExplanation: string;
+  sampleOutput: string;
+  challengePrompt: string;
+  xpReward: number;
+  bookReference: {
+    title: string;
+    author: string;
+    url: string;
+  };
+}
+
+export interface CodingResourceBook {
+  id: string;
+  title: string;
+  author: string;
+  publisher: string;
+  category: string;
+  description: string;
+  url: string;
 }
 
 export interface StudyProgress {
@@ -154,6 +202,8 @@ export interface MimiUiState {
   currentTab: BottomNavTab;
   selectedEducationLevel: EducationLevel;
   selectedClass: string;
+  selectedSubject: string;
+  isProfesorMode: boolean;
   studentName: string;
   studentEmail: string;
   xp: number;

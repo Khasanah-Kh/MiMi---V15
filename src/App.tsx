@@ -9,6 +9,8 @@ import {
   BadgeItem,
   BottomNavTab,
   ChatMessage,
+  CodingLessonItem,
+  CurhatJournalEntry,
   EducationLevel,
   LeaderboardEntry,
   LearningMilestone,
@@ -25,6 +27,7 @@ import {
   INITIAL_MILESTONES,
   INITIAL_QUIZ_QUESTIONS,
   INITIAL_RIVALS,
+  SUBJECTS_BY_LEVEL,
   calculateCyberRank,
   calculateLevelFromXp,
   getSuggestedPromptsForLevel,
@@ -42,6 +45,8 @@ import {
   MimiDesktopFloatingChatWindow,
 } from './components/MimiChat';
 import { HomeScreen } from './components/screens/HomeScreen';
+import { CurhatScreen } from './components/screens/CurhatScreen';
+import { CodingScreen } from './components/screens/CodingScreen';
 import { TantanganScreen } from './components/screens/TantanganScreen';
 import { PeringkatScreen } from './components/screens/PeringkatScreen';
 import { KuisScreen } from './components/screens/KuisScreen';
@@ -57,15 +62,36 @@ function formatShortTime(): string {
   });
 }
 
+// Default public student profile so when the website link is shared,
+// EVERYONE immediately sees and can use the full Mimi 15 application!
+const PUBLIC_DEFAULT_USER: AuthUser = {
+  uid: 'usr_public_visitor',
+  email: 'pelajar.indonesia@mimi15.id',
+  displayName: 'Bestie Pelajar',
+  authMethod: 'GOOGLE_VERIFIED',
+  hasSecurityPin: false,
+  createdAt: 'Hari ini',
+  lastLoginAt: 'Aktif 24 Jam (Akses Publik)',
+  securityAudit: [
+    {
+      id: 'aud_public_1',
+      action: 'Akses Link Website Publik (Terlihat Bagi Semua Orang)',
+      method: 'Sesi Publik Otomatis',
+      timestamp: formatShortTime(),
+      status: 'TERVERIFIKASI',
+    },
+  ],
+};
+
 export default function App() {
   // ==========================================================================
-  // 1. AUTHENTICATION STATE (RootAppNavigation equivalent)
+  // 1. PUBLIC-FIRST AUTHENTICATION STATE (Visible to Everyone via Shared Link)
   // ==========================================================================
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser>(PUBLIC_DEFAULT_USER);
   const [sessionToken, setSessionToken] = useState<string | null>(() =>
     localStorage.getItem(TOKEN_STORAGE_KEY)
   );
-  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [showSignInModal, setShowSignInModal] = useState<boolean>(false);
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
   const [signInError, setSignInError] = useState<string | null>(null);
 
@@ -77,6 +103,9 @@ export default function App() {
     EducationLevel.SMP
   );
   const [selectedClass, setSelectedClass] = useState<string>('Kelas 8');
+  const [selectedSubject, setSelectedSubject] = useState<string>('Matematika');
+  const [isProfesorMode, setIsProfesorMode] = useState<boolean>(false);
+
   const [xp, setXp] = useState<number>(120);
   const [streakDays, setStreakDays] = useState<number>(3);
   const [rivalWins, setRivalWins] = useState<number>(0);
@@ -90,11 +119,25 @@ export default function App() {
     correctQuizAnswers: 0,
     totalQuizQuestions: 0,
     studyMinutes: 25,
-    lastStudiedTopic: 'Orientasi Ekosistem Mimi 15',
+    lastStudiedTopic: 'Kurikulum Merdeka Kemendikbud',
     lastUpdated: 'Baru saja',
   });
 
   const [milestones, setMilestones] = useState<LearningMilestone[]>(INITIAL_MILESTONES);
+
+  // Curhat Journal & Coding Lesson states
+  const [curhatEntries, setCurhatEntries] = useState<CurhatJournalEntry[]>([
+    {
+      id: 'curhat-init-1',
+      mood: 'Semangat',
+      storyText:
+        'Senang banget hari ini bisa belajar bareng Mimi pakai cara yang seru dan gak membosankan!',
+      mimiWarmReply:
+        'Wah ikut senang banget dengernya bestie! ✨ Pertahankan energi positifmu ya, kalau nanti capek jangan lupa istirahat sebentar. Mimi selalu siap nemenin kamu kapan aja! 💜🚀',
+      createdAt: 'Hari ini',
+    },
+  ]);
+  const [completedCodingIds, setCompletedCodingIds] = useState<string[]>([]);
 
   // Chat & Dock states
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
@@ -105,7 +148,7 @@ export default function App() {
     {
       id: 'welcome-mimi',
       sender: 'mimi',
-      text: 'Halo! Selamat datang di Room Belajar. Aku Mimi V15 — aku bisa jadi teman ngobrol, asisten, guru, sekaligus profesormu. Kalau mau ngobrol santai atau tanya hal umum, langsung cerita saja ya! Kalau ada soal pelajaran yang bikin bingung, kirim ke sini nanti aku bantu kasih kisi-kisi dan tuntun langkahnya sampai kamu paham sendiri.',
+      text: 'Halo bestie! ✨ Aku MIMI — Asisten BelajarMu, GuruMu, sekaligus Teman CurhatMu! Mau ngobrol santai, curhat, minta Hack Trik Hafal ala Profesor, atau bahas soal pelajaran dari Buku Paket Resmi Kemendikbud? Langsung chat Mimi aja ya! 🚀📚💜',
       timestamp: formatShortTime(),
     },
   ]);
@@ -141,7 +184,7 @@ export default function App() {
   }, []);
 
   // ==========================================================================
-  // 3. HYDRATE USER DATA HELPER
+  // 3. HYDRATE USER DATA HELPER & AUTO-ESTABLISH PUBLIC SESSION
   // ==========================================================================
   const applyServerUserData = useCallback((userData: Record<string, any> | null) => {
     if (!userData) return;
@@ -186,45 +229,55 @@ export default function App() {
           ? userData.studyMinutes
           : prev.studyMinutes,
       lastStudiedTopic: userData.lastStudiedTopic || prev.lastStudiedTopic,
-      lastUpdated: new Date().toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+      lastUpdated: formatShortTime(),
     }));
   }, []);
 
-  // Verify existing session on startup
+  // Verify existing session or automatically create a public visitor session so
+  // shared links ALWAYS open directly into the full website for everyone!
   useEffect(() => {
-    async function verifySession() {
-      if (!sessionToken) {
-        setIsAuthChecking(false);
-        return;
-      }
+    async function initPublicOrSavedSession() {
       try {
-        const res = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${sessionToken}` },
-        });
-        if (!res.ok) {
+        if (sessionToken) {
+          const res = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${sessionToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setAuthUser(data.user);
+            applyServerUserData(data.userData);
+            return;
+          }
           localStorage.removeItem(TOKEN_STORAGE_KEY);
-          setSessionToken(null);
-          setAuthUser(null);
-        } else {
-          const data = await res.json();
+        }
+
+        // Auto-create/join a public session so anyone opening the shared link
+        // immediately sees the full website and leaderboard without a login wall
+        const quickRes = await fetch('/api/auth/google-quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName: 'Bestie Pelajar',
+            email: 'pelajar.publik@mimi15.id',
+          }),
+        });
+        if (quickRes.ok) {
+          const data = await quickRes.json();
+          localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+          setSessionToken(data.token);
           setAuthUser(data.user);
           applyServerUserData(data.userData);
         }
       } catch {
-        // Keep offline session graceful
-      } finally {
-        setIsAuthChecking(false);
+        // Keep PUBLIC_DEFAULT_USER gracefully if offline
       }
     }
-    verifySession();
+    initPublicOrSavedSession();
   }, [sessionToken, applyServerUserData]);
 
   // Sync progress to server whenever key metrics change
   useEffect(() => {
-    if (!authUser || !sessionToken) return;
+    if (!sessionToken) return;
     const timeout = setTimeout(() => {
       fetch('/api/user/sync', {
         method: 'POST',
@@ -253,7 +306,6 @@ export default function App() {
     }, 400);
     return () => clearTimeout(timeout);
   }, [
-    authUser,
     sessionToken,
     xp,
     streakDays,
@@ -266,11 +318,10 @@ export default function App() {
   ]);
 
   const fetchLeaderboard = useCallback(async () => {
-    if (!sessionToken) return;
     setIsLeaderboardLoading(true);
     try {
       const res = await fetch('/api/leaderboard', {
-        headers: { Authorization: `Bearer ${sessionToken}` },
+        headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {},
       });
       if (res.ok) {
         const data = await res.json();
@@ -289,13 +340,11 @@ export default function App() {
   }, [sessionToken]);
 
   useEffect(() => {
-    if (authUser && sessionToken) {
-      fetchLeaderboard();
-    }
-  }, [authUser, sessionToken, currentTab, fetchLeaderboard]);
+    fetchLeaderboard();
+  }, [currentTab, fetchLeaderboard]);
 
   // ==========================================================================
-  // 4. AUTHENTICATION HANDLERS
+  // 4. AUTHENTICATION HANDLERS (For Optional Account Switch / Login Modal)
   // ==========================================================================
   const handleLoginEmail = async (email: string, password: string) => {
     setIsSigningIn(true);
@@ -315,6 +364,7 @@ export default function App() {
       setSessionToken(data.token);
       setAuthUser(data.user);
       applyServerUserData(data.userData);
+      setShowSignInModal(false);
     } catch {
       setSignInError('Gagal terhubung ke server autentikasi.');
     } finally {
@@ -345,6 +395,7 @@ export default function App() {
       setSessionToken(data.token);
       setAuthUser(data.user);
       applyServerUserData(data.userData);
+      setShowSignInModal(false);
     } catch {
       setSignInError('Gagal menghubungi server pendaftaran.');
     } finally {
@@ -370,6 +421,7 @@ export default function App() {
       setSessionToken(data.token);
       setAuthUser(data.user);
       applyServerUserData(data.userData);
+      setShowSignInModal(false);
     } catch {
       setSignInError('Gagal memulai sesi masuk cepat.');
     } finally {
@@ -378,16 +430,7 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    if (sessionToken) {
-      fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${sessionToken}` },
-      }).catch(() => {});
-    }
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    setSessionToken(null);
-    setAuthUser(null);
-    setCurrentTab(BottomNavTab.BERANDA);
+    setShowSignInModal(true);
   };
 
   const handleUpdateProfileSecurity = async (
@@ -395,7 +438,10 @@ export default function App() {
     newPassword?: string,
     securityPin?: string
   ): Promise<string | null> => {
-    if (!sessionToken) return 'Sesi tidak valid.';
+    if (!sessionToken) {
+      setAuthUser((prev) => ({ ...prev, displayName }));
+      return null;
+    }
     try {
       const res = await fetch('/api/auth/update-profile', {
         method: 'POST',
@@ -427,7 +473,9 @@ export default function App() {
   const handleSelectEducationLevel = (lvl: EducationLevel) => {
     setSelectedEducationLevel(lvl);
     const defaultCls = CLASSES_BY_LEVEL[lvl]?.[0] || 'Kelas 7';
+    const defaultSubj = SUBJECTS_BY_LEVEL[lvl]?.[0] || 'Matematika';
     setSelectedClass(defaultCls);
+    setSelectedSubject(defaultSubj);
     setCustomAiQuizzes(null);
     setCurrentQuizIndex(0);
     setSelectedQuizAnswer(null);
@@ -437,6 +485,22 @@ export default function App() {
 
   const handleSelectClass = (cls: string) => {
     setSelectedClass(cls);
+  };
+
+  const handleSelectSubject = (subj: string) => {
+    setSelectedSubject(subj);
+  };
+
+  const handleToggleProfesorMode = () => {
+    setIsProfesorMode((prev) => {
+      const next = !prev;
+      triggerXpToast(
+        next
+          ? 'Mimi Profesor Mode AKTIF! (Hack Trik Hafal & Jembatan Keledai)'
+          : 'Mode Standar 3-in-1 Mimi Aktif'
+      );
+      return next;
+    });
   };
 
   const currentLevels = useMemo(() => {
@@ -490,7 +554,7 @@ export default function App() {
   ]);
 
   // ==========================================================================
-  // 6. INTERACTION HANDLERS (MODULES, MILESTONES, QUIZ, ARENA, MIMI CHAT)
+  // 6. INTERACTION HANDLERS (MODULES, CURHAT, CODING, QUIZ, ARENA, MIMI CHAT)
   // ==========================================================================
   const handleCompleteLevel = (levelItem: LevelItem) => {
     const alreadyDone = studyProgress.completedLevelIds.includes(levelItem.id);
@@ -529,6 +593,71 @@ export default function App() {
 
   const handleDeleteMilestone = (id: string) => {
     setMilestones((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const handleAddCurhatEntry = async (
+    mood: CurhatJournalEntry['mood'],
+    storyText: string
+  ) => {
+    try {
+      const res = await fetch('/api/mimi/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Mimi, hari ini perasaanku lagi "${mood}". Aku mau curhat: ${storyText}`,
+          educationLevel: selectedEducationLevel,
+          selectedClass,
+          selectedSubject: 'Curhat & Perasaan',
+          isProfesorMode: false,
+          studentName: authUser.displayName,
+          history: [],
+        }),
+      });
+      const data = await res.json();
+      const warmReply =
+        res.ok && data.reply
+          ? data.reply
+          : `Makasih udah cerita jujur ke Mimi ya, bestie ${authUser.displayName} 🤗💜 Perasaan "${mood}" yang kamu rasain hari ini valid banget. Take your time dan semangat terus ya!`;
+
+      const newEntry: CurhatJournalEntry = {
+        id: 'curhat_' + Date.now(),
+        mood,
+        storyText,
+        mimiWarmReply: warmReply,
+        createdAt: formatShortTime(),
+      };
+      setCurhatEntries((prev) => [newEntry, ...prev]);
+      setXp((prev) => prev + 25);
+      triggerXpToast('Cerita curhatmu disimpan hangat oleh Mimi (+25 XP)');
+    } catch {
+      const fallbackEntry: CurhatJournalEntry = {
+        id: 'curhat_' + Date.now(),
+        mood,
+        storyText,
+        mimiWarmReply: `Peluk virtual dulu buat bestie ${authUser.displayName} 🤗💜 Makasih udah berbagi cerita hari ini, Mimi selalu dengerin kamu!`,
+        createdAt: formatShortTime(),
+      };
+      setCurhatEntries((prev) => [fallbackEntry, ...prev]);
+    }
+  };
+
+  const handleDeleteCurhatEntry = (id: string) => {
+    setCurhatEntries((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const handleCompleteCodingLesson = (lesson: CodingLessonItem) => {
+    const alreadyDone = completedCodingIds.includes(lesson.id);
+    const reward = alreadyDone ? 15 : lesson.xpReward;
+    if (!alreadyDone) {
+      setCompletedCodingIds((prev) => [...prev, lesson.id]);
+    }
+    setXp((prev) => prev + reward);
+    setStudyProgress((prev) => ({
+      ...prev,
+      lastStudiedTopic: `Coding: ${lesson.title}`,
+      lastUpdated: formatShortTime(),
+    }));
+    triggerXpToast(`Latihan Coding "${lesson.language}" berhasil! (+${reward} XP)`);
   };
 
   const handleAnswerQuiz = (optionIndex: number) => {
@@ -582,7 +711,7 @@ export default function App() {
         body: JSON.stringify({
           educationLevel: selectedEducationLevel,
           selectedClass,
-          topic: customTopic,
+          topic: customTopic || selectedSubject,
         }),
       });
       const data = await res.json();
@@ -592,7 +721,7 @@ export default function App() {
             id: `ai-q-${Date.now()}-${index}`,
             educationLevel: selectedEducationLevel,
             classLabel: selectedClass,
-            subject: String(q.subject || 'Evaluasi AI'),
+            subject: String(q.subject || selectedSubject),
             question: String(q.question || ''),
             options: Array.isArray(q.options) ? q.options.slice(0, 4) : [],
             correctIndex: Number(q.correctIndex) || 0,
@@ -648,7 +777,9 @@ export default function App() {
           message: text,
           educationLevel: selectedEducationLevel,
           selectedClass,
-          studentName: authUser?.displayName || 'Teman Belajar',
+          selectedSubject,
+          isProfesorMode,
+          studentName: authUser.displayName || 'Bestie',
           history: chatMessages.slice(-8),
         }),
       });
@@ -656,7 +787,7 @@ export default function App() {
       const replyText =
         res.ok && data.reply
           ? data.reply
-          : 'Aku tetap di sini menemanimu di Room Belajar! Coba kirimkan ulang pertanyaanmu atau tulis bagian soal mana yang ingin kita bahas pakai kisi-kisi ya.';
+          : 'Mimi tetap di sini nemenin kamu bestie! ✨ Coba tulis ulang pertanyaan atau topik yang pengen kita bahas bareng ya.';
       const xpGain = res.ok ? Number(data.xpAwarded) || 15 : 15;
 
       const mimiMsg: ChatMessage = {
@@ -669,7 +800,7 @@ export default function App() {
       setChatMessages((prev) => [...prev, mimiMsg]);
       if (xpGain > 0) {
         setXp((prev) => prev + xpGain);
-        triggerXpToast(`Diskusi bersama Tutor Mimi! (+${xpGain} XP)`);
+        triggerXpToast(`Ngobrol bareng Mimi! (+${xpGain} XP)`);
       }
     } catch {
       setChatMessages((prev) => [
@@ -677,7 +808,7 @@ export default function App() {
         {
           id: 'msg_err_' + Date.now(),
           sender: 'mimi',
-          text: 'Koneksi ke server Tutor Mimi sedang terputus. Pastikan koneksi aktif lalu kirim ulang pertanyaanmu ya!',
+          text: 'Koneksi ke server Mimi sedang sibuk sebentar. Coba kirim ulang pesanmu ya bestie!',
           timestamp: formatShortTime(),
         },
       ]);
@@ -698,8 +829,10 @@ export default function App() {
     currentTab,
     selectedEducationLevel,
     selectedClass,
-    studentName: authUser?.displayName || 'Teman Belajar',
-    studentEmail: authUser?.email || '',
+    selectedSubject,
+    isProfesorMode,
+    studentName: authUser.displayName || 'Bestie Pelajar',
+    studentEmail: authUser.email || '',
     xp,
     level: calculateLevelFromXp(xp),
     streakDays,
@@ -723,35 +856,38 @@ export default function App() {
   };
 
   const suggestedPrompts = useMemo(
-    () => getSuggestedPromptsForLevel(selectedEducationLevel, selectedClass),
-    [selectedEducationLevel, selectedClass]
+    () =>
+      getSuggestedPromptsForLevel(
+        selectedEducationLevel,
+        selectedClass,
+        selectedSubject
+      ),
+    [selectedEducationLevel, selectedClass, selectedSubject]
   );
 
   // ==========================================================================
-  // 8. RENDER AUTH GATE OR MAIN MIMI 15 APP
+  // 8. RENDER MAIN MIMI 15 APP (Always Visible to Everyone When Link Shared)
   // ==========================================================================
-  if (isAuthChecking) {
+  if (showSignInModal) {
     return (
-      <div className="min-h-screen w-full bg-[#0B1120] text-slate-200 flex items-center justify-center p-6">
-        <div className="text-center space-y-2">
-          <div className="text-lg font-extrabold text-white">Mimi 15</div>
-          <div className="text-xs text-slate-400">
-            Memverifikasi sesi keamanan terenkripsi...
-          </div>
+      <div className="relative">
+        <div className="fixed top-4 right-4 z-50">
+          <button
+            type="button"
+            onClick={() => setShowSignInModal(false)}
+            className="px-4 py-2 rounded-xl btn-tactile-sky text-xs font-extrabold shadow-lg"
+          >
+            ← Kembali ke Website Publik Mimi
+          </button>
         </div>
+        <SignInScreen
+          isLoading={isSigningIn}
+          errorMessage={signInError}
+          onLoginEmail={handleLoginEmail}
+          onRegisterEmail={handleRegisterEmail}
+          onGoogleQuickSignIn={handleGoogleQuickSignIn}
+        />
       </div>
-    );
-  }
-
-  if (!authUser) {
-    return (
-      <SignInScreen
-        isLoading={isSigningIn}
-        errorMessage={signInError}
-        onLoginEmail={handleLoginEmail}
-        onRegisterEmail={handleRegisterEmail}
-        onGoogleQuickSignIn={handleGoogleQuickSignIn}
-      />
     );
   }
 
@@ -766,12 +902,34 @@ export default function App() {
             milestones={milestones}
             onSelectEducationLevel={handleSelectEducationLevel}
             onSelectClass={handleSelectClass}
+            onSelectSubject={handleSelectSubject}
+            onToggleProfesorMode={handleToggleProfesorMode}
             onLevelClick={(item) => setActiveLevelModal(item)}
             onCompleteLevel={handleCompleteLevel}
             onCloseLevelModal={() => setActiveLevelModal(null)}
             onAskMimiTopic={handleAskMimiTopic}
             onAddMilestone={handleAddMilestone}
             onDeleteMilestone={handleDeleteMilestone}
+            onNavigateTab={setCurrentTab}
+            onOpenBookDriveHub={() => setIsShareHubOpen(true)}
+          />
+        );
+      case BottomNavTab.CURHAT:
+        return (
+          <CurhatScreen
+            studentName={uiState.studentName}
+            entries={curhatEntries}
+            onAddCurhatEntry={handleAddCurhatEntry}
+            onDeleteCurhatEntry={handleDeleteCurhatEntry}
+            onOpenDirectChatWithMimi={handleAskMimiTopic}
+          />
+        );
+      case BottomNavTab.CODING:
+        return (
+          <CodingScreen
+            completedCodingIds={completedCodingIds}
+            onCompleteCodingLesson={handleCompleteCodingLesson}
+            onAskMimiCoding={handleAskMimiTopic}
           />
         );
       case BottomNavTab.TANTANGAN:
@@ -888,8 +1046,12 @@ export default function App() {
                 suggestedPrompts={suggestedPrompts}
                 selectedLevel={selectedEducationLevel}
                 selectedClass={selectedClass}
+                selectedSubject={selectedSubject}
+                isProfesorMode={isProfesorMode}
                 onSelectLevel={handleSelectEducationLevel}
                 onSelectClass={handleSelectClass}
+                onSelectSubject={handleSelectSubject}
+                onToggleProfesorMode={handleToggleProfesorMode}
                 onSendMessage={handleSendMessageToMimi}
                 latestXpNotification={latestXpNotification}
               />
@@ -908,8 +1070,12 @@ export default function App() {
               suggestedPrompts={suggestedPrompts}
               selectedLevel={selectedEducationLevel}
               selectedClass={selectedClass}
+              selectedSubject={selectedSubject}
+              isProfesorMode={isProfesorMode}
               onSelectLevel={handleSelectEducationLevel}
               onSelectClass={handleSelectClass}
+              onSelectSubject={handleSelectSubject}
+              onToggleProfesorMode={handleToggleProfesorMode}
               onSendMessage={handleSendMessageToMimi}
               latestXpNotification={latestXpNotification}
             />
@@ -921,9 +1087,9 @@ export default function App() {
         // ══════════════════════════════════════════════════════════════════
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
           {/* Compact Mobile Header */}
-          <header className="px-4 py-3 bg-[#0F172A] border-b border-slate-800 flex items-center justify-between gap-4 shrink-0">
-            <div className="text-base font-extrabold text-white whitespace-nowrap shrink-0">
-              Mimi 15
+          <header className="px-4 py-3 bg-[#0F172A] border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
+            <div className="text-sm font-extrabold text-white whitespace-nowrap shrink-0">
+              MIMI · Asisten BelajarMu
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -931,7 +1097,7 @@ export default function App() {
                 onClick={() => setIsShareHubOpen(true)}
                 className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-medium text-slate-200 whitespace-nowrap shrink-0"
               >
-                Laporan
+                Buku PDF & Share
               </button>
               <span className="font-mono text-xs font-bold text-sky-400 tabular-nums">
                 {xp} XP
@@ -962,8 +1128,12 @@ export default function App() {
             suggestedPrompts={suggestedPrompts}
             selectedLevel={selectedEducationLevel}
             selectedClass={selectedClass}
+            selectedSubject={selectedSubject}
+            isProfesorMode={isProfesorMode}
             onSelectLevel={handleSelectEducationLevel}
             onSelectClass={handleSelectClass}
+            onSelectSubject={handleSelectSubject}
+            onToggleProfesorMode={handleToggleProfesorMode}
             onSendMessage={handleSendMessageToMimi}
             latestXpNotification={latestXpNotification}
           />
