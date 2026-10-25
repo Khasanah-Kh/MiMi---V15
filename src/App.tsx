@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   AuthUser,
   BadgeItem,
@@ -1023,7 +1024,17 @@ export default function App() {
                   isChatOpen && isChatDocked ? 'max-w-3xl' : 'max-w-5xl'
                 }`}
               >
-                {renderActiveScreen()}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentTab}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                  >
+                    {renderActiveScreen()}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </main>
 
@@ -1106,7 +1117,17 @@ export default function App() {
           </header>
 
           <main className="flex-1 overflow-y-auto px-4 py-4">
-            {renderActiveScreen()}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentTab}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+              >
+                {renderActiveScreen()}
+              </motion.div>
+            </AnimatePresence>
           </main>
 
           <MimiFloatingDockWidget

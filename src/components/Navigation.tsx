@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import {
   Home,
   Heart,
@@ -77,9 +78,11 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
             </span>
           </div>
           <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-400 rounded-full transition-all duration-200"
-              style={{ width: `${xpProgress}%` }}
+            <motion.div
+              className="h-full bg-emerald-400 rounded-full"
+              initial={false}
+              animate={{ width: `${xpProgress}%` }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
             />
           </div>
           <div className="flex items-center justify-between text-xs text-slate-400">
@@ -88,24 +91,35 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="space-y-1.5" aria-label="Menu Utama">
+        {/* Navigation Links with Framer Motion Sliding Highlight */}
+        <nav className="space-y-1.5 relative" aria-label="Menu Utama">
           {NAV_ITEMS.map(({ tab, label, icon: Icon }) => {
             const isActive = currentTab === tab;
             return (
-              <button
+              <motion.button
                 key={tab}
                 type="button"
+                whileHover={{ x: 3 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => onTabSelected(tab)}
-                className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
+                className={`relative w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
                   isActive
-                    ? 'btn-tactile-sky'
+                    ? 'text-slate-950'
                     : 'text-slate-300 hover:bg-slate-800/70 hover:text-white border-2 border-transparent'
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span>{label}</span>
-              </button>
+                {isActive && (
+                  <motion.div
+                    layoutId="railActiveTabPill"
+                    className="absolute inset-0 btn-tactile-sky rounded-2xl"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-3.5">
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span>{label}</span>
+                </span>
+              </motion.button>
             );
           })}
         </nav>
@@ -113,8 +127,9 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
 
       {/* Bottom Action Controls */}
       <div className="space-y-2.5 pt-5 border-t border-slate-800/80">
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={onToggleChat}
           className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-xs font-extrabold whitespace-nowrap shrink-0 ${
             isChatOpen ? 'btn-tactile-slate' : 'btn-tactile-emerald'
@@ -122,16 +137,17 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
         >
           <MessageSquare className="w-4 h-4 shrink-0" />
           <span>{isChatOpen ? 'Tutup Chat Mimi' : 'Ngobrol dengan Mimi'}</span>
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={onOpenShareHub}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold btn-tactile-slate whitespace-nowrap shrink-0"
         >
           <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
           <span>Buku PDF, Drive & Classroom</span>
-        </button>
+        </motion.button>
       </div>
     </aside>
   );
@@ -170,7 +186,7 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
         </span>
       </button>
 
-      {/* Zone 2: 5 Single-Line Navigation Links */}
+      {/* Zone 2: 5 Single-Line Navigation Links with Framer Motion Underline */}
       <nav className="hidden xl:flex items-center gap-6 text-sm font-semibold text-slate-400">
         {NAV_ITEMS.slice(0, 5).map(({ tab, label }) => {
           const active = uiState.currentTab === tab;
@@ -179,13 +195,18 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
               key={tab}
               type="button"
               onClick={() => onSelectTab(tab)}
-              className={`transition-colors whitespace-nowrap shrink-0 pb-1 ${
-                active
-                  ? 'text-white border-b-2 border-sky-400 font-bold'
-                  : 'hover:text-white'
+              className={`relative transition-colors whitespace-nowrap shrink-0 pb-1.5 ${
+                active ? 'text-white font-bold' : 'hover:text-white'
               }`}
             >
-              {label}
+              <span>{label}</span>
+              {active && (
+                <motion.div
+                  layoutId="topBarUnderline"
+                  className="absolute left-0 right-0 bottom-0 h-0.5 bg-sky-400 rounded-full"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
             </button>
           );
         })}
@@ -261,19 +282,33 @@ export const CyberBottomBar: React.FC<CyberBottomBarProps> = ({
       {mobileItems.map(({ tab, label, icon: Icon }) => {
         const isActive = currentTab === tab;
         return (
-          <button
+          <motion.button
             key={tab}
             type="button"
+            whileTap={{ scale: 0.9 }}
             onClick={() => onTabSelected(tab)}
-            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-colors whitespace-nowrap shrink-0 ${
+            className={`relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
               isActive
-                ? 'text-sky-400 bg-sky-500/15 font-bold'
+                ? 'text-sky-400 font-bold'
                 : 'text-slate-400 hover:text-slate-200 font-medium'
             }`}
           >
-            <Icon className="w-4 h-4 mb-1 shrink-0" />
-            <span className="text-[11px] leading-none">{label}</span>
-          </button>
+            {isActive && (
+              <motion.div
+                layoutId="bottomNavActivePill"
+                className="absolute inset-0 bg-sky-500/15 border border-sky-400/30 rounded-xl"
+                transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+              />
+            )}
+            <motion.div
+              animate={{ y: isActive ? -1.5 : 0, scale: isActive ? 1.08 : 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="relative z-10 flex flex-col items-center"
+            >
+              <Icon className="w-4 h-4 mb-1 shrink-0" />
+              <span className="text-[11px] leading-none">{label}</span>
+            </motion.div>
+          </motion.button>
         );
       })}
     </nav>
@@ -294,19 +329,24 @@ export const MimiFloatingDockWidget: React.FC<MimiFloatingDockWidgetProps> = ({
   if (isOpen) return null;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
       className={`fixed z-30 ${
         isWideScreen ? 'bottom-6 right-6' : 'bottom-20 right-4'
       }`}
     >
-      <button
+      <motion.button
         type="button"
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.96 }}
         onClick={onClick}
         className="flex items-center gap-2.5 px-5 py-3.5 rounded-2xl btn-tactile-emerald font-extrabold text-xs shadow-xl whitespace-nowrap shrink-0"
       >
         <MessageSquare className="w-4 h-4 shrink-0" />
         <span>Ngobrol bareng Mimi (+15 XP)</span>
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 };

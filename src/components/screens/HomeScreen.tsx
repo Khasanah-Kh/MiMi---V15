@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
   Play,
@@ -279,7 +280,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </p>
           </div>
 
-          {/* Interactive Segmented Control for SD / SMP / SMA / SMK / UMUM */}
+          {/* Interactive Segmented Control for SD / SMP / SMA / SMK / UMUM with Framer Motion layoutId */}
           <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-[#0B101E] border-2 border-slate-800 rounded-2xl self-start">
             {[
               { id: EducationLevel.SD, label: 'SD (1–6)' },
@@ -287,24 +288,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               { id: EducationLevel.SMA, label: 'SMA (10–12)' },
               { id: EducationLevel.SMK, label: 'SMK (10–12)' },
               { id: EducationLevel.UMUM, label: 'UMUM / Random' },
-            ].map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onSelectEducationLevel(item.id)}
-                className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 ${
-                  uiState.selectedEducationLevel === item.id
-                    ? 'bg-sky-400 text-slate-950'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+            ].map((item) => {
+              const isSelected = uiState.selectedEducationLevel === item.id;
+              return (
+                <motion.button
+                  key={item.id}
+                  type="button"
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => onSelectEducationLevel(item.id)}
+                  className={`relative px-3.5 py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
+                    isSelected
+                      ? 'text-slate-950'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {isSelected && (
+                    <motion.div
+                      layoutId="homeEducationLevelPill"
+                      className="absolute inset-0 bg-sky-400 rounded-xl"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{item.label}</span>
+                </motion.button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Step 2: Class Buttons */}
+        {/* Step 2: Class Buttons with Framer Motion */}
         <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-slate-800/70">
           <span className="text-xs font-semibold text-slate-400 mr-2">
             1. Pilih Kelas:
@@ -312,18 +324,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {availableClasses.map((cls) => {
             const active = uiState.selectedClass === cls;
             return (
-              <button
+              <motion.button
                 key={cls}
                 type="button"
+                whileTap={{ scale: 0.95 }}
                 onClick={() => onSelectClass(cls)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
                   active
-                    ? 'btn-tactile-sky'
+                    ? 'text-slate-950'
                     : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
                 }`}
               >
-                {cls}
-              </button>
+                {active && (
+                  <motion.div
+                    layoutId="homeClassPill"
+                    className="absolute inset-0 btn-tactile-sky rounded-xl"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{cls}</span>
+              </motion.button>
             );
           })}
         </div>
@@ -337,25 +357,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {availableSubjects.map((subj) => {
               const active = uiState.selectedSubject === subj;
               return (
-                <button
+                <motion.button
                   key={subj}
                   type="button"
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => onSelectSubject(subj)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                  className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
                     active
-                      ? 'bg-emerald-400 text-slate-950 font-extrabold'
+                      ? 'text-slate-950 font-extrabold'
                       : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  {subj}
-                </button>
+                  {active && (
+                    <motion.div
+                      layoutId="homeSubjectPill"
+                      className="absolute inset-0 bg-emerald-400 rounded-xl"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{subj}</span>
+                </motion.button>
               );
             })}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.96 }}
               onClick={onToggleProfesorMode}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${
                 uiState.isProfesorMode
@@ -369,10 +398,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   ? 'Mimi Profesor Mode: AKTIF'
                   : 'Aktifkan Mimi Profesor Mode'}
               </span>
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.96 }}
               onClick={() =>
                 onAskMimiTopic(
                   `Mimi Profesor, kasih aku HACK TRIK HAFAL & Jembatan Keledai buat mapel ${uiState.selectedSubject} (${uiState.selectedClass}) dong! 🚀`
@@ -381,12 +411,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 whitespace-nowrap shrink-0"
             >
               Minta Hack Hafal
-            </button>
+            </motion.button>
           </div>
         </div>
       </section>
 
-      {/* 3. Interactive Learning Path Units with Official Published Book Sources & PDF Download */}
+      {/* 3. Interactive Learning Path Units with Smooth Framer Motion Level Transition */}
       <section className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="space-y-1">
@@ -402,14 +432,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {levels.map((lvl) => {
-            const isDone = studyProgress.completedLevelIds.includes(lvl.id);
-            return (
-              <div
-                key={lvl.id}
-                className="p-7 card-study hover:border-slate-700 transition-colors flex flex-col justify-between gap-5"
-              >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${uiState.selectedEducationLevel}-${uiState.selectedClass}`}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.24, ease: 'easeOut' }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
+            {levels.map((lvl, index) => {
+              const isDone = studyProgress.completedLevelIds.includes(lvl.id);
+              return (
+                <motion.div
+                  key={lvl.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: index * 0.05 }}
+                  whileHover={{ y: -3 }}
+                  className="p-7 card-study hover:border-slate-700 transition-colors flex flex-col justify-between gap-5"
+                >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <div className="flex items-center gap-2">
@@ -502,10 +544,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+          </motion.div>
+        </AnimatePresence>
       </section>
 
       {/* 4. Custom Learning Milestones Tracker */}
@@ -592,10 +635,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       </section>
 
-      {/* 5. Interactive Two-Zone Sandbox Lesson & Simulation Modal */}
+      {/* 5. Interactive Two-Zone Sandbox Lesson & Simulation Modal with Framer Motion */}
+      <AnimatePresence>
       {activeModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-4xl card-study p-7 sm:p-9 space-y-7 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
+        <motion.div
+          key={activeModal.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+            className="w-full max-w-4xl card-study p-7 sm:p-9 space-y-7 my-auto max-h-[92vh] overflow-y-auto shadow-2xl"
+          >
             {/* Modal Header */}
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-5">
               <div className="space-y-1">
@@ -849,9 +906,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <ArrowRight className="w-4 h-4 shrink-0" />
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };
