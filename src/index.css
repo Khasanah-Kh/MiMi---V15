@@ -8,9 +8,20 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #0B1120;
+    background-color: #0B101E;
     color: #F8FAFC;
+    line-height: 1.7;
+    letter-spacing: 0.01em;
     overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4 {
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+  }
+
+  p, li {
+    line-height: 1.75;
   }
 
   code, pre, .font-mono {
@@ -23,14 +34,63 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Subtle custom scrollbars for dark cyber canvas */
+/* Duolingo-inspired tactile aesthetic buttons for teens */
+.btn-tactile-sky {
+  background-color: #38BDF8;
+  color: #082F49;
+  border-bottom: 4px solid #0284C7;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), background-color 120ms ease;
+}
+.btn-tactile-sky:hover:not(:disabled) {
+  background-color: #7DD3FC;
+}
+.btn-tactile-sky:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+.btn-tactile-emerald {
+  background-color: #34D399;
+  color: #064E3B;
+  border-bottom: 4px solid #059669;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), background-color 120ms ease;
+}
+.btn-tactile-emerald:hover:not(:disabled) {
+  background-color: #6EE7B7;
+}
+.btn-tactile-emerald:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+.btn-tactile-slate {
+  background-color: #1E293B;
+  color: #F1F5F9;
+  border: 1px solid #334155;
+  border-bottom: 4px solid #0F172A;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), background-color 120ms ease;
+}
+.btn-tactile-slate:hover:not(:disabled) {
+  background-color: #334155;
+}
+.btn-tactile-slate:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+/* Soft aesthetic study card surface */
+.card-study {
+  background-color: #131C31;
+  border: 2px solid #1E293B;
+  border-bottom-width: 4px;
+  border-radius: 1.25rem;
+}
+
+/* Subtle custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B1120;
+  background: #0B101E;
 }
 
 ::-webkit-scrollbar-thumb {

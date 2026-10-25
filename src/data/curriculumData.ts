@@ -14,11 +14,11 @@ export const CLASSES_BY_LEVEL: Record<EducationLevel, string[]> = {
 };
 
 export const CYBER_RANKS = [
-  { minXp: 0, title: 'Kadet Siber I' },
-  { minXp: 250, title: 'Eksplorer Logika II' },
-  { minXp: 600, title: 'Arsitek Algoritma III' },
-  { minXp: 1200, title: 'Komandan Kuantum IV' },
-  { minXp: 2000, title: 'Grandmaster Mimi 15' },
+  { minXp: 0, title: 'Pelajar Pemula I' },
+  { minXp: 250, title: 'Penjelajah Ilmu II' },
+  { minXp: 600, title: 'Pemikir Kritis III' },
+  { minXp: 1200, title: 'Cendekiawan Muda IV' },
+  { minXp: 2000, title: 'Bintang Akademia V' },
 ];
 
 export function calculateCyberRank(xp: number): string {
@@ -149,9 +149,9 @@ export const INITIAL_LEVELS: LevelItem[] = [
   {
     id: 'sd-lvl-4',
     levelNumber: 4,
-    title: 'Keamanan Digital & Etika Siber Anak',
-    subtitle: 'Melindungi kata sandi, privasi data, dan berpikir kritis di internet',
-    subject: 'Literasi Siber SD',
+    title: 'Internet Sehat & Kebiasaan Belajar Baik',
+    subtitle: 'Menjaga privasi akun belajar, etika berdiskusi, dan berpikir kritis',
+    subject: 'Literasi Digital SD',
     educationLevel: EducationLevel.SD,
     classRange: 'Kelas 1 - 6',
     xpReward: 80,
@@ -653,8 +653,8 @@ export const INITIAL_QUIZ_QUESTIONS: QuizQuestion[] = [
 export const INITIAL_BADGES: BadgeItem[] = [
   {
     id: 'badge-first-login',
-    title: 'Inisiasi Perisai Siber',
-    description: 'Berhasil masuk ke ekosistem Mimi 15 dengan sesi terenkripsi yang terverifikasi.',
+    title: 'Langkah Pertama di Room Belajar',
+    description: 'Berhasil bergabung ke Room Belajar bersama Mimi V15.',
     iconName: 'ShieldCheck',
     category: 'EKSPLORASI',
     xpBonus: 50,
@@ -665,8 +665,8 @@ export const INITIAL_BADGES: BadgeItem[] = [
   },
   {
     id: 'badge-module-master',
-    title: 'Penjelajah Modul Kurikulum',
-    description: 'Menyelesaikan minimal 2 modul pembelajaran interaktif beserta simulasinya.',
+    title: 'Penjelajah Materi & Simulasi',
+    description: 'Menyelesaikan minimal 2 modul ruang belajar beserta simulasinya.',
     iconName: 'BookOpen',
     category: 'AKADEMIK',
     xpBonus: 100,
@@ -676,8 +676,8 @@ export const INITIAL_BADGES: BadgeItem[] = [
   },
   {
     id: 'badge-quiz-sharpshooter',
-    title: 'Akurasi Kuantum',
-    description: 'Menjawab minimal 4 soal kuis dengan benar di sesi evaluasi.',
+    title: 'Pemahaman Konsep Tajam',
+    description: 'Menjawab minimal 4 soal latihan kuis dengan tepat.',
     iconName: 'Target',
     category: 'AKADEMIK',
     xpBonus: 120,
@@ -687,8 +687,8 @@ export const INITIAL_BADGES: BadgeItem[] = [
   },
   {
     id: 'badge-mimi-dialog',
-    title: 'Sahabat Diskusi Mimi',
-    description: 'Berdiskusi dan bertanya konsep pelajaran kepada AI Tutor Mimi sebanyak 3 kali.',
+    title: 'Teman Diskusi Mimi V15',
+    description: 'Berdiskusi dan bertukar pikiran bersama Mimi V15 sebanyak 3 kali.',
     iconName: 'MessageSquare',
     category: 'EKSPLORASI',
     xpBonus: 80,
@@ -698,8 +698,8 @@ export const INITIAL_BADGES: BadgeItem[] = [
   },
   {
     id: 'badge-arena-champion',
-    title: 'Penakluk Arena Rival',
-    description: 'Memenangkan duel kecepatan konsep melawan Rival Siber di menu Tantangan.',
+    title: 'Bintang Tantangan Belajar',
+    description: 'Memenangkan sesi uji konsep melawan teman tanding di menu Tantangan.',
     iconName: 'Swords',
     category: 'ARENA',
     xpBonus: 150,
@@ -709,8 +709,8 @@ export const INITIAL_BADGES: BadgeItem[] = [
   },
   {
     id: 'badge-milestone-architect',
-    title: 'Arsitek Target Mandiri',
-    description: 'Mencatat 3 pencapaian belajar mandiri (Milestone) pada jurnal progres.',
+    title: 'Perancang Target Belajar',
+    description: 'Mencatat 3 target belajar mandiri pada jurnal harianmu.',
     iconName: 'Compass',
     category: 'STREAK',
     xpBonus: 90,
@@ -724,7 +724,7 @@ export const INITIAL_RIVALS: RivalProfile[] = [
   {
     id: 'rival-1',
     name: 'Bima Pratama',
-    title: 'Spesialis Aritmetika & Logika',
+    title: 'Teman Belajar Matematika & Sains',
     school: 'SDN Nusantara 01',
     educationLevel: EducationLevel.SD,
     xp: 480,
@@ -736,19 +736,19 @@ export const INITIAL_RIVALS: RivalProfile[] = [
   {
     id: 'rival-2',
     name: 'Sinta Kirana',
-    title: 'Navigator Fisika & Aljabar',
-    school: 'SMP Negeri 15 Siber',
+    title: 'Partner Diskusi Fisika & Aljabar',
+    school: 'SMP Negeri 15',
     educationLevel: EducationLevel.SMP,
     xp: 920,
     winRate: 82,
-    specialty: 'Persamaan Linear, Hukum Newton & Biner',
+    specialty: 'Persamaan Linear, Hukum Newton & Logika',
     difficulty: 'Menengah',
     xpStake: 90,
   },
   {
     id: 'rival-3',
     name: 'Dimas Mahardika',
-    title: 'Arsitek Kalkulus & Kriptografi',
+    title: 'Rekan Olimpiade Kalkulus & Sains',
     school: 'SMA Unggulan 15',
     educationLevel: EducationLevel.SMA,
     xp: 1540,
@@ -762,35 +762,35 @@ export const INITIAL_RIVALS: RivalProfile[] = [
 export const INITIAL_MILESTONES: LearningMilestone[] = [
   {
     id: 'ms-init-1',
-    title: 'Menyelesaikan orientasi keamanan akun Mimi 15',
+    title: 'Mulai sesi belajar pertama di Room Belajar Mimi V15',
     xpGain: 35,
     createdAt: 'Hari ini',
     completed: true,
-    category: 'Keamanan Siber',
+    category: 'Room Belajar',
   },
 ];
 
 export function getSuggestedPromptsForLevel(level: EducationLevel, selectedClass: string): string[] {
   if (level === EducationLevel.SD) {
     return [
-      `Jelaskan cara mudah menghitung pecahan untuk ${selectedClass} dengan contoh kue.`,
-      `Bagaimana proses terjadinya hujan dalam siklus air?`,
-      `Mengapa kita tidak boleh membagikan kata sandi kepada orang asing?`,
-      `Berikan 1 teka-teki berhitung seru untuk ${selectedClass}!`,
+      `Mimi, kasih aku kisi-kisi cara menyelesaikan soal 3/4 + 1/2 dong (jangan langsung jawabannya ya!)`,
+      `Mimi, kenapa langit warnanya biru kalau siang hari?`,
+      `Bantu aku bikin jadwal belajar santai sore ini untuk ${selectedClass} yuk!`,
+      `Kasih aku 1 teka-teki logika seru buat pemanasan otak!`,
     ];
   }
   if (level === EducationLevel.SMP) {
     return [
-      `Jelaskan langkah menyelesaikan persamaan aljabar linear untuk ${selectedClass}.`,
-      `Apa perbedaan rangkaian listrik seri dan paralel beserta rumus Hukum Ohm?`,
-      `Bagaimana cara mengubah bilangan biner 10110 menjadi desimal?`,
-      `Jelaskan Hukum II Newton dengan contoh peristiwa sehari-hari.`,
+      `Mimi, tuntun aku pakai kisi-kisi buat cari nilai x dari 4x - 7 = 21 tanpa kasih bocoran hasil akhirnya.`,
+      `Mimi, aku lagi agak bosan belajar, gimana tips biar cepat fokus lagi?`,
+      `Jelaskan konsep Hukum Ohm seperti ngobrol sama teman dong!`,
+      `Kalau benda 5 kg didorong gaya 30 N, langkah apa dulu yang harus kupakai buat cari percepatannya?`,
     ];
   }
   return [
-    `Jelaskan konsep turunan fungsi (diferensial) dan cara mencari titik stasioner (${selectedClass}).`,
-    `Bagaimana cara kerja hashing password dengan Salt dan PBKDF2/scrypt pada keamanan web?`,
-    `Jelaskan Efek Bohr pada pengikatan oksigen oleh hemoglobin saat olahraga.`,
-    `Apa makna persamaan efek fotolistrik Einstein Ek = hf - W0?`,
+    `Mimi, beri aku kisi-kisi tahapan mencari titik stasioner dari f(x) = 3x² - 12x + 9 (tuntun aku ya, jangan langsung jawabannya).`,
+    `Prof Mimi, apa hubungan Efek Bohr di biologi dengan saat kita lagi lari cepat?`,
+    `Mimi, bantu aku merancang strategi belajar efektif buat persiapan ujian ${selectedClass}.`,
+    `Bagaimana cara memahami konsep limit dan turunan biar terasa masuk akal di kehidupan sehari-hari?`,
   ];
 }

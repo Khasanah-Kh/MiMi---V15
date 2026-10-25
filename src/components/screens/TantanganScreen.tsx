@@ -58,13 +58,13 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
       <section className="p-6 sm:p-8 rounded-2xl bg-[#0F172A] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="text-xs text-sky-400 font-medium">
-            Arena Kompetisi Akademik Mimi 15
+            Uji Pemahaman Bersama Teman Belajar · Mimi V15
           </div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">
-            Tantangan Duel Rival Siber
+            Tantangan Latihan Bersama Partner Belajar
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Uji ketepatan konsep melawan rival terbaik dari jenjang SD, SMP, dan SMA untuk meraih XP ekstra
+            Uji ketepatan konsep bersama teman belajar dari jenjang SD, SMP, dan SMA untuk menambah XP
           </p>
         </div>
 

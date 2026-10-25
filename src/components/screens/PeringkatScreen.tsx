@@ -107,15 +107,15 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
           <div className="space-y-1">
             <div className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
-              <span>Klasemen Nasional Mimi 15</span>
+              <span>Room Belajar Bersama Mimi V15</span>
               <span aria-hidden="true">·</span>
               <span>Diperbarui {lastUpdated}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Papan Peringkat Global & Pangkat Siber
+              Papan Peringkat Global & Gelar Belajar
             </h1>
             <p className="text-xs sm:text-sm text-slate-400">
-              Bandingkan perolehan XP, level, dan pangkat siber dengan seluruh siswa SD, SMP, dan SMA di platform Mimi 15
+              Bandingkan perolehan XP, level, dan gelar belajar dengan seluruh teman belajar SD, SMP, dan SMA di Room Mimi V15
             </p>
           </div>
 
@@ -295,10 +295,10 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
             <thead>
               <tr className="border-b border-slate-800 bg-[#0B1120] text-[11px] font-semibold text-slate-400">
                 <th className="py-3 px-4">Peringkat</th>
-                <th className="py-3 px-4">Nama Siswa</th>
+                <th className="py-3 px-4">Nama Teman Belajar</th>
                 <th className="py-3 px-4">Jenjang & Kelas</th>
-                <th className="py-3 px-4">Pangkat Siber</th>
-                <th className="py-3 px-4 text-right">Modul & Arena</th>
+                <th className="py-3 px-4">Gelar Belajar</th>
+                <th className="py-3 px-4 text-right">Modul & Tantangan</th>
                 <th className="py-3 px-4 text-right">Level & Total XP</th>
               </tr>
             </thead>
@@ -372,10 +372,10 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-white">
-              Tingkatan Pangkat Siber Mimi 15
+              Tingkatan Gelar Belajar di Room Mimi V15
             </h2>
             <p className="text-xs text-slate-400">
-              Kumpulkan XP dari modul simulasi, kuis AI, dan duel arena untuk naik ke pangkat tertinggi
+              Kumpulkan XP dari diskusi bersama Mimi V15, modul simulasi, dan latihan untuk naik ke tingkat tertinggi
             </p>
           </div>
           <Trophy className="w-5 h-5 text-amber-400 shrink-0" />

@@ -105,7 +105,7 @@ export default function App() {
     {
       id: 'welcome-mimi',
       sender: 'mimi',
-      text: 'Halo! Aku Mimi, AI Tutor di Mimi 15. Pilih jenjang (SD, SMP, atau SMA) dan kelasmu, lalu tanyakan konsep matematika, sains, atau informatika apa saja!',
+      text: 'Halo! Selamat datang di Room Belajar. Aku Mimi V15 — aku bisa jadi teman ngobrol, asisten, guru, sekaligus profesormu. Kalau mau ngobrol santai atau tanya hal umum, langsung cerita saja ya! Kalau ada soal pelajaran yang bikin bingung, kirim ke sini nanti aku bantu kasih kisi-kisi dan tuntun langkahnya sampai kamu paham sendiri.',
       timestamp: formatShortTime(),
     },
   ]);
@@ -648,15 +648,16 @@ export default function App() {
           message: text,
           educationLevel: selectedEducationLevel,
           selectedClass,
-          studentName: authUser?.displayName || 'Siswa Cyber',
-          history: chatMessages.slice(-6),
+          studentName: authUser?.displayName || 'Teman Belajar',
+          history: chatMessages.slice(-8),
         }),
       });
       const data = await res.json();
-      const replyText = res.ok
-        ? data.reply
-        : `Maaf, terjadi kendala saat menghubungi layanan Gemini: ${data.error || 'Silakan coba lagi.'}`;
-      const xpGain = res.ok ? Number(data.xpAwarded) || 15 : 0;
+      const replyText =
+        res.ok && data.reply
+          ? data.reply
+          : 'Aku tetap di sini menemanimu di Room Belajar! Coba kirimkan ulang pertanyaanmu atau tulis bagian soal mana yang ingin kita bahas pakai kisi-kisi ya.';
+      const xpGain = res.ok ? Number(data.xpAwarded) || 15 : 15;
 
       const mimiMsg: ChatMessage = {
         id: 'msg_m_' + Date.now(),
@@ -697,7 +698,7 @@ export default function App() {
     currentTab,
     selectedEducationLevel,
     selectedClass,
-    studentName: authUser?.displayName || 'Siswa Cyber',
+    studentName: authUser?.displayName || 'Teman Belajar',
     studentEmail: authUser?.email || '',
     xp,
     level: calculateLevelFromXp(xp),

@@ -40,13 +40,13 @@ export const LencanaScreen: React.FC<LencanaScreenProps> = ({ badges }) => {
       <section className="p-6 sm:p-8 rounded-2xl bg-[#0F172A] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="text-xs text-sky-400 font-medium">
-            Koleksi Penghargaan Siswa Mimi 15
+            Koleksi Penghargaan Room Belajar · Mimi V15
           </div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">
-            Galeri Lencana & Pencapaian Siber
+            Galeri Lencana & Apresiasi Belajar
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Selesaikan modul, kuis, diskusi Tutor Mimi, dan tantangan arena untuk membuka seluruh lencana
+            Selesaikan modul, latihan kuis, diskusi bersama Mimi V15, dan tantangan belajar untuk membuka seluruh lencana
           </p>
         </div>
 
