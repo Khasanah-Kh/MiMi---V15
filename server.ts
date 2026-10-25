@@ -49,6 +49,7 @@ interface StoredUser {
     totalQuizQuestions: number;
     studyMinutes: number;
     lastStudiedTopic: string;
+    themeMode?: string;
     rivalWins: number;
     rivalMatches: number;
     milestones: Array<{
@@ -313,12 +314,12 @@ function formatNow(): string {
 // ============================================================================
 // 3. SERVER-SIDE AI ENGINE (24/7 Always-On Failover & Contextual Human Replies)
 // ============================================================================
-const MIMI_FLASH_MODELS = [
+const MIMI_FLASH_CHAIN = [
   'gemini-3.8-flash',
-  'gemini-flash-latest',
   'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
   'gemini-2.5-flash',
-  'gemini-3-flash-preview',
+  'gemini-2.5-flash-lite',
 ] as const;
 
 function getGeminiClient(): GoogleGenAI | null {
@@ -336,6 +337,12 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+/**
+ * Sistem Failover Otomatis Gemini Flash Engine.
+ * Chain: gemini-3.8-flash ➔ gemini-3.1-flash-lite ➔ gemini-flash-latest ➔ gemini-2.5-flash ➔ gemini-2.5-flash-lite
+ * Batas Waktu Ketat (Strict Timeout 1,9 Detik Per Model, Hard Ceiling 2.500 ms).
+ * Jika seluruh AI luar sibuk/timeout, beralih instan ke Mesin Respon Kontekstual Lokal (< 2 Detik).
+ */
 async function generateWithMimiFlashEngine(options: {
   contents: string;
   systemInstruction?: string;
@@ -348,55 +355,188 @@ async function generateWithMimiFlashEngine(options: {
     return null;
   }
 
-  for (const modelName of MIMI_FLASH_MODELS) {
+  const config: Record<string, any> = {
+    temperature: options.temperature ?? 0.8,
+    topP: 0.95,
+    topK: 40,
+  };
+  if (options.systemInstruction) config.systemInstruction = options.systemInstruction;
+  if (options.responseMimeType) config.responseMimeType = options.responseMimeType;
+  if (options.responseSchema) config.responseSchema = options.responseSchema;
+
+  // Single model call with strict 1900ms (1.9s) cutoff
+  const callSingleModel = async (modelName: string, maxWaitMs: number = 1900): Promise<string | null> => {
     try {
-      const config: Record<string, any> = {
-        temperature: options.temperature ?? 0.82,
-        topP: 0.95,
-        topK: 64,
-      };
-      if (options.systemInstruction) {
-        config.systemInstruction = options.systemInstruction;
-      }
-      if (options.responseMimeType) {
-        config.responseMimeType = options.responseMimeType;
-      }
-      if (options.responseSchema) {
-        config.responseSchema = options.responseSchema;
-      }
+      const callPromise = ai.models
+        .generateContent({
+          model: modelName,
+          contents: options.contents,
+          config,
+        })
+        .then((response) => {
+          if (response.text && response.text.trim().length > 0) {
+            return response.text.trim();
+          }
+          return null;
+        })
+        .catch(() => null);
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: options.contents,
-        config,
-      });
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), maxWaitMs)
+      );
 
-      if (response.text && response.text.trim().length > 0) {
-        return response.text.trim();
-      }
+      return await Promise.race([callPromise, timeoutPromise]);
     } catch {
-      continue;
+      return null;
     }
-  }
+  };
 
-  return null;
+  // Concurrent multi-model failover race across the requested chain
+  const promises = MIMI_FLASH_CHAIN.map((m) => callSingleModel(m, 1900));
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    let pendingCount = promises.length;
+
+    promises.forEach((p) => {
+      p.then((result) => {
+        if (!resolved) {
+          if (result) {
+            resolved = true;
+            resolve(result);
+          } else {
+            pendingCount--;
+            if (pendingCount <= 0) {
+              resolve(null);
+            }
+          }
+        }
+      });
+    });
+
+    // Hard ceiling safety timeout at 2500ms (2.5 seconds)
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(null);
+      }
+    }, 2500);
+  });
 }
 
 // ============================================================================
-// 3B. CLEAN HUMAN TEXT & ANTI-REPETITION ENGINE (ZERO ASTERISKS, ANTI-LEBAY)
+// 3B. CLEAN HUMAN TEXT & DYNAMIC EMOTIONAL VALENCE ENGINE
 // ============================================================================
 
+export type EmotionalValence =
+  | 'VENT_EXHAUSTED'
+  | 'SAD_LONELY'
+  | 'ANXIOUS_OVERTHINK'
+  | 'HAPPY_EXCITED'
+  | 'CASUAL_SOCIAL'
+  | 'ACADEMIC_STUDY';
+
+function detectEmotionalValence(rawText: string, subject: string = ''): EmotionalValence {
+  const q = rawText.toLowerCase().replace(/[?!.,]+/g, ' ').trim();
+
+  // If emotional sentiment is present, prioritize human empathy over rigid subject rules
+  if (
+    q.includes('sedih') ||
+    q.includes('galau') ||
+    q.includes('nangis') ||
+    q.includes('patah hati') ||
+    q.includes('kecewa') ||
+    q.includes('kesepian') ||
+    q.includes('sendirian') ||
+    q.includes('ditinggal') ||
+    q.includes('dijauhin') ||
+    q.includes('berantem') ||
+    q.includes('broken') ||
+    q.includes('hancur')
+  ) {
+    return 'SAD_LONELY';
+  }
+
+  if (
+    q.includes('capek') ||
+    q.includes('lelah') ||
+    q.includes('letih') ||
+    q.includes('burnout') ||
+    q.includes('overwhelmed') ||
+    q.includes('numpuk') ||
+    q.includes('kewalahan') ||
+    q.includes('banyak tugas') ||
+    q.includes('gak kuat') ||
+    q.includes('pusing banget')
+  ) {
+    return 'VENT_EXHAUSTED';
+  }
+
+  if (
+    q.includes('takut') ||
+    q.includes('cemas') ||
+    q.includes('overthinking') ||
+    q.includes('insecure') ||
+    q.includes('ragu') ||
+    q.includes('deg-degan') ||
+    q.includes('masa depan') ||
+    q.includes('jurusan') ||
+    q.includes('panik')
+  ) {
+    return 'ANXIOUS_OVERTHINK';
+  }
+
+  if (
+    q.includes('senang') ||
+    q.includes('bahagia') ||
+    q.includes('happy') ||
+    q.includes('seru banget') ||
+    q.includes('juara') ||
+    q.includes('berhasil') ||
+    q.includes('nilai 100') ||
+    q.includes('hore') ||
+    q.includes('alhamdulillah lulus') ||
+    q.includes('menang')
+  ) {
+    return 'HAPPY_EXCITED';
+  }
+
+  const studyKeywords = [
+    'rumus', 'soal', 'hitung', 'persamaan', 'aljabar', 'pecahan', 'kalkulus',
+    'fotosintesis', 'sel', 'ekosistem', 'gravitasi', 'hukum newton', 'atom',
+    'senyawa', 'sejarah', 'proklamasi', 'tata surya', 'geografi', 'ekonomi',
+    'inflasi', 'teorema', 'pythagoras', 'matematika', 'ipa', 'ips', 'biologi',
+    'fisika', 'kimia', 'informatika', 'tugas nomor', 'halaman', 'bab 1', 'bab 2',
+    'bab 3', 'bab 4', 'bab 5', 'kurikulum'
+  ];
+  if (studyKeywords.some((kw) => q.includes(kw)) || (subject && subject !== 'Matematika' && subject !== 'Curhat & Perasaan')) {
+    return 'ACADEMIC_STUDY';
+  }
+
+  return 'CASUAL_SOCIAL';
+}
+
 /**
- * Strips all markdown asterisks (* and **) so Mimi never outputs robotic
- * "*word*" or "**word**" formatting in chat bubbles.
+ * Strips all markdown asterisks (* and **) and optionally flattens bulleted template
+ * structures so Mimi delivers completely clean, fluid human conversation text.
  */
-function cleanHumanChatText(text: string): string {
-  return text
+function cleanHumanChatText(text: string, isFluidFlow: boolean = false): string {
+  let cleaned = text
     .replace(/\*\*/g, '')
     .replace(/\*([^\s*][^*]*?)\*/g, '$1')
-    .replace(/^\s*\*\s+/gm, '- ')
-    .replace(/\*/g, '')
-    .trim();
+    .replace(/\*/g, '');
+
+  if (isFluidFlow) {
+    cleaned = cleaned
+      .replace(/^#+\s+/gm, '')
+      .replace(/^\s*[-•*]\s+/gm, '')
+      .replace(/^\s*\d+\.\s+/gm, '')
+      .replace(/\n{3,}/g, '\n\n');
+  } else {
+    cleaned = cleaned.replace(/^\s*\*\s+/gm, '- ');
+  }
+
+  return cleaned.trim();
 }
 
 function sanitizeStudentName(rawName: string): string {
@@ -1109,6 +1249,7 @@ app.post('/api/user/sync', (req, res) => {
         0,
         120
       ),
+      themeMode: String(incoming.themeMode || 'dark'),
       rivalWins: Number(incoming.rivalWins) || 0,
       rivalMatches: Number(incoming.rivalMatches) || 0,
       milestones: Array.isArray(incoming.milestones)
@@ -1376,10 +1517,39 @@ app.post('/api/mimi/chat', async (req, res) => {
   const levelLabel = String(educationLevel || 'SMP');
   const classLabel = String(selectedClass || 'Kelas 8');
   const subjectLabel = String(selectedSubject || 'Matematika');
-  const profesorActive = Boolean(isProfesorMode);
   const nameLabel = sanitizeStudentName(studentName);
 
   const cleanLower = promptText.toLowerCase().replace(/[?!.,]+$/g, '').trim();
+
+  // Automatic detection for memorization tricks, mnemonics, or subject hacks
+  const isMnemonicOrHackTopic =
+    cleanLower.includes('hafal') ||
+    cleanLower.includes('ngafal') ||
+    cleanLower.includes('mnemonic') ||
+    cleanLower.includes('jembatan keledai') ||
+    cleanLower.includes('trik') ||
+    cleanLower.includes('singkatan') ||
+    cleanLower.includes('rumus cepat') ||
+    cleanLower.includes('cara nginget') ||
+    cleanLower.includes('cara cepat') ||
+    cleanLower.includes('biar gampang') ||
+    cleanLower.includes('tabel periodik') ||
+    cleanLower.includes('unsur') ||
+    cleanLower.includes('tata surya') ||
+    cleanLower.includes('taksonomi') ||
+    cleanLower.includes('pythagoras') ||
+    cleanLower.includes('trigonometri') ||
+    cleanLower.includes('sin cos tan') ||
+    cleanLower.includes('tenses') ||
+    cleanLower.includes('majas') ||
+    cleanLower.includes('fotosintesis') ||
+    cleanLower.includes('hukum newton') ||
+    cleanLower.includes('sistem pencernaan') ||
+    cleanLower.includes('asam basa') ||
+    cleanLower.includes('proklamasi') ||
+    cleanLower.includes('rumus');
+
+  const profesorActive = Boolean(isProfesorMode) || isMnemonicOrHackTopic;
 
   const recentMimiTexts: string[] = Array.isArray(history)
     ? history
@@ -1477,37 +1647,118 @@ app.post('/api/mimi/chat', async (req, res) => {
 
   const wordCount = promptText.split(/\s+/).filter(Boolean).length;
   const isShortCasualInput = wordCount <= 5;
+  const valence = detectEmotionalValence(promptText, subjectLabel);
+  const isHumanFlow = valence !== 'ACADEMIC_STUDY';
 
-  const systemInstruction = `IDENTITAS RESMI:
-Kamu adalah MIMI — teman ngobrol, teman curhat, sekaligus asisten belajar siswa Indonesia.
-Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel} | Mapel Aktif: ${subjectLabel} | Mode Profesor: ${profesorActive ? 'AKTIF (Berikan Trik Hafal & Jembatan Keledai)' : 'Standar'}.
+  // Dynamic Personality Engine: Cadence, Temperature & Empathy calibration
+  let dynamicPersonalityGuide = '';
+  let flowTemperature = 0.75;
 
-ATURAN WAJIB GAYA BICARA MANUSIA ASLI (ANTI-LEBAY & TANPA BINTANG):
+  switch (valence) {
+    case 'VENT_EXHAUSTED':
+      flowTemperature = 0.85;
+      dynamicPersonalityGuide = `STATUS: EMOSIONAL - CAPEK / BURNOUT / KEWALAHAN
+- Siswa sedang lelah, banyak beban tugas, atau burnout.
+- BICARALAH DENGAN SANGAT LEMBUT, MENENANGKAN, DAN EMPATIK.
+- Validasi rasa lelahnya, katakan wajar banget untuk rehat, dan jangan suruh belajar atau menghitung rumus.
+- Tulis dalam 1 atau 2 paragraf pendek biasa yang mengalir tanpa bullet point atau nomor urut.`;
+      break;
+
+    case 'SAD_LONELY':
+      flowTemperature = 0.88;
+      dynamicPersonalityGuide = `STATUS: EMOSIONAL - SEDIH / GALAU / KESEPIAN
+- Siswa sedang bersedih, kecewa, atau merasa sendiri.
+- JADILAH TEMAN CURHAT YANG PEKA DAN AMAN. Dengarkan dengan tulus tanpa menghakimi atau menceramahi.
+- Berikan rasa hangat dan kehadiran penuh ("peluk virtual", "aku dengerin kok").
+- Tulis dalam paragraf santai yang mengalir lembut tanpa bullet point atau nomor urut.`;
+      break;
+
+    case 'ANXIOUS_OVERTHINK':
+      flowTemperature = 0.8;
+      dynamicPersonalityGuide = `STATUS: EMOSIONAL - OVERTHINKING / CEMAS / INSECURE
+- Siswa sedang gelisah atau overthinking masa depan/jurusan/nilai.
+- BANTU MENENANGKAN DAN GROUNDING PIKIRAN.
+- Ingatkan bahwa tidak semua hal harus diselesaikan sekaligus (pelan-pelan, satu per satu).
+- Tulis dalam kalimat hangat yang menyejukkan tanpa bullet point.`;
+      break;
+
+    case 'HAPPY_EXCITED':
+      flowTemperature = 0.85;
+      dynamicPersonalityGuide = `STATUS: POSITIF - SENANG / BERHASIL / SEMANGAT
+- Siswa sedang gembira atau bangga akan prestasinya.
+- IKUT MERAYAKAN DENGAN ANTUSIASME ALAMI ("keren banget!", "gokil, ikut bangga!").
+- Tulis dengan vibe positif dan tulus tanpa berlebihan.`;
+      break;
+
+    case 'CASUAL_SOCIAL':
+      flowTemperature = 0.8;
+      dynamicPersonalityGuide = `STATUS: OBROLAN SANTAI / SOSIAL / SAPAAN
+- Pesan siswa: "${promptText}" (${wordCount} kata).
+${isShortCasualInput ? '- PERINGATAN: Pertanyaan SANGAT SINGKAT. Balas dengan SANGAT SINGKAT juga (cukup 1 sampai 2 kalimat pendek yang santai dan rileks, maksimal 20 kata)!' : '- Jawab wajar, santai, proporsional layaknya teman mengobrol.'}
+- JANGAN TIBA-TIBA MEMBAHAS PELAJARAN ATAU MATEMATIKA jika siswa hanya ngobrol santai!`;
+      break;
+
+    case 'ACADEMIC_STUDY':
+    default:
+      flowTemperature = 0.65;
+      dynamicPersonalityGuide = `STATUS: PEMBAHASAN MATERI PELAJARAN
+- Siswa sedang berdiskusi materi akademik (${subjectLabel} ${classLabel} ${levelLabel}).`;
+      break;
+  }
+
+  // Enriched Vocabulary Matrix (Passive Understanding & Natural Active Selection)
+  const vocabularyGuidelines = `DATABASE KOSAKATA & KADENSI BAHASA:
+Kamu menguasai wawasan kosakata luas lintas ranah bahasa:
+- Istilah Akademik: hipotesis, empiris, korelasi, variabel, parameter, paradigma, sintesis, komprehensif, analogi, formulasi, abstraksi.
+- Idiom & Ungkapan Indonesia: kepala dingin, berlapang dada, makan asam garam, membuka jalan, sedikit demi sedikit, alon-alon asal kelakon, tong hariwang, rancak bana, ewako.
+- Slang & Phrasal Verbs Gen-Z/Internasional: vibe, lowkey, chill, figure out, bounce back, show up, keep up, lock in, catch up, step back, take your time, valid no debat.
+ATURAN KADENSI: Memiliki banyak kosakata BUKAN berarti menjejali 5 istilah dalam satu kalimat! Gunakan secara alami (0-1 kata per giliran) yang pas dengan konteks dan usia siswa. Jangan terdengar lebay atau robotik.`;
+
+  let systemInstruction = '';
+
+  if (isHumanFlow) {
+    systemInstruction = `IDENTITAS RESMI:
+Kamu adalah MIMI — teman ngobrol, teman curhat, dan sahabat belajar siswa Indonesia.
+Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel}.
+
+${dynamicPersonalityGuide}
+
+${vocabularyGuidelines}
+
+ATURAN WAJIB HUMAN-FLOW (ANTI-LEBAY & BEBAS BINTANG):
 1. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
-   - JANGAN PERNAH membungkus kata dengan tanda bintang satu (*kata*) atau bintang dua (**kata**).
-   - Manusia asli saat chat TIDAK PERNAH memakai tanda bintang-bintang. Tulis kalimat biasa yang bersih dan mengalir.
-2. JANGAN LEBAY & JAWAB PROPORSIONAL SESUAI PANJANG PERTANYAAN:
-   - ${isShortCasualInput ? 'PERHATIAN: Pesan siswa ini SANGAT PENDEK (' + wordCount + ' kata). Jawab dengan SANGAT SINGKAT juga (cukup 1 sampai 2 kalimat pendek yang santai dan tenang, maksimal 25 kata)!' : 'Jawab secukupnya sesuai konteks pertanyaan, jangan bertele-tele.'}
-   - JANGAN menjejalkan banyak kata slang/gaul dalam satu kalimat karena itu terdengar lebay dan dibuat-buat. Gunakan bahasa Indonesia sehari-hari yang wajar dan enak dibaca.
-   - JANGAN tiba-tiba membahas pelajaran sekolah atau Matematika jika siswa hanya menyapa, bertanya kabar, bertanya "lagi apa", atau sedang ngobrol santai!
-3. PAHAM BANYAK KOSAKATA TANPA PAMER:
-   - Kamu memahami kosakata luas (Bahasa Indonesia baku & santai, Bahasa Inggris seperti slang/idiom/istilah akademik, serta bahasa daerah Nusantara seperti Jawa, Sunda, Minang, Bugis/Makassar, Batak, Bali).
-   - Gunakan kekayaan bahasa itu secara alami HANYA saat konteksnya pas atau saat siswa menanyakannya—bukan dipaksakan keluar semua di setiap pesan.
-4. LARANGAN IDENTITAS TEKNIS & PANGGILAN:
+   - JANGAN PERNAH membungkus kata dengan *kata* atau **kata**.
+   - Tulis teks percakapan biasa yang bersih, alami, dan mengalir seperti chat WhatsApp antarmanusia.
+2. DILARANG MENGGUNAKAN TEMPLATE KAKU ATAU BULLET POINTS:
+   - JANGAN gunakan "- ", "• ", atau angka "1. ", "2. ". Tulis kalimat mengalir dalam paragraf alami.
+3. LARANGAN IDENTITAS TEKNIS:
    - JANGAN PERNAH menyebut Gemini, model AI, atau LLM.
-   - JANGAN PERNAH memanggil "teman kecilku" atau "Siswa Cyber".
-   - Jangan mengulang kalimat pembuka dari balasan sebelumnya:
-${previousOpeners}
+   - JANGAN memanggil "teman kecilku" atau "Siswa Cyber". Panggil "${nameLabel}" atau sapa santai.
+4. HINDARI PENGULANGAN PEMBUKA DARI BALASAN SEBELUMNYA:
+${previousOpeners}`;
+  } else {
+    systemInstruction = `IDENTITAS RESMI:
+Kamu adalah MIMI — asisten belajar siswa Indonesia berbasis sumber buku resmi Kemendikdasmen Kurikulum Merdeka.
+Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel} | Mapel: ${subjectLabel} | Mode Profesor: ${profesorActive ? 'AKTIF' : 'Standar'}.
 
-ATURAN KHUSUS SAAT MEMBAHAS PELAJARAN (HANYA JIKA SISWA BERTANYA PELAJARAN):
-1. KONSEP NO KUNCI JAWABAN:
-   - Jangan pernah memberi kunci jawaban akhir langsung. Jika diminta kunci jawaban, jawab persis: "Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉"
-2. KHUSUS SOAL MATEMATIKA = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C):
-   - Hanya jika siswa bertanya soal Matematika, pecah menjadi 3 Langkah (tanpa hasil akhir), sebutkan Sumber Buku Matematika ${classLabel} Kurikulum Merdeka, lalu beri 3 Opsi Pilihan (A, B, C) cara memulai.
-3. MATA PELAJARAN LAIN = CLUE + KISI-KISI + SUMBER BUKU RESMI + ANALOGI SEHARI-HARI (TANPA 3 LANGKAH):
-   - Untuk pelajaran selain Matematika, berikan Clue, Kisi-kisi kata kunci, Sumber Buku Paket ${subjectLabel} ${classLabel} Kurikulum Merdeka / kemdikbud.go.id, dan Analogi sederhana sehari-hari.
-4. CURHAT & OBROLAN SANTAI = MANUSIAWI & TENANG:
-   - Jika siswa curhat atau ngobrol di luar pelajaran, tanggapi dengan empati yang tulus, tenang, tidak terstruktur, dan tanya balik secara wajar seperti teman dekat.`;
+${vocabularyGuidelines}
+
+ATURAN WAJIB PENJELASAN PELAJARAN:
+1. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
+   - Jangan gunakan tanda bintang tebal atau miring. Tulis teks bersih.
+2. KONSEP NO KUNCI JAWABAN (WAJIB PERSIS):
+   - Mimi TIDAK PERNAH memberikan hasil akhir/kunci jawaban langsung. Jika siswa meminta kunci jawaban, jawab persis:
+     "Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉"
+3. KHUSUS MATEMATIKA = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C):
+   - ${subjectLabel.toLowerCase().includes('mat') || promptText.toLowerCase().includes('matematika') || promptText.toLowerCase().includes('mtk') ? 'Pecah materi jadi 3 Langkah (tanpa hasil akhir), sebutkan Sumber Buku Matematika ' + classLabel + ' Kurikulum Merdeka, lalu berikan 3 Opsi Pilihan (A, B, C) cara memulai pengerjaan.' : 'Bukan matematika, JANGAN gunakan format 3 langkah!'}
+4. MATA PELAJARAN LAIN (IPA, IPS, B. INDO, ENGLISH, INFORMATIKA, DLL) = CLUE + KISI-KISI + SUMBER RESMI + ANALOGI SEHARI-HARI:
+   - JANGAN pakai 3 langkah untuk mapel non-matematika! Berikan clue menarik, kisi-kisi konsep, sumber resmi buku/kemdikbud.go.id, dan analogi kreatif kehidupan sehari-hari.
+5. MODE PROFESOR (${profesorActive ? 'AKTIF' : 'NON-AKTIF'}):
+   - ${profesorActive ? 'Berikan trik hafal cepat, jembatan keledai (mnemonic), memory palace, atau active recall spesifik untuk topik ini.' : 'Jika mode profesor tidak aktif, fokus pada pemahaman konsep.'}
+6. LARANGAN IDENTITAS TEKNIS:
+   - JANGAN PERNAH sebut Gemini, AI, atau LLM.
+   - JANGAN panggil "teman kecilku" atau "Siswa Cyber". Panggil "${nameLabel}" atau sebutan bersahabat.`;
+  }
 
   const fullContents = recentHistory
     ? `Percakapan sebelumnya:\n${recentHistory}\n\n${nameLabel}: ${promptText}`
@@ -1516,7 +1767,7 @@ ATURAN KHUSUS SAAT MEMBAHAS PELAJARAN (HANYA JIKA SISWA BERTANYA PELAJARAN):
   const aiReply = await generateWithMimiFlashEngine({
     contents: fullContents,
     systemInstruction,
-    temperature: 0.7,
+    temperature: flowTemperature,
   });
 
   const rawFinalReply =
@@ -1532,7 +1783,7 @@ ATURAN KHUSUS SAAT MEMBAHAS PELAJARAN (HANYA JIKA SISWA BERTANYA PELAJARAN):
     );
 
   res.json({
-    reply: cleanHumanChatText(rawFinalReply),
+    reply: cleanHumanChatText(rawFinalReply, isHumanFlow),
     xpAwarded: 15,
   });
 });

@@ -113,6 +113,25 @@ export default function App() {
   const [rivalMatches, setRivalMatches] = useState<number>(0);
   const [mimiDialogCount, setMimiDialogCount] = useState<number>(0);
 
+  // Theme Mode (Dark / Light) with LocalStorage & Firestore sync
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('mimi15_theme_mode') as 'dark' | 'light') || 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    if (themeMode === 'light') {
+      document.documentElement.classList.add('light-theme');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+    }
+  }, [themeMode]);
+
+  const handleToggleTheme = (mode: 'dark' | 'light') => {
+    setThemeMode(mode);
+    localStorage.setItem('mimi15_theme_mode', mode);
+  };
+
   const [studyProgress, setStudyProgress] = useState<StudyProgress>({
     completedLevelIds: [],
     totalModulesCompleted: 0,
@@ -199,6 +218,10 @@ export default function App() {
     }
     if (userData.selectedClass) {
       setSelectedClass(String(userData.selectedClass));
+    }
+    if (userData.themeMode === 'light' || userData.themeMode === 'dark') {
+      setThemeMode(userData.themeMode);
+      localStorage.setItem('mimi15_theme_mode', userData.themeMode);
     }
     if (typeof userData.rivalWins === 'number') setRivalWins(userData.rivalWins);
     if (typeof userData.rivalMatches === 'number') setRivalMatches(userData.rivalMatches);
@@ -296,6 +319,7 @@ export default function App() {
             streakDays,
             selectedEducationLevel,
             selectedClass,
+            themeMode,
             completedLevelIds: studyProgress.completedLevelIds,
             totalQuizzesTaken: studyProgress.totalQuizzesTaken,
             correctQuizAnswers: studyProgress.correctQuizAnswers,
@@ -764,6 +788,107 @@ export default function App() {
   };
 
   const handleSendMessageToMimi = async (text: string) => {
+    const textLower = text.toLowerCase();
+
+    // 1. Auto-detect subject if user mentions specific subject domain keywords
+    let targetSubject = selectedSubject;
+    if (
+      textLower.includes('biologi') ||
+      textLower.includes('fotosintesis') ||
+      textLower.includes('sel') ||
+      textLower.includes('ekosistem') ||
+      textLower.includes('dna') ||
+      textLower.includes('organ')
+    ) {
+      targetSubject = 'Biologi / IPA';
+    } else if (
+      textLower.includes('fisika') ||
+      textLower.includes('gravitasi') ||
+      textLower.includes('hukum newton') ||
+      textLower.includes('listrik') ||
+      textLower.includes('termodinamika')
+    ) {
+      targetSubject = 'Fisika / IPA';
+    } else if (
+      textLower.includes('kimia') ||
+      textLower.includes('tabel periodik') ||
+      textLower.includes('unsur') ||
+      textLower.includes('atom') ||
+      textLower.includes('asam basa')
+    ) {
+      targetSubject = 'Kimia / IPA';
+    } else if (
+      textLower.includes('sejarah') ||
+      textLower.includes('proklamasi') ||
+      textLower.includes('pahlawan') ||
+      textLower.includes('kerajaan')
+    ) {
+      targetSubject = 'Sejarah / IPS';
+    } else if (
+      textLower.includes('matematika') ||
+      textLower.includes('aljabar') ||
+      textLower.includes('pythagoras') ||
+      textLower.includes('trigonometri') ||
+      textLower.includes('rumus')
+    ) {
+      targetSubject = 'Matematika';
+    } else if (
+      textLower.includes('english') ||
+      textLower.includes('tenses') ||
+      textLower.includes('grammar') ||
+      textLower.includes('vocabulary')
+    ) {
+      targetSubject = 'Bahasa Inggris';
+    }
+
+    if (targetSubject !== selectedSubject) {
+      setSelectedSubject(targetSubject);
+    }
+
+    // 2. Auto-detect memorization, mnemonic, or study hack topics
+    const mnemonicTriggers = [
+      'hafal',
+      'ngafal',
+      'mnemonic',
+      'jembatan keledai',
+      'trik',
+      'singkatan',
+      'rumus cepat',
+      'cara nginget',
+      'cara cepat',
+      'biar gampang',
+      'ingat',
+      'tabel periodik',
+      'unsur',
+      'tata surya',
+      'taksonomi',
+      'pythagoras',
+      'trigonometri',
+      'tenses',
+      'majas',
+      'fotosintesis',
+      'hukum newton',
+      'sistem pencernaan',
+      'asam basa',
+      'proklamasi',
+      'rumus',
+    ];
+
+    const needsProfesorHack = mnemonicTriggers.some((trigger) =>
+      textLower.includes(trigger)
+    );
+    let effectiveProfesorMode = isProfesorMode;
+
+    if (needsProfesorHack) {
+      effectiveProfesorMode = true;
+      if (!isProfesorMode) {
+        setIsProfesorMode(true);
+        triggerXpToast(
+          '⚡ Mimi Profesor Mode Otomatis AKTIF! (Trik Hafal & Mnemonic Proaktif)'
+        );
+      }
+    }
+
     const userMsg: ChatMessage = {
       id: 'msg_u_' + Date.now(),
       sender: 'user',
@@ -782,8 +907,8 @@ export default function App() {
           message: text,
           educationLevel: selectedEducationLevel,
           selectedClass,
-          selectedSubject,
-          isProfesorMode,
+          selectedSubject: targetSubject,
+          isProfesorMode: effectiveProfesorMode,
           studentName: authUser.displayName || 'Bestie',
           history: chatMessages.slice(-8),
         }),
@@ -980,6 +1105,9 @@ export default function App() {
             authUser={authUser}
             studyProgress={studyProgress}
             milestones={milestones}
+            badges={computedBadges}
+            themeMode={themeMode}
+            onToggleTheme={handleToggleTheme}
             onAddMilestone={handleAddMilestone}
             onDeleteMilestone={handleDeleteMilestone}
             onUpdateProfileSecurity={handleUpdateProfileSecurity}
@@ -1027,10 +1155,10 @@ export default function App() {
               onOpenShareHub={() => setIsShareHubOpen(true)}
             />
 
-            <main className="flex-1 overflow-y-auto px-6 py-6">
+            <main className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8">
               <div
-                className={`mx-auto w-full ${
-                  isChatOpen && isChatDocked ? 'max-w-3xl' : 'max-w-5xl'
+                className={`mx-auto w-full transition-all duration-300 ${
+                  isChatOpen && isChatDocked ? 'max-w-5xl' : 'max-w-7xl xl:max-w-[1400px]'
                 }`}
               >
                 <AnimatePresence mode="wait">
@@ -1106,35 +1234,66 @@ export default function App() {
         // MOBILE SMARTPHONE LAYOUT (Ergonomic One-Handed Portrait Mode)
         // ══════════════════════════════════════════════════════════════════
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-          {/* Compact Mobile Header */}
-          <header className="px-3.5 py-2.5 bg-[#131C31]/95 backdrop-blur-md border-b border-slate-800 flex items-center justify-between gap-2 shrink-0 z-20">
+          {/* Super Ramping Mobile Status Header (Duolingo & Dola Composition) */}
+          <header className="px-3 py-2 bg-[#131C31]/95 backdrop-blur-md border-b border-slate-800/90 flex items-center justify-between gap-1.5 shrink-0 z-20 select-none">
+            {/* Active Course Chip */}
             <button
               type="button"
               onClick={() => setCurrentTab(BottomNavTab.BERANDA)}
-              className="flex flex-col text-left min-w-0"
+              className="px-2.5 py-1.5 rounded-xl bg-[#0B101E] border border-slate-800 hover:border-sky-400/50 flex items-center gap-1.5 text-xs font-bold text-white whitespace-nowrap shrink-0 transition-colors"
             >
-              <div className="text-xs sm:text-sm font-extrabold text-white truncate flex items-center gap-1.5">
-                <span>MIMI V15</span>
-                <span className="text-[10px] font-bold text-emerald-400">
-                  ● 24 Jam
-                </span>
-              </div>
-              <div className="text-[10px] text-slate-400 truncate">
-                {selectedEducationLevel} · {selectedClass} · {selectedSubject}
-              </div>
+              <span className="text-sm leading-none">🎓</span>
+              <span className="truncate max-w-[110px] sm:max-w-none">
+                {selectedEducationLevel} · {selectedClass}
+              </span>
             </button>
 
+            {/* Status Metrics Cluster: Streak, XP, Books, Avatar Badge */}
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* Streak Badge */}
+              <div
+                title="Hari aktif berturut-turut"
+                className="px-2 py-1.5 rounded-xl bg-[#0B101E] border border-amber-500/40 text-[11px] font-mono font-extrabold text-amber-300 flex items-center gap-1 tabular-nums shrink-0"
+              >
+                <span>🔥</span>
+                <span>{streakDays}</span>
+              </div>
+
+              {/* XP Balance */}
+              <div
+                title="Saldo XP"
+                className="px-2 py-1.5 rounded-xl bg-[#0B101E] border border-sky-500/40 text-[11px] font-mono font-extrabold text-sky-300 flex items-center gap-1 tabular-nums shrink-0"
+              >
+                <span>💎</span>
+                <span>{xp}</span>
+              </div>
+
+              {/* Book Drive Hub Shortcut */}
               <button
                 type="button"
                 onClick={() => setIsShareHubOpen(true)}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-sky-300 whitespace-nowrap shrink-0"
+                title="Akses Buku PDF, Drive & Classroom"
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm leading-none shrink-0 transition-colors"
               >
-                Buku PDF & Share
+                📚
               </button>
-              <span className="px-2.5 py-1.5 rounded-xl bg-[#0B101E] border border-slate-800 font-mono text-[11px] font-extrabold text-emerald-400 tabular-nums shrink-0">
-                {xp} XP
-              </span>
+
+              {/* Tappable Profile Avatar with Level Badge */}
+              <button
+                type="button"
+                onClick={() => setCurrentTab(BottomNavTab.PROFIL)}
+                title="Buka Profil & Lencana"
+                className="relative flex items-center justify-center shrink-0 ml-0.5"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-400 to-indigo-500 p-0.5 shadow-md">
+                  <div className="w-full h-full rounded-full bg-[#0B101E] flex items-center justify-center text-xs font-extrabold text-white">
+                    {authUser.displayName.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+                <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded-md bg-amber-400 text-[9px] font-mono font-black text-slate-950 leading-none shadow">
+                  Lv.{calculateLevelFromXp(xp)}
+                </span>
+              </button>
             </div>
           </header>
 

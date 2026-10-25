@@ -123,6 +123,14 @@ export interface StudyProgress {
   lastUpdated: string;
 }
 
+export interface CurhatJournalEntry {
+  id: string;
+  mood: string;
+  storyText: string;
+  mimiWarmReply: string;
+  createdAt: string;
+}
+
 export interface LearningMilestone {
   id: string;
   title: string;

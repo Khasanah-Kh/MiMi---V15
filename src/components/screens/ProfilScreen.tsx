@@ -24,6 +24,8 @@ interface ProfilScreenProps {
   studyProgress: StudyProgress;
   milestones: LearningMilestone[];
   badges: BadgeItem[];
+  themeMode?: 'dark' | 'light';
+  onToggleTheme?: (mode: 'dark' | 'light') => void;
   onAddMilestone: (title: string, xp: number) => void;
   onDeleteMilestone: (id: string) => void;
   onUpdateProfileSecurity: (
@@ -40,6 +42,8 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({
   studyProgress,
   milestones,
   badges,
+  themeMode = 'dark',
+  onToggleTheme,
   onAddMilestone,
   onDeleteMilestone,
   onUpdateProfileSecurity,
@@ -301,6 +305,38 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({
                 <span>{statusMessage}</span>
               </div>
             )}
+
+            {/* Pengaturan Tema Application Mode (Sync ke Firestore) */}
+            <div className="p-4 rounded-2xl bg-[#0B101E] border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white">Preferensi Tema Tampilan</span>
+                <span className="text-[11px] font-mono text-sky-400 font-semibold">Tersimpan di Firestore</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => onToggleTheme && onToggleTheme('dark')}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    themeMode === 'dark'
+                      ? 'bg-sky-400 text-slate-950 shadow-md font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>🌙 Tema Gelap (Dark)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleTheme && onToggleTheme('light')}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    themeMode === 'light'
+                      ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>☀️ Tema Terang (Light)</span>
+                </button>
+              </div>
+            </div>
 
             <form onSubmit={handleSaveSecurity} className="space-y-3.5">
               <div>
