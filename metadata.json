@@ -1,0 +1,6 @@
+{
+  "name": "Mimi 15",
+  "description": "Platform pembelajaran interaktif bertema cyber untuk siswa SD, SMP, dan SMA dengan tutor pintar Mimi, kuis adaptif, tantangan arena, lencana, dan sistem login pengguna yang aman.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
