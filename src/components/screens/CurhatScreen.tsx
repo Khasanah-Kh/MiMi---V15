@@ -276,7 +276,8 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
           <div className="h-[380px] overflow-y-auto pr-1 space-y-4">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
-              const paragraphs = msg.text.split(/\n+/).filter((p) => p.trim().length > 0);
+              const cleanText = msg.text.replace(/\*\*/g, '').replace(/\*/g, '');
+              const paragraphs = cleanText.split(/\n+/).filter((p) => p.trim().length > 0);
               return (
                 <div
                   key={msg.id}

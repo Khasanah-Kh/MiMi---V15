@@ -192,7 +192,8 @@ const ChatCoreContent: React.FC<MimiChatProps & { showDockToggle: boolean }> = (
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-5">
         {messages.map((msg) => {
           const isUser = msg.sender === 'user';
-          const paragraphs = msg.text.split(/\n+/).filter((p) => p.trim().length > 0);
+          const cleanText = msg.text.replace(/\*\*/g, '').replace(/\*/g, '');
+          const paragraphs = cleanText.split(/\n+/).filter((p) => p.trim().length > 0);
 
           return (
             <div

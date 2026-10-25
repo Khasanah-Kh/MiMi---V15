@@ -149,7 +149,7 @@ export default function App() {
     {
       id: 'welcome-mimi',
       sender: 'mimi',
-      text: 'Halo bestie! ✨ Aku MIMI — Asisten BelajarMu, GuruMu, sekaligus Teman CurhatMu! Mau ngobrol santai, curhat, minta Hack Trik Hafal ala Profesor, atau bahas soal pelajaran dari Buku Paket Resmi Kemendikbud? Langsung chat Mimi aja ya! 🚀📚💜',
+      text: 'Halo! Aku Mimi. Mau ngobrol santai, curhat, atau bahas pelajaran hari ini?',
       timestamp: formatShortTime(),
     },
   ]);
@@ -245,7 +245,11 @@ export default function App() {
           });
           if (res.ok) {
             const data = await res.json();
-            setAuthUser(data.user);
+            const normalizedUser =
+              data.user?.displayName === 'Siswa Cyber'
+                ? { ...data.user, displayName: 'Bestie Pelajar' }
+                : data.user;
+            setAuthUser(normalizedUser);
             applyServerUserData(data.userData);
             return;
           }

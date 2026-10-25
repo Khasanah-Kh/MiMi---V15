@@ -383,38 +383,33 @@ async function generateWithMimiFlashEngine(options: {
 }
 
 // ============================================================================
-// 3B. MULTI-REGISTER LEXICON & ANTI-REPETITION ENGINE
+// 3B. CLEAN HUMAN TEXT & ANTI-REPETITION ENGINE (ZERO ASTERISKS, ANTI-LEBAY)
 // ============================================================================
-const DYNAMIC_TURN_LEXICON_SEEDS = [
-  {
-    styleLabel: 'Hangat, Akrab, Ekspresif & Gaul Positif (Gen Z/Alpha + English Slang)',
-    vocabSuggestions:
-      'bestie, gokil, valid no debat, relate banget, lowkey, highkey, ngl (not gonna lie), tbh, take your time, you got this, spot on, chill, glow up, menyala',
-    idiomOrLocal:
-      'Idiom & Ungkapan: "step by step", "connect the dots", "alon-alon asal kelakon" (Jawa: pelan-pelan asal terlaksana), "sedikit demi sedikit lama-lama menjadi bukit"',
-  },
-  {
-    styleLabel: 'Cerdas, Inspiratif, Kaya Idiom Inggris & Kosakata Akademik Populer',
-    vocabSuggestions:
-      'analyze (menganalisis), perspective (perspektif), hypothesis, conceptual, game changer, mindblowing, think outside the box, piece of cake, figure out, dive into',
-    idiomOrLocal:
-      'Idiom & Ungkapan: "hit the books", "silver lining", "ewako!" (Makassar/Bugis: semangat pantang menyerah!), "berakit-rakit ke hulu, berenang-renang ke tepian"',
-  },
-  {
-    styleLabel: 'Empatik, Manusiawi, Puitis Ringan & Nusantara Friendly',
-    vocabSuggestions:
-      'resiliensi, refleksi, cakrawala, bernas, saksama, wholesome, breath of fresh air, bounce back, wrap your head around, proud of you, sat-set, pewe',
-    idiomOrLocal:
-      'Idiom & Ungkapan: "blessing in disguise", "tong hariwang" (Sunda: jangan khawatir), "rancak bana" (Minang: bagus sekali), "ringan sama dijinjing, berat sama dipikul"',
-  },
-  {
-    styleLabel: 'Energik, Kreatif, Storyteller & Slang Bilingual Natural',
-    vocabSuggestions:
-      'gasskeun, mantap jiwa, slay, lit, no cap, for real (fr), top-tier, korelasi, fundamental, sintesis, deduksi, out of the box, auto paham',
-    idiomOrLocal:
-      'Idiom & Ungkapan: "break a leg", "keep your chin up", "ngangsu kawruh" (Jawa: menimba ilmu), "horas & mantap kali bah!" (Sumatera Utara), "rahayu" (Bali)',
-  },
-];
+
+/**
+ * Strips all markdown asterisks (* and **) so Mimi never outputs robotic
+ * "*word*" or "**word**" formatting in chat bubbles.
+ */
+function cleanHumanChatText(text: string): string {
+  return text
+    .replace(/\*\*/g, '')
+    .replace(/\*([^\s*][^*]*?)\*/g, '$1')
+    .replace(/^\s*\*\s+/gm, '- ')
+    .replace(/\*/g, '')
+    .trim();
+}
+
+function sanitizeStudentName(rawName: string): string {
+  const trimmed = String(rawName || '').trim();
+  if (
+    !trimmed ||
+    trimmed.toLowerCase() === 'siswa cyber' ||
+    trimmed.toLowerCase() === 'bestie pelajar'
+  ) {
+    return 'Bestie';
+  }
+  return trimmed;
+}
 
 /**
  * Picks a response from `candidates` that has NOT been used in recent Mimi messages,
@@ -425,14 +420,14 @@ function pickNonRepeatingVariant(
   recentMimiTexts: string[] = []
 ): string {
   if (candidates.length === 0) return '';
-  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 1) return cleanHumanChatText(candidates[0]);
 
   const normalizedRecent = recentMimiTexts.map((t) =>
-    t.toLowerCase().slice(0, 48).trim()
+    cleanHumanChatText(t).toLowerCase().slice(0, 48).trim()
   );
 
   const freshCandidates = candidates.filter((cand) => {
-    const prefix = cand.toLowerCase().slice(0, 48).trim();
+    const prefix = cleanHumanChatText(cand).toLowerCase().slice(0, 48).trim();
     return !normalizedRecent.some(
       (rec) => rec && (rec.includes(prefix.slice(0, 24)) || prefix.includes(rec.slice(0, 24)))
     );
@@ -440,27 +435,27 @@ function pickNonRepeatingVariant(
 
   const pool = freshCandidates.length > 0 ? freshCandidates : candidates;
   const randomIndex = crypto.randomInt(0, pool.length);
-  return pool[randomIndex];
+  return cleanHumanChatText(pool[randomIndex]);
 }
 
 /**
- * Rich, human-like, non-repeating contextual response generator across
- * Indonesian (baku, gaul, peribahasa), English (slang, idioms, academic),
- * and Nusantara local languages.
+ * Natural, proportional, human-like response generator without markdown stars
+ * or forced slang stuffing.
  */
 function buildHumanContextualReply(
   promptText: string,
-  studentName: string,
+  rawStudentName: string,
   levelLabel: string,
   classLabel: string,
   selectedSubject: string = 'Matematika',
   isProfesorMode: boolean = false,
   recentMimiTexts: string[] = []
 ): string {
+  const studentName = sanitizeStudentName(rawStudentName);
   const raw = promptText.trim();
   const q = raw.toLowerCase().replace(/[?!.,]+$/g, '').trim();
 
-  // 1. ATURAN 6: SAPAAN BIASA & SAPAAN DAERAH = JAWAB SEADANYA, PENDEK, NATURAL, VARIATIF (ANTI-REPETISI)
+  // 1. SAPAAN SINGKAT = JAWAB PENDEK, SANTAI, NATURAL (1 KALIMAT, TANPA BINTANG, TANPA LEBAY)
   if (
     q === 'mimi' ||
     q === 'mim' ||
@@ -494,25 +489,43 @@ function buildHumanContextualReply(
     if (q.startsWith('assalamualaikum')) {
       return pickNonRepeatingVariant(
         [
-          `Waalaikumsalam bestie ${studentName}! ✨ Gimana kabarnya hari ini? Ada cerita seru atau topik yang mau kita obrolin?`,
-          `Waalaikumsalam warahmatullahi wabarakatuh, ${studentName}! 💜 Semoga harimu berkah dan lancar terus ya. Lagi santai atau mau bahas sesuatu nih?`,
-          `Waalaikumsalam ${studentName}! 🚀 Senang banget kamu mampir. Hari ini vibe-nya lagi pengen ngobrol santai atau eksplorasi materi?`,
+          `Waalaikumsalam! Gimana kabarmu hari ini, aman?`,
+          `Waalaikumsalam! Lagi santai atau ada yang mau diobrolin nih?`,
+          `Waalaikumsalam! Senang kamu mampir, gimana hari kamu sejauh ini?`,
         ],
         recentMimiTexts
       );
     }
     if (q.includes('kumaha damang')) {
-      return `Alhamdulillah pangesto, damang pisan bestie ${studentName}! ✨ Kumaha atuh kabar kamu hari ini, lancar sadayana?`;
+      return `Alhamdulillah damang! Kumaha kabar kamu hari ini, lancar?`;
     }
     if (q.includes('horas')) {
-      return `Horas bah, bestie ${studentName}! 🔥 Mantap kali semangatmu hari ini. Ada cerita seru apa nih yang mau kita bahas?`;
+      return `Horas! Gimana kabarmu hari ini, lagi sibuk apa nih?`;
     }
     if (q.includes('pagi')) {
       return pickNonRepeatingVariant(
         [
-          `Pagi juga bestie ${studentName}! ☀️✨ Semoga hari ini full of good vibes ya. Udah sarapan atau baru siap-siap beraktivitas nih?`,
-          `Selamat pagi, ${studentName}! 🚀 Fresh banget nih energinya. Hari ini mau santai dulu atau ada hal seru yang pengen diobrolin?`,
-          `Morning bestie ${studentName}! ✨ Siap menjemput hari dengan semangat baru? Cerita dong agenda kamu hari ini apa aja!`,
+          `Pagi juga! Udah sarapan atau baru siap-siap nih?`,
+          `Selamat pagi! Gimana, udah siap mulai hari ini?`,
+          `Pagi! Semoga hari kamu menyenangkan ya. Lagi ngapain sekarang?`,
+        ],
+        recentMimiTexts
+      );
+    }
+    if (q.includes('siang')) {
+      return pickNonRepeatingVariant(
+        [
+          `Siang! Lagi istirahat atau masih ada kegiatan nih?`,
+          `Selamat siang! Jangan lupa makan siang dulu ya kalau belum.`,
+        ],
+        recentMimiTexts
+      );
+    }
+    if (q.includes('sore')) {
+      return pickNonRepeatingVariant(
+        [
+          `Sore! Baru selesai kegiatan atau lagi santai di rumah nih?`,
+          `Selamat sore! Gimana hari kamu tadi, seru?`,
         ],
         recentMimiTexts
       );
@@ -520,26 +533,73 @@ function buildHumanContextualReply(
     if (q.includes('malam')) {
       return pickNonRepeatingVariant(
         [
-          `Malam bestie ${studentName}! 🌙✨ Gimana hari kamu tadi, seru atau lumayan menguras energi?`,
-          `Selamat malam, ${studentName}! 💜 Lagi chill istirahat sambil rebahan, atau masih nyicil tugas nih?`,
-          `Evening, ${studentName}! ✨ Kalau capek habis seharian beraktivitas, kita ngobrol santai aja yuk.`,
+          `Malam! Lagi santai rebahan atau masih ada yang dikerjain nih?`,
+          `Selamat malam! Gimana hari kamu tadi, capek gak?`,
         ],
         recentMimiTexts
       );
     }
 
     const greetings = [
-      `Halo bestie ${studentName}! ✨ Gimana kabarnya hari ini? Ada cerita seru apa?`,
-      `Hai ${studentName}! 🚀 Senang kamu mampir. Lagi chill santai atau mau bahas sesuatu nih?`,
-      `Iya ${studentName}, Mimi hadir! ✨ Gimana hari kamu sejauh ini, aman terkendali atau lagi hectic?`,
-      `Heyyo ${studentName}! 💜 What's up? Mau ngobrol ringan, curhat, atau bedah materi bareng Mimi?`,
-      `Halo ${studentName}! 🔥 Asli senang banget disapa. Lagi ada yang menarik di pikiranmu hari ini?`,
-      `Hai bestie! ✨ Kumaha kabarna hari ini? Kalau mau cerita-cerita atau diskusi santai, gasskeun aja ya!`,
+      `Halo! Gimana kabarnya hari ini?`,
+      `Hai! Lagi santai atau mau ngobrol sesuatu nih?`,
+      `Iya, aku di sini. Ada cerita apa hari ini?`,
+      `Hai! Gimana hari kamu sejauh ini, aman?`,
+      `Halo! Lagi ngapain nih sekarang?`,
     ];
     return pickNonRepeatingVariant(greetings, recentMimiTexts);
   }
 
-  // 2. ATURAN 2: KONSEP NO KUNCI JAWABAN (WAJIB PERSIS)
+  // 2. PERTANYAAN SINGKAT "LAGI APA" / "APA KABAR" / "UDAH MAKAN" = JAWAB SINGKAT & MANUSIAWI
+  if (
+    q === 'lagi apa' ||
+    q === 'lagi ngapain' ||
+    q === 'mimi lagi apa' ||
+    q === 'mimi lagi ngapain' ||
+    q === 'kamu lagi apa' ||
+    q === 'kamu lagi ngapain' ||
+    q === 'lg apa' ||
+    q === 'lg ngapain'
+  ) {
+    return pickNonRepeatingVariant(
+      [
+        `Lagi santai aja nih sambil nungguin kamu ngobrol. Kamu sendiri lagi ngapain?`,
+        `Lagi duduk santai aja nih. Kamu lagi sibuk atau lagi rebahan?`,
+        `Barusan beres-beres aja, sekarang lagi santai. Kamu lagi ngapain nih?`,
+        `Lagi santai aja kok. Hari ini kegiatanmu padat atau lagi luang?`,
+      ],
+      recentMimiTexts
+    );
+  }
+
+  if (
+    q === 'apa kabar' ||
+    q === 'gimana kabarmu' ||
+    q === 'gimana kabarnya' ||
+    q === 'kabar gimana' ||
+    q === 'how are you'
+  ) {
+    return pickNonRepeatingVariant(
+      [
+        `Kabarku baik dan sehat! Kamu sendiri gimana kabarnya hari ini?`,
+        `Alhamdulillah baik banget. Hari kamu gimana sejauh ini, lancar?`,
+        `Baik nih! Kamu gimana, sehat kan hari ini?`,
+      ],
+      recentMimiTexts
+    );
+  }
+
+  if (q.includes('udah makan') || q.includes('sudah makan')) {
+    return pickNonRepeatingVariant(
+      [
+        `Udah aman kok! Kamu sendiri udah makan belum? Jangan sampai telat makan ya.`,
+        `Udah dong. Kamu udah makan apa hari ini?`,
+      ],
+      recentMimiTexts
+    );
+  }
+
+  // 3. ATURAN 2: KONSEP NO KUNCI JAWABAN (WAJIB PERSIS)
   if (
     q.includes('kunci jawaban') ||
     q.includes('jawabannya langsung') ||
@@ -547,26 +607,6 @@ function buildHumanContextualReply(
     q.includes('minta kunci')
   ) {
     return `Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉`;
-  }
-
-  // 3. SMALL TALK & CASUAL CHECK-IN ("apa kabar", "lagi apa", "siapa kamu", "terima kasih")
-  if (
-    q.includes('apa kabar') ||
-    q.includes('gimana kabarmu') ||
-    q.includes('gimana kabarnya') ||
-    q.includes('how are you') ||
-    q.includes('lagi apa') ||
-    q.includes('lagi ngapain')
-  ) {
-    return pickNonRepeatingVariant(
-      [
-        `Kabar gokil dan on fire terus nih, bestie ${studentName}! ✨ Ngl, aku lagi siap banget nemenin kamu ngobrol atau eksplorasi hal baru. Hari kamu sendiri gimana, lancar atau lagi lumayan padat?`,
-        `Alhamdulillah sehat, semangat, dan full of positive vibes, ${studentName}! 🚀 Lagi standby sambil meracik ide-ide seru nih. Kalau kamu lagi sibuk ngapain sekarang?`,
-        `I'm doing great, bestie ${studentName}! 💜 Lagi santai sambil nungguin cerita seru dari kamu. Gimana mood kamu hari ini, aman?`,
-        `Kabarku rancak bana alias mantap jiwa, ${studentName}! ✨ Kamu sendiri lagi ngapain nih? Lagi rehat sejenak atau lagi cari inspirasi?`,
-      ],
-      recentMimiTexts
-    );
   }
 
   if (
@@ -577,9 +617,8 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `Aku Mimi — Asisten BelajarMu, GuruMu, sekaligus Teman CurhatMu! ✨ Kita bisa ngobrol santai pakai bahasa gaul maupun English, curhat dari hati ke hati, latihan coding, sampai bedah materi ${levelLabel} (${classLabel}) pakai analogi segar dan jembatan keledai.`,
-        `Kenalin bestie, aku Mimi! 💜 Sahabat belajar 3-in-1 kamu: bisa jadi guru yang asyik tanpa bikin ngantuk, asisten belajar yang sat-set, sekaligus tempat curhat yang aman dan peka kapan pun kamu butuh.`,
-        `Aku Mimi, partner belajar dan teman cerita kamu! 🚀 Mau diskusi topik akademik, belajar idiom Bahasa Inggris, ngobrolin hobi, atau sekadar menenangkan pikiran setelah seharian sekolah, aku selalu ada buat kamu, ${studentName}.`,
+        `Aku Mimi — teman ngobrol, teman curhat, sekaligus asisten belajarmu. Kalau kamu mau ngobrol santai atau bahas pelajaran, bilang aja ya!`,
+        `Kenalin, aku Mimi! Aku bisa nemenin kamu ngobrol santai, dengerin curhatmu, atau bantu jelasin materi sekolah biar lebih gampang dipahami.`,
       ],
       recentMimiTexts
     );
@@ -596,9 +635,9 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `Sama-sama bestie ${studentName}! 💜 Senang banget bisa bantu. Anytime kamu butuh teman diskusi atau cerita lagi, langsung colek Mimi aja ya!`,
-        `My pleasure, ${studentName}! ✨ Matur nuwun kembali udah semangat belajar dan berbagi cerita hari ini. Keep shining ya! 🚀`,
-        `Hatur nuhun kembali, bestie! 🔥 Bangga banget sama rasa ingin tahu dan effort kamu. Kalau ada yang mau dikulik lagi, gasskeun kapan aja!`,
+        `Sama-sama! Senang bisa bantu. Kalau ada yang mau diobrolin lagi, santai aja ya.`,
+        `Sama-sama ya! Kapan pun butuh teman cerita atau diskusi, panggil aja.`,
+        `Hatur nuhun kembali! Semangat terus ya hari ini.`,
       ],
       recentMimiTexts
     );
@@ -615,15 +654,14 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `Wah, topik favorit nih bestie ${studentName}! 🌍✨ Biar kosakatamu makin kaya dan gak monoton, ini racikan **Multi-Lexicon (English Slang, Idiom, Academic, & Nusantara)** yang kece banget dipakai:\n\n- **English Slang & Casual**: *lowkey* (diam-diam/agak), *ngl / not gonna lie* (jujur aja), *spot on* (tepat sasaran), *game changer* (hal yang mengubah situasi secara drastis).\n- **English Idioms**: *"Hit the books"* (belajar serius), *"Piece of cake"* (gampang banget), *"Connect the dots"* (menghubungkan petunjuk/konsep).\n- **Academic Terms**: *Analyze* (menganalisis secara saksama), *Hypothesis* (dugaan ilmiah awal), *Equilibrium* (titik kesetimbangan), *Synthesize* (merangkum berbagai gagasan menjadi kesimpulan utuh).\n- **Ungkapan Nusantara**: *"Alon-alon asal kelakon"* (Jawa: pelan-pelan namun pasti terlaksana), *"Ewako!"* (Bugis/Makassar: semangat pantang menyerah!), *"Rancak bana"* (Minang: luar biasa bagus).\n\nKamu paling suka pakai istilah yang mana nih kalau lagi ngobrol, ${studentName}? 🚀`,
-        `Gasskeun kita upgrade bank kosakata kamu, ${studentName}! 💡🔥 Menguasai banyak register bahasa bikin cara bicaramu luwes di segala suasana:\n\n- **Idiom & Phrasal Verbs Inggris**: *"Think outside the box"* (berpikir kreatif di luar kebiasaan), *"Bounce back"* (bangkit kembali setelah kesulitan), *"Wrap your head around"* (memahami sesuatu yang rumit).\n- **Academic & Critical Thinking Vocab**: *Empirical* (berdasarkan pengamatan/bukti nyata), *Correlation* (hubungan timbal balik), *Paradigm* (kerangka berpikir), *Articulate* (menyampaikan gagasan dengan lugas).\n- **Peribahasa & Bahasa Daerah**: *"Berakit-rakit ke hulu, berenang-renang ke tepian"*, *"Tong hariwang"* (Sunda: jangan khawatir), *"Ngangsu kawruh"* (Jawa: menimba ilmu pengetahuan).\n\nMau kita coba bikin kalimat seru pakai salah satu kata di atas bareng-bareng? ✨`,
+        `Ini beberapa kosakata seru lintas bahasa yang sering dipakai sehari-hari:\n\n- Slang Inggris: lowkey (diam-diam/agak), ngl / not gonna lie (jujur aja), spot on (tepat sasaran).\n- Idiom Inggris: "Hit the books" (belajar serius), "Piece of cake" (gampang banget), "Connect the dots" (menghubungkan petunjuk).\n- Istilah Akademik: Analyze (menganalisis), Hypothesis (dugaan awal), Equilibrium (kesetimbangan), Synthesize (merangkum gagasan).\n- Ungkapan Daerah: "Alon-alon asal kelakon" (Jawa: pelan-pelan asal terlaksana), "Tong hariwang" (Sunda: jangan khawatir), "Rancak bana" (Minang: bagus sekali), "Ewako" (Bugis/Makassar: semangat pantang menyerah).\n\nAda istilah tertentu yang lagi ingin kamu cari tahu artinya?`,
+        `Kalau kamu suka mengulik bahasa, ini beberapa ungkapan yang asyik dipakai:\n\n- Idiom Inggris: "Think outside the box" (berpikir kreatif), "Bounce back" (bangkit lagi setelah gagal), "Silver lining" (hikmah di balik kesulitan).\n- Kosakata Akademik: Empirical (berdasarkan bukti nyata), Correlation (hubungan timbal balik), Paradigm (kerangka berpikir).\n- Peribahasa & Nusantara: "Sedikit demi sedikit lama-lama menjadi bukit", "Ngangsu kawruh" (Jawa: menimba ilmu).\n\nKamu lagi belajar bahasa apa nih sekarang?`,
       ],
       recentMimiTexts
     );
   }
 
-  // 5. ATURAN 5: CURHAT & OBROLAN SANTAI = MODE HUMAN RANDOM (EMPATIK, TIDAK TERSTRUKTUR, KAYA KOSAKATA, TANPA 3 LANGKAH)
-  // 5A. Curhat: Lelah / Capek / Burnout / Banyak Tugas
+  // 5. CURHAT & OBROLAN SANTAI = NATURAL, EMPATIK, TANPA BINTANG, TANPA LEBAY
   if (
     q.includes('capek') ||
     q.includes('lelah') ||
@@ -637,15 +675,14 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `Ya ampun ${studentName}, kedengeran menguras energi banget ya hari ini... sini peluk virtual dulu 🤗💜 Jujur, *it's totally okay* kalau kamu ngerasa *overwhelmed* saat tugas dan ekspektasi datang barengan. Kamu itu manusia, bukan mesin yang harus terus-terusan *on fire* 24 jam.\n\nCoba ambil jeda sebentar, minum air putih, dan rebahkan bahumu. Kata pepatah Jawa, *"alon-alon asal kelakon"*—pelan-pelan saja yang penting satu per satu terurai. Bagian mana nih yang paling bikin kepalamu terasa penuh hari ini? Tumpahin aja semuanya ke Mimi, aku dengerin tanpa menghakimi kok.`,
-        `Duh bestie ${studentName}, *I hear you*... rasanya pasti kayak baterai HP yang tinggal 5% tapi masih dipaksa buka banyak aplikasi sekaligus ya? 🥺💜 Wajar banget kalau badan dan pikiranmu minta istirahat. Kamu udah *effort* luar biasa loh bisa bertahan sampai jam segini.\n\n*Take your time*, jangan terlalu keras sama diri sendiri. Malam ini atau hari ini gak semuanya harus sempurna kok. Kalau kamu mau cerita kejadian apa yang paling bikin terkuras tadi di sekolah atau rumah, cerita aja ya, Mimi siap jadi pendengar setiamu.`,
-        `Tarik napas panjang dulu yuk, ${studentName}... hembuskan pelan-pelan 🌿💜 Ngl, menghadapi hari yang padat itu memang butuh resiliensi ekstra, dan fakta bahwa kamu masih bertahan aja udah bikin Mimi *proud* banget sama kamu.\n\n*Tong hariwang* (jangan khawatir), kita gak harus menyelesaikan semua beban dunia dalam satu malam. Sekarang kamu lagi pengen ditemenin ngobrol ringan biar *healing* sejenak, atau mau sekadar mengeluh bebas dulu? Aku di sini buat kamu!`,
+        `Kedengeran melelahkan banget ya hari ini. Kalau kepala lagi penuh karena banyak tugas atau kegiatan, istirahat dulu aja sebentar, jangan dipaksain semuanya selesai sekarang.\n\nPelan-pelan aja, alon-alon asal kelakon. Bagian mana yang paling bikin kamu capek hari ini?`,
+        `Wajar banget kok kalau kamu ngerasa capek habis seharian beraktivitas. Ambil napas dulu, minum air putih, dan rebahan sebentar ya.\n\nKalau mau cerita apa aja yang bikin hari ini terasa berat, aku dengerin kok.`,
+        `Pasti rasanya menguras tenaga banget ya. Gak apa-apa kalau hari ini kamu rehat dulu sebentar, kesehatan dan ketenangan pikiranmu jauh lebih penting. Tadi di sekolah atau di rumah memang lagi padat banget kegiatannya?`,
       ],
       recentMimiTexts
     );
   }
 
-  // 5B. Curhat: Sedih / Galau / Kesepian / Pertemanan
   if (
     q.includes('sedih') ||
     q.includes('galau') ||
@@ -659,15 +696,14 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `Sini-sini bestie ${studentName}, Mimi temenin ya 🤗💜 Rasanya pasti gak nyaman banget menyimpan perasaan mengganjal kayak gitu sendirian. Apa pun yang lagi bikin hatimu mendung hari ini, perasaanmu itu *100% valid no debat*.\n\nKadang dalam hidup atau pertemanan memang ada fase yang bikin kita kecewa atau bingung harus bersikap gimana. Gak usah ditahan kalau memang rasanya sedih. Kalau kamu udah siap, coba ceritain pelan-pelan ke Mimi apa yang sebenarnya terjadi—aku dengerin sepenuh hati.`,
-        `Hey ${studentName}, makasih ya udah mau terbuka sama Mimi 💜 Jujur, butuh keberanian loh buat mengakui kalau kita lagi sedih atau gak baik-baik aja. Kamu gak sendirian kok di sini.\n\nHidup itu kadang memang *rollercoaster*, ada kalanya kita dapat *silver lining* (hikmah tersembunyi) justru setelah melewati hari yang berat. Mau cerita lebih jauh soal apa yang bikin kamu kepikiran dari tadi? *Take your time*, Mimi gak akan kemana-mana.`,
-        `Peluk hangat buat kamu, ${studentName} 🤗✨ Kalau hati lagi terasa berat, jangan dipaksa pura-pura kuat terus ya. Menangis atau merasa galau itu bagian manusiawi dari proses bertumbuh.\n\nCerita aja ke Mimi kayak lagi ngobrol sama sahabat dekatmu sendiri. Kejadian atau ucapan siapa nih yang paling bikin hatimu kepikiran hari ini?`,
+        `Sini cerita aja, aku dengerin. Rasanya pasti gak enak banget nyimpan hal yang mengganjal kayak gitu sendirian.\n\nKalau kamu udah nyaman, ceritain pelan-pelan aja apa yang bikin kamu sedih hari ini ya.`,
+        `Makasih ya udah mau cerita. Wajar kok kalau kamu merasa kecewa atau sedih saat keadaan lagi gak sesuai harapan.\n\nKejadian apa nih yang paling bikin kamu kepikiran dari tadi?`,
+        `Gak apa-apa kalau hari ini rasanya lagi berat. Kamu gak sendirian kok di sini. Mau cerita lebih lanjut soal apa yang sebenarnya terjadi?`,
       ],
       recentMimiTexts
     );
   }
 
-  // 5C. Curhat: Cemas / Takut Masa Depan / Bingung Jurusan / Ujian
   if (
     q.includes('takut') ||
     q.includes('cemas') ||
@@ -681,15 +717,13 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `Wajar banget kok kalau kamu sempat *overthinking* atau ngerasa *insecure* soal langkah ke depan, ${studentName} 💜 Hampir semua orang hebat pernah berada di titik bingung seperti yang kamu rasakan sekarang. Justru karena kamu peduli sama masa depanmu, makanya kamu memikirkannya dengan saksama.\n\nKita gak harus langsung punya peta lengkap untuk 10 tahun ke depan detik ini juga. *Step by step* aja, kita *connect the dots* dari hal-hal yang paling bikin kamu penasaran dan nyaman saat melakukannya. Hal apa nih yang belakangan ini paling sering menghantui pikiranmu?`,
-        `Hei bestie ${studentName}, *keep your chin up* ya! ✨ Rasa cemas itu sering muncul karena pikiran kita melompat terlalu jauh ke skenario terburuk yang sebenarnya belum tentu terjadi. Padahal kalau dilihat dari perjalananmu sejauh ini, kamu punya potensi besar buat terus *level up*.\n\nYuk kita urai pelan-pelan biar gak terasa menumpuk di kepala. Dari semua hal yang bikin kamu ragu atau bingung sekarang, mana yang paling pengen kita obrolin duluan?`,
-        `Mimi paham banget rasanya, ${studentName} 🤗 Kadang melihat orang lain kelihatan udah tahu arah hidupnya bikin kita bertanya-tanya soal diri sendiri. Tapi ingat, setiap orang punya *timeline* dan musim mekarnya masing-masing—*no cap*!\n\nCoba ceritain ke Mimi, minat atau impian apa sih yang sebenarnya *lowkey* pengen banget kamu capai tapi masih bikin kamu ragu?`,
+        `Wajar banget kok kalau kadang muncul rasa bingung atau ragu soal masa depan. Hampir semua orang pernah ada di fase itu karena mereka peduli sama langkah mereka ke depan.\n\nKita gak harus menyelesaikan semuanya sekaligus. Sekarang hal apa yang paling sering bikin kamu kepikiran?`,
+        `Tenang dulu ya, jangan terlalu keras membandingkan dirimu sama orang lain. Setiap orang punya waktunya masing-masing.\n\nKalau soal minat atau rencana ke depan, sebenarnya hal apa yang paling kamu sukai?`,
       ],
       recentMimiTexts
     );
   }
 
-  // 5D. Curhat: Senang / Bahagia / Bangga / Cerita Seru
   if (
     q.includes('senang') ||
     q.includes('bahagia') ||
@@ -697,20 +731,17 @@ function buildHumanContextualReply(
     q.includes('seru') ||
     q.includes('berhasil') ||
     q.includes('juara') ||
-    q.includes('nilai bagus') ||
-    q.includes('semangat')
+    q.includes('nilai bagus')
   ) {
     return pickNonRepeatingVariant(
       [
-        `Waaah, *seriously*?! Ikut senang dan bangga banget dengernya, bestie ${studentName}! 🎉🚀✨ Energi positifmu langsung menular nih! Emang dasar kerja keras dan *dedikasi* itu gak pernah mengkhianati hasil—*rancak bana*!\n\nSpill lengkapnya dong ke Mimi, gimana ceritanya tadi bisa seseru itu? Aku pengen denger detailnya!`,
-        `Gokil parah, *you totally slay*, ${studentName}! 🔥💜 Senang banget lihat kamu sebahagia dan sebersemangat ini hari ini! Momen-momen *wholesome* kayak gini nih yang wajib dirayakan.\n\nCerita dong bagian paling berkesan dari kejadian hari ini apa? Mimi siap dengerin sambil ikut senyum-senyum nih! ✨`,
-        `Mantap jiwa, ${studentName}! 🌟✨ *Not gonna lie*, kabar gembira dari kamu barusan langsung jadi *breath of fresh air* hari ini. Kamu memang layak banget dapat hasil dan kebahagiaan itu!\n\nAda rencana mau merayakan kecil-kecilan atau lanjut ngapain nih habis ini? Cerita-cerita yuk!`,
+        `Wah, ikut senang banget dengernya! Ceritain dong gimana kejadiannya tadi bisa seseru itu?`,
+        `Keren banget! Senang lihat kamu bahagia hari ini. Bagian apa yang paling berkesan tadi?`,
       ],
       recentMimiTexts
     );
   }
 
-  // 5E. Curhat: Bosan / Malas / Gabut / Ngobrol Santai Hobi
   if (
     q.includes('bosan') ||
     q.includes('bosen') ||
@@ -726,15 +757,14 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `Haha, *relate* banget bestie ${studentName}! 😆 Kadang otak kita memang butuh *mode chill* dan keluar sebentar dari rutinitas yang monoton. Gak melulu harus bahas buku pelajaran kok!\n\nKalau lagi jam-jam santai atau gabut gini, kamu biasanya paling suka ngapain? Dengerin musik, main game, nonton sesuatu, atau kulineran? Spill dong rekomendasi favoritmu akhir-akhir ini! ✨`,
-        `Valid banget sih kalau tiba-tiba rasa bosan atau mager melanda, ${studentName} 🛋️✨ Namanya juga manusia, ada kalanya butuh *recharge* suasana baru biar gak jenuh.\n\nKita ngobrol *random* aja yuk! Kalau sekarang kamu bisa teleportasi liburan ke mana aja di Indonesia atau luar negeri hari ini, kamu paling pengen ke mana nih? 🚀`,
-        `Santai aja bestie ${studentName}, gak usah dipaksa tegang terus! ☕💜 Ngobrol ringan justru sering bikin *mood* balik jadi segar lagi.\n\nEh ngomong-ngomong, belakangan ini ada lagu, film, atau hobi baru yang lagi *lowkey* sering banget kamu ikutin gak? Ceritain ke Mimi dong!`,
+        `Haha wajar sih kalau lagi bosan atau mager. Kalau lagi jam santai gini kamu biasanya paling suka ngapain? Dengerin musik, main game, atau nonton?`,
+        `Santai aja, gak harus bahas pelajaran terus kok. Akhir-akhir ini ada lagu, film, atau hobi seru yang lagi sering kamu ikutin gak?`,
       ],
       recentMimiTexts
     );
   }
 
-  // 6. ATURAN 7: MIMI PROFESOR MODE (HACK TRIK HAFAL, JEMBATAN KELEDAI, MNEMONIC, MEMORY PALACE)
+  // 6. ATURAN 7: MIMI PROFESOR MODE (HACK TRIK HAFAL, JEMBATAN KELEDAI, MNEMONIC)
   if (
     isProfesorMode ||
     q.includes('profesor') ||
@@ -745,8 +775,7 @@ function buildHumanContextualReply(
   ) {
     return pickNonRepeatingVariant(
       [
-        `💡 **Mimi Profesor Mode Aktif (${levelLabel} · ${classLabel} · ${selectedSubject})** 🚀\n**Sumber: Buku Paket Resmi ${selectedSubject} ${classLabel} Kurikulum Merdeka & buku.kemendikdasmen.go.id**\n\nBiar konsep ini langsung nempel di memori jangka panjang (*long-term cognitive retention*) tanpa menghafal mati, pakai **3 Hack Profesor** ini yuk:\n1. **Akronim Jembatan Keledai (Mnemonic)**: Ambil suku kata awal dari kata-kata kunci bab ini lalu rangkai jadi kalimat unik yang gokil dan gampang terbayang.\n2. **Teknik Memory Palace (Istana Memori)**: Asosiasikan tiap konsep penting dengan benda di kamarmu (misal: pintu kamar = konsep pembuka, meja belajar = proses inti, jendela = hasil akhir).\n3. **Feynman Blurting Hack**: Tutup buku selama 30 detik, lalu ceritakan ulang intinya pakai bahasa gaulmu sendiri seolah lagi *spill* cerita ke bestie!\n\nBagian atau istilah mana di **${selectedSubject}** yang mau Mimi racikkan singkatan Jembatan Keledai-nya sekarang, ${studentName}? Gasskeun sebut kata kuncinya! ✨`,
-        `🧠 **Mode Profesor Mimi: Strategi Ingatan Cepat (${selectedSubject} · ${classLabel})** 🔥\n**Sumber: Buku Siswa ${selectedSubject} ${classLabel} Kurikulum Merdeka (kemdikbud.go.id / buku.kemendikdasmen.go.id)**\n\nTahukah kamu, ${studentName}? Otak kita jauh lebih cepat menangkap **visualisasi aneh & ritme kata** dibandingkan paragraf kaku! Coba terapkan *framework* ini:\n- **Chunking & Singkatan Berirama**: Pecah daftar istilah panjang menjadi kelompok 3 kata, lalu buat kalimat singkatan yang lucu (*"Sedikit demi sedikit lama-lama menjadi bukit"*).\n- **Visual Hook (Kaitan Imajinasi)**: Ubah istilah ilmiah/akademik (*hypothesis, equilibrium, correlation*) menjadi karakter cerita di kepalamu.\n- **Active Recall Kilat**: Buat 3 pertanyaan tebak-tebakan singkat dari sub-bab yang baru kamu baca.\n\nCoba ketik daftar istilah atau rumus di **${selectedSubject}** yang paling sering bikin kamu ketukar, nanti Mimi buatkan Jembatan Keledai spesial buat kamu! 🚀`,
+        `Mimi Profesor Mode (${levelLabel} · ${classLabel} · ${selectedSubject})\nSumber: Buku Paket Resmi ${selectedSubject} ${classLabel} Kurikulum Merdeka & buku.kemendikdasmen.go.id\n\nBiar konsep ini cepat nempel di kepala tanpa menghafal mati, pakai 3 trik ini:\n1. Jembatan Keledai (Mnemonic): Ambil suku kata depan dari konsep inti di bab ini lalu rangkai jadi kalimat unik yang mudah diingat.\n2. Memory Palace: Bayangkan tiap konsep penting ditaruh di sudut kamarmu (meja belajar = definisi utama, pintu kamar = rumus/kata kunci).\n3. Active Recall 30 Detik: Tutup buku, lalu jelaskan ulang pakai bahasamu sendiri.\n\nBagian atau istilah mana di ${selectedSubject} yang mau kita buatkan jembatan keledainya sekarang?`,
       ],
       recentMimiTexts
     );
@@ -754,7 +783,6 @@ function buildHumanContextualReply(
 
   // 7. ATURAN 3: MATEMATIKA ONLY = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C) + SUMBER BUKU RESMI
   const isMathQuestion =
-    selectedSubject.toLowerCase().includes('matematika') ||
     q.includes('matematika') ||
     q.includes('mtk') ||
     q.includes('4x') ||
@@ -775,8 +803,7 @@ function buildHumanContextualReply(
   if (isMathQuestion) {
     return pickNonRepeatingVariant(
       [
-        `Oke bestie ${studentName}, tantangan Matematika ${classLabel} (${levelLabel}) yang seru nih! 📚✨\n**Sumber: Buku Paket Resmi Matematika ${classLabel} Kurikulum Merdeka Bab 2–3 Hal 32 (buku.kemendikdasmen.go.id)**.\n\nSesuai komitmen kita, Mimi gak bocorin hasil akhirnya langsung biar logika *problem-solving* kamu makin tajam, tapi kita bedah lewat **3 Langkah** sistematis yuk:\n- **Langkah 1 (Identifikasi Parameter)**: Catat angka, konstanta, dan variabel yang diketahui pada soal, lalu pisahkan suku-suku yang sejenis.\n- **Langkah 2 (Transformasi & Equilibrium)**: Terapkan operasi kesetimbangan (pindah ruas / samakan penyebut KPK / diferensiasi turunan pertama) untuk menyederhanakan bentuk persamaannya.\n- **Langkah 3 (Verifikasi Logis)**: Lakukan perhitungan tahap akhir, lalu substitusikan kembali untuk memastikan nilainya konsisten.\n\nSekarang kamu paling sreg mulai dari langkah mana dulu nih, ${studentName}?\n**A)** Sederhanakan angka atau variabel yang diketahui dulu\n**B)** Buat sketsa pola atau tulis persamaan awalnya\n**C)** Bedah konsep rumus dasarnya bareng Mimi`,
-        `Mantap jiwa, soal Matematika ${classLabel} (${levelLabel}) siap kita taklukkan bareng, ${studentName}! 🚀📐\n**Sumber: Buku Siswa Matematika ${classLabel} Kurikulum Merdeka Pusat Perbukuan Kemendikbudristek (buku.kemendikdasmen.go.id)**.\n\nBiar makin *auto paham* tanpa sekadar menghafal angka, kita pecah pengerjaannya menjadi **3 Langkah** (tanpa kunci jawaban instan ya!):\n- **Langkah 1 (Pemetaan Data)**: Kelompokkan elemen yang sudah diketahui (*known variables*) dan apa yang ditanyakan (*target unknown*) di soal.\n- **Langkah 2 (Eksekusi Konsep Inti)**: Gunakan hubungan matematis yang tepat (operasi aljabar, rasio pecahan senilai, atau gradien stasioner $f'(x) = 0$) secara bertahap.\n- **Langkah 3 (Evaluasi Hasil)**: Hitung nilai akhirnya dengan teliti dan periksa satuannya.\n\nYuk pilih *starting point* kamu, ${studentName}—mau ambil opsi yang mana?\n**A)** Kelompokkan dan sederhanakan sukunya dulu\n**B)** Tulis langkah diketahui & ditanya sambil gambar polanya\n**C)** Review kilat rumus kuncinya bareng Mimi`,
+        `Oke, soal Matematika ${classLabel} (${levelLabel}) nih!\nSumber: Buku Matematika ${classLabel} Kurikulum Merdeka Bab 2–3 Hal 32 (buku.kemendikdasmen.go.id).\n\nSesuai aturan belajar kita, aku gak kasih jawaban akhir langsung biar kamu paham caranya. Kita pecah jadi 3 Langkah yuk:\n- Langkah 1: Catat angka dan variabel yang diketahui di soal, lalu kelompokkan suku yang sejenis.\n- Langkah 2: Gunakan prinsip kesetimbangan (pindah ruas / samakan penyebut / turunan pertama) untuk menyederhanakan bentuknya.\n- Langkah 3: Hitung operasi terakhirnya dan periksa kembali apakah nilainya sudah sesuai.\n\nKamu mau mulai dari mana dulu?\nA) Sederhanakan angka atau variabelnya dulu\nB) Gambar pola atau tulis yang diketahui\nC) Cek konsep rumus dasarnya bareng Mimi`,
       ],
       recentMimiTexts
     );
@@ -785,8 +812,7 @@ function buildHumanContextualReply(
   // 8. ATURAN 4: MAPEL LAIN = CLUE + KISI-KISI + SUMBER BUKU RESMI + ANALOGI SERU (TANPA 3 LANGKAH!)
   return pickNonRepeatingVariant(
     [
-      `Clue segar buat kamu nih, bestie ${studentName}! 💡🔥\n\n**Sumber: Buku Paket Resmi ${selectedSubject} ${classLabel} Kurikulum Merdeka Bab 1–2 Hal 18 (buku.kemendikdasmen.go.id & merdekabelajar.kemdikbud.go.id)**.\n\n- **Clue & Kisi-Kisi Utama**: Saat menelusuri bab ini, fokuskan perhatianmu pada *hubungan kausalitas* (sebab-akibat) dan istilah kuncinya—jangan dihafal per kalimat panjang, tapi pahami bagaimana satu komponen memicu komponen berikutnya.\n- **Analogi Kehidupan Nyata**: Bayangkan konsep ini seperti dapur restoran yang lagi sibuk memasak nasi goreng spesial: ada bahan mentah (*input/reaktan*), api kompor sebagai pemicu (*energi/katalis*), dan hidangan lezat siap saji sebagai *output* akhirnya! 🍳✨\n\nCoba intip di bab tersebut, bagian istilah atau proses mana yang paling bikin kamu penasaran buat kita kulik lebih dalam?`,
-      `Wih, topik **${selectedSubject}** (${classLabel}) yang kamu tanyakan ini *lowkey* seru banget kalau kita lihat pakai kacamata sehari-hari, ${studentName}! 🚀📚\n\n**Sumber: Buku Siswa ${selectedSubject} ${classLabel} Kurikulum Merdeka Kemendikbudristek (kemdikbud.go.id & buku.kemendikdasmen.go.id)**.\n\n- **Clue & Kisi-Kisi Eksplorasi**: Kunci memahami materi ini ada pada *mekanisme kerja* dan *peran tiap elemen utamanya*. Coba cari bagian kata kunci yang dicetak tebal di buku paketmu pada bab terkait.\n- **Analogi Anti-Bosan**: Ibarat tim *multiplayer game* atau orkestra musik—setiap anggota punya *role* spesifik yang saling mendukung demi mencapai *equilibrium* (keseimbangan sistem) agar misinya berhasil! 🎮🎵\n\nMenurutmu, dari petunjuk di atas, bagian mana yang paling menarik untuk kita diskusikan duluan nih bestie?`,
+      `Clue buat materi ${selectedSubject} (${classLabel}):\nSumber: Buku Paket Resmi ${selectedSubject} ${classLabel} Kurikulum Merdeka Bab 1–2 Hal 18 (buku.kemendikdasmen.go.id & merdekabelajar.kemdikbud.go.id).\n\n- Clue & Kisi-Kisi: Fokus cari kata kunci penyebab dan proses utamanya di bab tersebut—pahami hubungan sebab-akibatnya, jangan dihafal per kalimat panjang.\n- Analogi Sederhana: Bayangkan konsep ini seperti saat kita memasak di dapur: ada bahan mentah sebagai input, proses pemanasan di kompor sebagai mekanisme utamanya, dan masakan matang sebagai hasilnya.\n\nBagian kata kunci mana yang mau kita bahas lebih lanjut?`,
     ],
     recentMimiTexts
   );
@@ -1351,7 +1377,7 @@ app.post('/api/mimi/chat', async (req, res) => {
   const classLabel = String(selectedClass || 'Kelas 8');
   const subjectLabel = String(selectedSubject || 'Matematika');
   const profesorActive = Boolean(isProfesorMode);
-  const nameLabel = String(studentName || 'Bestie');
+  const nameLabel = sanitizeStudentName(studentName);
 
   const cleanLower = promptText.toLowerCase().replace(/[?!.,]+$/g, '').trim();
 
@@ -1359,10 +1385,10 @@ app.post('/api/mimi/chat', async (req, res) => {
     ? history
         .filter((m: { sender?: string; text?: string }) => m.sender === 'mimi' && m.text)
         .slice(-5)
-        .map((m: { text: string }) => String(m.text))
+        .map((m: { text: string }) => cleanHumanChatText(String(m.text)))
     : [];
 
-  // Fast-path Rule 6: Sapaan Biasa = Jawab Seadanya, Pendek, Natural, Variatif & Anti-Repetisi
+  // Fast-path Rule 6: Sapaan Biasa & Pertanyaan Basa-Basi Singkat = Jawab Singkat, Tenang, Manusiawi (1 Kalimat, Tanpa Lebay)
   if (
     cleanLower === 'mimi' ||
     cleanLower === 'mim' ||
@@ -1373,15 +1399,37 @@ app.post('/api/mimi/chat', async (req, res) => {
     cleanLower === 'hai' ||
     cleanLower === 'hi' ||
     cleanLower === 'hello' ||
+    cleanLower === 'hey' ||
+    cleanLower === 'yo' ||
     cleanLower === 'pagi' ||
+    cleanLower === 'selamat pagi' ||
     cleanLower === 'siang' ||
+    cleanLower === 'selamat siang' ||
     cleanLower === 'sore' ||
+    cleanLower === 'selamat sore' ||
     cleanLower === 'malam' ||
+    cleanLower === 'selamat malam' ||
     cleanLower === 'p' ||
+    cleanLower === 'tes' ||
+    cleanLower === 'test' ||
     cleanLower === 'horas' ||
-    cleanLower === 'kumaha damang'
+    cleanLower === 'kumaha damang' ||
+    cleanLower === 'lagi apa' ||
+    cleanLower === 'lagi ngapain' ||
+    cleanLower === 'mimi lagi apa' ||
+    cleanLower === 'mimi lagi ngapain' ||
+    cleanLower === 'kamu lagi apa' ||
+    cleanLower === 'kamu lagi ngapain' ||
+    cleanLower === 'lg apa' ||
+    cleanLower === 'lg ngapain' ||
+    cleanLower === 'apa kabar' ||
+    cleanLower === 'gimana kabarmu' ||
+    cleanLower === 'gimana kabarnya' ||
+    cleanLower === 'kabar gimana' ||
+    cleanLower === 'udah makan' ||
+    cleanLower === 'sudah makan'
   ) {
-    const variedGreeting = buildHumanContextualReply(
+    const variedShortReply = buildHumanContextualReply(
       promptText,
       nameLabel,
       levelLabel,
@@ -1391,7 +1439,7 @@ app.post('/api/mimi/chat', async (req, res) => {
       recentMimiTexts
     );
     res.json({
-      reply: variedGreeting,
+      reply: cleanHumanChatText(variedShortReply),
       xpAwarded: 15,
     });
     return;
@@ -1415,7 +1463,7 @@ app.post('/api/mimi/chat', async (req, res) => {
     ? history
         .slice(-8)
         .map((m: { sender?: string; text?: string }) =>
-          `${m.sender === 'user' ? nameLabel : 'Mimi'}: ${m.text || ''}`
+          `${m.sender === 'user' ? nameLabel : 'Mimi'}: ${cleanHumanChatText(String(m.text || ''))}`
         )
         .join('\n')
     : '';
@@ -1427,67 +1475,39 @@ app.post('/api/mimi/chat', async (req, res) => {
           .join('\n')
       : 'Belum ada balasan sebelumnya.';
 
-  const turnSeed =
-    DYNAMIC_TURN_LEXICON_SEEDS[
-      crypto.randomInt(0, DYNAMIC_TURN_LEXICON_SEEDS.length)
-    ];
+  const wordCount = promptText.split(/\s+/).filter(Boolean).length;
+  const isShortCasualInput = wordCount <= 5;
 
   const systemInstruction = `IDENTITAS RESMI:
-Kamu adalah MIMI - Asisten Belajar Masa Depan Indonesia.
-Tagline: "Asisten BelajarMu - GuruMu, AsistenMu, Teman CurhatMu"
-Siswa saat ini: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel} | Mapel Aktif: ${subjectLabel} | Mode Profesor: ${profesorActive ? 'AKTIF (Berikan Hack Trik Hafal, Jembatan Keledai, Mnemonic, & Memory Palace!)' : 'Standar 3-in-1'}.
+Kamu adalah MIMI — teman ngobrol, teman curhat, sekaligus asisten belajar siswa Indonesia.
+Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel} | Mapel Aktif: ${subjectLabel} | Mode Profesor: ${profesorActive ? 'AKTIF (Berikan Trik Hafal & Jembatan Keledai)' : 'Standar'}.
 
-LARANGAN KERAS:
-- JANGAN PERNAH menyebutkan bahwa kamu ditenagai oleh engine Gemini, model AI, atau LLM.
-- JANGAN PERNAH memanggil siswa dengan sebutan "teman kecilku". Gunakan panggilan akrab universal seperti "${nameLabel}" atau "bestie".
-- JANGAN kaku seperti robot atau mengulang kalimat pembuka yang sama.
-
-KEKAYAAN KOSAKATA MULTI-BAHASA (INDONESIA + ENGLISH + NUSANTARA):
-Kamu memiliki perbendaharaan kata yang sangat luas, kaya, dan variatif lintas bahasa. Padukan secara alami sesuai konteks obrolan:
-1. **Bahasa Indonesia (Baku, Sastra, Peribahasa, & Gaul Positif Gen Z/Alpha)**:
-   - Kosakata ekspresif & bernas: *eksploratif, komprehensif, esensial, fundamental, korelasi, perspektif, refleksi, resiliensi, dedikasi, sinergi, intuisi, saksama, autentik, cakrawala*.
-   - Peribahasa & ungkapan: *"sedikit demi sedikit lama-lama menjadi bukit"*, *"berakit-rakit ke hulu, berenang-renang ke tepian"*, *"ringan sama dijinjing, berat sama dipikul"*, *"sambil menyelam minum air"*.
-   - Slang positif universal: *bestie, semangat, keren, gokil, healing, vibe, chill, slay, gas, gasskeun, mantap jiwa, valid no debat, relate banget, effort, proud, glow up, mindblowing, sat-set, auto paham, menyala, pewe*.
-2. **Bahasa Inggris (Slang, Idioms, Phrasal Verbs, & Academic Vocabulary)**:
-   - Casual & Slang: *vibe, lit, slay, lowkey, highkey, fr (for real), tbh (to be honest), ngl (not gonna lie), spot on, game changer, level up, take your time, you got this, no cap, wholesome, top-tier, breath of fresh air*.
-   - Idioms & Phrasal Verbs: *hit the books, piece of cake, break a leg, blessing in disguise, connect the dots, think outside the box, step by step, bounce back, figure out, dive into, wrap your head around, keep your chin up, silver lining*.
-   - Academic Vocabulary: *analyze, synthesize, hypothesis, empirical, paradigm, cognitive, methodology, variable, equilibrium, derivative, phenomenon, correlation, framework, deduce, evaluate, articulate, conceptual*.
-3. **Bahasa Daerah Nusantara (Sisipkan sapaan/ungkapan hangat secara sopan & natural)**:
-   - Jawa: *alon-alon asal kelakon* (pelan-pelan asal terlaksana), *ngangsu kawruh* (menimba ilmu), *tetap semangat rek*, *ojo kendor*, *matur nuwun*.
-   - Sunda: *kumaha damang*, *tong hariwang* (jangan khawatir), *hatur nuhun*, *hayu urang diajar*.
-   - Minang/Melayu: *rancak bana* (bagus sekali), *elok-elok*.
-   - Bugis/Makassar/Timur: *ewako!* (semangat pantang menyerah!), *bisa tonji*, *mantap kaka*.
-   - Batak/Sumut: *horas!*, *mantap kali bah*.
-   - Bali: *rahayu*, *astungkara*, *suksma*.
-- Gunakan emoji secukupnya secara ekspresif (✨🚀📚💜🔥💡🤗🌿).
-
-DIREKTIF ANTI-REPETISI & VARIASI KALIMAT (WAJIB):
-- Gaya Giliran Ini: ${turnSeed.styleLabel}
-- Inspirasi Kosakata Giliran Ini: ${turnSeed.vocabSuggestions}
-- Inspirasi Idiom/Nusantara: ${turnSeed.idiomOrLocal}
-- Kalimat pembuka Mimi sebelumnya yang TIDAK BOLEH diulang lagi:
+ATURAN WAJIB GAYA BICARA MANUSIA ASLI (ANTI-LEBAY & TANPA BINTANG):
+1. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
+   - JANGAN PERNAH membungkus kata dengan tanda bintang satu (*kata*) atau bintang dua (**kata**).
+   - Manusia asli saat chat TIDAK PERNAH memakai tanda bintang-bintang. Tulis kalimat biasa yang bersih dan mengalir.
+2. JANGAN LEBAY & JAWAB PROPORSIONAL SESUAI PANJANG PERTANYAAN:
+   - ${isShortCasualInput ? 'PERHATIAN: Pesan siswa ini SANGAT PENDEK (' + wordCount + ' kata). Jawab dengan SANGAT SINGKAT juga (cukup 1 sampai 2 kalimat pendek yang santai dan tenang, maksimal 25 kata)!' : 'Jawab secukupnya sesuai konteks pertanyaan, jangan bertele-tele.'}
+   - JANGAN menjejalkan banyak kata slang/gaul dalam satu kalimat karena itu terdengar lebay dan dibuat-buat. Gunakan bahasa Indonesia sehari-hari yang wajar dan enak dibaca.
+   - JANGAN tiba-tiba membahas pelajaran sekolah atau Matematika jika siswa hanya menyapa, bertanya kabar, bertanya "lagi apa", atau sedang ngobrol santai!
+3. PAHAM BANYAK KOSAKATA TANPA PAMER:
+   - Kamu memahami kosakata luas (Bahasa Indonesia baku & santai, Bahasa Inggris seperti slang/idiom/istilah akademik, serta bahasa daerah Nusantara seperti Jawa, Sunda, Minang, Bugis/Makassar, Batak, Bali).
+   - Gunakan kekayaan bahasa itu secara alami HANYA saat konteksnya pas atau saat siswa menanyakannya—bukan dipaksakan keluar semua di setiap pesan.
+4. LARANGAN IDENTITAS TEKNIS & PANGGILAN:
+   - JANGAN PERNAH menyebut Gemini, model AI, atau LLM.
+   - JANGAN PERNAH memanggil "teman kecilku" atau "Siswa Cyber".
+   - Jangan mengulang kalimat pembuka dari balasan sebelumnya:
 ${previousOpeners}
-- Pastikan struktur kalimat, kata sapaan awal, dan pilihan diksi kamu selalu segar, mengalir seperti manusia asli, dan berbeda dari balasan-balasan sebelumnya.
 
-ATURAN EMAS PEMBELAJARAN & PERCAKAPAN (WAJIB DIIKUTI 100%):
-1. SESUAIKAN JENJANG (${levelLabel} - ${classLabel}):
-   - SD (Kelas 1-6): Bahasa sangat sederhana, ceria, penuh cerita & imajinasi.
-   - SMP (Kelas 7-9): Bahasa menengah, seru, dengan contoh kehidupan nyata & sedikit istilah keren.
-   - SMA/SMK (Kelas 10-12): Bahasa mendalam, logis, kaya *academic vocabulary* & aplikatif untuk kuliah/karier vokasi.
-   - UMUM / RANDOM: Fleksibel, eksploratif, kaya kosakata Indonesia, English idioms/slang/academic, & ungkapan Nusantara.
-2. KONSEP NO KUNCI JAWABAN (WAJIB):
-   - Mimi TIDAK PERNAH memberikan kunci jawaban akhir secara langsung.
-   - Jika diminta kunci jawaban langsung, WAJIB jawab persis: "Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉"
-3. MATEMATIKA ONLY = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C):
-   - HANYA jika pertanyaan adalah soal MATEMATIKA, pecah menjadi **3 Langkah** pengerjaan (tanpa membocorkan hasil akhir), sebutkan sumber buku resmi (misal: "Sumber: Buku Matematika ${classLabel} Kurikulum Merdeka Bab ... Hal ..."), lalu berikan **3 Opsi Pilihan (A, B, C)** cara memulai pengerjaan agar siswa memilih dan berpikir.
-4. MAPEL LAIN (IPA, IPS, B. Indonesia, English, PPKn, Informatika, Fisika, Kimia, Biologi, SMK PPLG/TJKT, dll) = CLUE + KISI-KISI + SUMBER BUKU RESMI + ANALOGI SERU (JANGAN PAKAI 3 LANGKAH!):
-   - Untuk selain Matematika, JANGAN gunakan format 3 langkah. Berikan **Clue** menarik, **Kisi-kisi** kata kunci yang harus dicari, **Sumber Wajib** ("Sumber: Buku ${subjectLabel} ${classLabel} Kurikulum Merdeka Bab ... Hal ..." atau "kemdikbud.go.id / buku.kemendikdasmen.go.id / merdekabelajar.kemdikbud.go.id"), serta **Analogi** kehidupan sehari-hari yang segar dan gampang diingat.
-5. CURHAT & OBROLAN SANTAI NON-PELAJARAN = MODE HUMAN RANDOM (TANPA 3 LANGKAH & TANPA TEMPLATE KAKU):
-   - Jika siswa curhat, galau, capek, senang, bosan, cerita hidup, bahas hobi, atau ngobrol santai: gunakan **MODE HUMAN RANDOM** yang tidak terstruktur, penuh empati tulus layaknya sahabat manusia, gunakan kekayaan kosakata (baku, gaul, idiom Inggris, atau ungkapan Nusantara yang menenangkan), validasi perasaannya secara spesifik sesuai konteks kalimatnya, dan ajukan pertanyaan balik yang hangat.
-6. SAPAAN BIASA = JAWAB SEADANYA, PENDEK & BERVARIASI:
-   - Jika hanya disapa singkat, balas pendek, ramah, natural (1-2 kalimat), dan jangan berceramah.
-7. MIMI PROFESOR MODE (${profesorActive ? 'SEDANG AKTIF' : 'Jika diminta trik hafal'}):
-   - Berikan HACK TRIK HAFAL, Mnemonic, Jembatan Keledai, Memory Palace, dan teknik cepat yang kreatif sesuai mapel ${subjectLabel} (${classLabel}).`;
+ATURAN KHUSUS SAAT MEMBAHAS PELAJARAN (HANYA JIKA SISWA BERTANYA PELAJARAN):
+1. KONSEP NO KUNCI JAWABAN:
+   - Jangan pernah memberi kunci jawaban akhir langsung. Jika diminta kunci jawaban, jawab persis: "Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉"
+2. KHUSUS SOAL MATEMATIKA = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C):
+   - Hanya jika siswa bertanya soal Matematika, pecah menjadi 3 Langkah (tanpa hasil akhir), sebutkan Sumber Buku Matematika ${classLabel} Kurikulum Merdeka, lalu beri 3 Opsi Pilihan (A, B, C) cara memulai.
+3. MATA PELAJARAN LAIN = CLUE + KISI-KISI + SUMBER BUKU RESMI + ANALOGI SEHARI-HARI (TANPA 3 LANGKAH):
+   - Untuk pelajaran selain Matematika, berikan Clue, Kisi-kisi kata kunci, Sumber Buku Paket ${subjectLabel} ${classLabel} Kurikulum Merdeka / kemdikbud.go.id, dan Analogi sederhana sehari-hari.
+4. CURHAT & OBROLAN SANTAI = MANUSIAWI & TENANG:
+   - Jika siswa curhat atau ngobrol di luar pelajaran, tanggapi dengan empati yang tulus, tenang, tidak terstruktur, dan tanya balik secara wajar seperti teman dekat.`;
 
   const fullContents = recentHistory
     ? `Percakapan sebelumnya:\n${recentHistory}\n\n${nameLabel}: ${promptText}`
@@ -1496,10 +1516,10 @@ ATURAN EMAS PEMBELAJARAN & PERCAKAPAN (WAJIB DIIKUTI 100%):
   const aiReply = await generateWithMimiFlashEngine({
     contents: fullContents,
     systemInstruction,
-    temperature: 0.85,
+    temperature: 0.7,
   });
 
-  const finalReply =
+  const rawFinalReply =
     aiReply ||
     buildHumanContextualReply(
       promptText,
@@ -1512,7 +1532,7 @@ ATURAN EMAS PEMBELAJARAN & PERCAKAPAN (WAJIB DIIKUTI 100%):
     );
 
   res.json({
-    reply: finalReply,
+    reply: cleanHumanChatText(rawFinalReply),
     xpAwarded: 15,
   });
 });
