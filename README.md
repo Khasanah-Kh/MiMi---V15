@@ -1,47 +1,82 @@
-# Mimi V15 — Room Belajar Interaktif (Gemini AI 3.6 Flash)
+# Mimi-V15 — Room Belajar Interaktif
+### Powered by Engine Gemini AI 3.8 Flash
 
-Selamat datang di repositori **Mimi V15 (Mimi 15)** — aplikasi web *Room Belajar* bergaya interaktif, rapi, dan estetik untuk pelajar **SD (Kelas 1–6)**, **SMP (Kelas 7–9)**, dan **SMA (Kelas 10–12)**.
+Selamat datang di repositori Mimi V15 — aplikasi web Room Belajar bergaya interaktif, rapi, dan estetik.
 
-## Keunggulan Utama
+Link Live Cantik dan Gratis:
+https://gen-lang-client-0798249381.web.app
 
-1. **Persona Multi-Peran Mimi V15 (Bertenaga Gemini AI 3.6 Flash)**
-   - **Asisten, Guru, Profesor & Teman Belajar Sekaligus**: Sangat peka membaca konteks obrolan seperti manusia.
-   - **Menuntun dengan Kisi-Kisi (Tanpa Bocoran Kunci Jawaban)**: Saat ditanya soal pelajaran atau PR, Mimi V15 tidak langsung membocorkan jawaban akhir, melainkan memberi kisi-kisi (*hints*), konsep dasar, dan menuntun langkah berpikir sampai kamu paham sendiri.
-   - **Peka Pertanyaan Umum**: Saat diajak ngobrol santai atau bertanya hal umum, Mimi merespons secara luwes sesuai konteks.
+### Untuk Siapa Mimi V15 Ini?
 
-2. **Jalur Belajar Interaktif & Simulasi Konsep**
-   - Dilengkapi laboratorium simulasi interaktif (Pecahan, Siklus Air, Aljabar, Hukum Newton, Hukum Ohm, Efek Bohr, hingga Fisika Kuantum).
-   - Desain kartu belajar yang rapi, nyaman dibaca, dan tombol taktil yang menyenangkan.
+Mimi V15 bukan cuma buat SD, SMP, SMA aja!
 
-3. **Papan Peringkat Global, Tantangan Partner & Kuis Adaptif**
-   - Bandingkan XP dan **Gelar Belajar** (*Pelajar Pemula I* hingga *Bintang Akademia V*) di seluruh platform.
-   - Buat soal kuis baru secara dinamis sesuai topik pilihanmu.
+- SD Kelas 1 sampai 6
+- SMP Kelas 7 sampai 9
+- SMA Kelas 10 sampai 12
+- SMK Semua Jurusan — TKJ, RPL, Akuntansi, Mesin, Listrik, Tata Boga, dan lainnya
+- UMUM — Orang Tua yang mau dampingi anak belajar
+- Alumni dan Lulusan — yang sudah lulus tapi mau belajar lagi, mau kejar Paket C, mau persiapan kerja, atau sekedar mau ngasah otak lagi
 
-4. **Sistem Login Pengguna yang Aman**
-   - Enkripsi kata sandi menggunakan `scrypt` + *16-byte random salt* dan token sesi `HMAC-SHA256`.
+Siapa pun yang mau belajar, Mimi temenin!
 
 ---
 
-## Cara Menjalankan di Lokal / GitHub Codespaces
+### Eits, Mimi V15 Itu Beda Loh!
 
-```bash
-# 1. Instal dependensi
-npm install
+Banyak AI lain kalau kamu tanya PR langsung kasih kunci jawaban. Udah, selesai. Kamu tetap tidak paham.
 
-# 2. Salin konfigurasi environment dan isi GEMINI_API_KEY
-cp .env.example .env
+Mimi V15 TIDAK seperti itu.
 
-# 3. Jalankan server pengembangan (Port 3000)
-npm run dev
-```
+Mimi V15 akan mengajari kamu pelan-pelan cara mengerjakannya:
 
-## Cara Menghubungkan & Mengatur di GitHub
+1. Mimi baca dulu kamu bingungnya di bagian mana
+2. Mimi kasih kisi-kisi dan konsep dasarnya
+3. Mimi tuntun langkah demi langkah
+4. Mimi kasih contoh yang mirip biar kamu coba sendiri
+5. Baru kalau kamu sudah paham polanya, Mimi ajak kamu cek jawaban bersama
 
-```bash
+Tujuannya satu: agar kamu MENGERTI cara pengerjaannya, bukan cuma minta kunci jawaban tanpa tau prosesnya.
+
+Jadi besok kalau ketemu soal yang sama, kamu sudah bisa kerjain sendiri tanpa Mimi lagi.
+
+### Keunggulan Lain
+
+- Persona Multi-Peran — bisa jadi Asisten, Guru, Profesor, sekaligus Teman Belajar yang peka konteks
+- Simulasi Interaktif — Pecahan, Siklus Air, Aljabar, Hukum Newton, Hukum Ohm, Efek Bohr, sampai Fisika Kuantum
+- Papan Peringkat Global — sistem XP dan Gelar Belajar dari Pelajar Pemula I sampai Bintang Akademia V
+- Kuis Adaptif — bikin soal dinamis sesuai topik yang kamu pilih
+- Login Aman — enkripsi scrypt plus 16-byte random salt dan token HMAC-SHA256
+
+---
+
+### Cara Menjalankan di Lokal
+
+1. Instal dependensi
+   npm install
+
+2. Salin konfigurasi environment dan isi GEMINI_API_KEY
+   cp .env.example .env
+
+3. Jalankan di Port 3000
+   npm run dev
+
+### Cara Deploy Gratis ke Firebase Hosting
+
+1. Build
+   npm run build
+
+2. Deploy hosting saja
+   firebase deploy --only hosting
+
+### Cara Hubungkan ke GitHub
+
 git init
 git add .
-git commit -m "feat: Room Belajar Mimi V15 powered by Gemini AI 3.6 Flash"
+git commit -m "feat: Room Belajar Mimi V15 untuk semua jenjang termasuk SMK dan Umum"
 git branch -M main
-git remote add origin https://github.com/username-kamu/mimi-v15-room-belajar.git
+git remote add origin https://github.com/khasanah-kh/Mimi-V15.git
 git push -u origin main
-```
+
+---
+
+Dibuat dengan hati untuk semua pelajar Indonesia — dari SD sampai Orang Tua — oleh kh.Khasanah
