@@ -53,6 +53,7 @@ import { PeringkatScreen } from './components/screens/PeringkatScreen';
 import { KuisScreen } from './components/screens/KuisScreen';
 import { LencanaScreen } from './components/screens/LencanaScreen';
 import { ProfilScreen } from './components/screens/ProfilScreen';
+import { DonationDialog } from './components/DonationDialog';
 import { XpToastNotification, XpToastData } from './components/XpToastNotification';
 import {
   auth,
@@ -191,6 +192,9 @@ export default function App() {
   // Share & Download Hub Dialog
   const [isShareHubOpen, setIsShareHubOpen] = useState<boolean>(false);
 
+  // Donation Dialog (5 Editable Links + VERSI A Supporter View)
+  const [isDonationOpen, setIsDonationOpen] = useState<boolean>(false);
+
   // Quiz state
   const [customAiQuizzes, setCustomAiQuizzes] = useState<QuizQuestion[] | null>(null);
   const [currentQuizIndex, setCurrentQuizIndex] = useState<number>(0);
@@ -209,10 +213,38 @@ export default function App() {
     typeof window !== 'undefined' ? window.innerWidth >= 768 : true
   );
 
+  // Warm Safe filter state (Default OFF on first load, toggled ONLY when clicked)
+  const [isWarmSafeOn, setIsWarmSafeOn] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('warmSafe') === 'true';
+    }
+    return false;
+  });
+
   useEffect(() => {
     const handleResize = () => setIsWideScreen(window.innerWidth >= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Update body filter and localStorage when isWarmSafeOn changes
+  useEffect(() => {
+    const overlay = document.getElementById('warmOverlay');
+    if (isWarmSafeOn) {
+      document.body.classList.add('warm-safe-active');
+      document.body.style.filter = 'sepia(0.15) hue-rotate(-6deg) brightness(0.94) saturate(0.9)';
+      if (overlay) overlay.style.opacity = '1';
+      localStorage.setItem('warmSafe', 'true');
+    } else {
+      document.body.classList.remove('warm-safe-active');
+      document.body.style.filter = 'none';
+      if (overlay) overlay.style.opacity = '0';
+      localStorage.setItem('warmSafe', 'false');
+    }
+  }, [isWarmSafeOn]);
+
+  const toggleWarmSafe = useCallback(() => {
+    setIsWarmSafeOn((prev) => !prev);
   }, []);
 
   // ==========================================================================
@@ -1381,6 +1413,7 @@ export default function App() {
             onDeleteMilestone={handleDeleteMilestone}
             onUpdateProfileSecurity={handleUpdateProfileSecurity}
             onSignOut={handleSignOut}
+            onOpenDonation={() => setIsDonationOpen(true)}
           />
         );
     }
@@ -1403,6 +1436,12 @@ export default function App() {
         />
       )}
 
+      {/* Donasi & Dukungan Dialog (5 Tautan Editable Sendiri + Supporter View) */}
+      <DonationDialog
+        isOpen={isDonationOpen}
+        onClose={() => setIsDonationOpen(false)}
+      />
+
       {isWideScreen ? (
         // ══════════════════════════════════════════════════════════════════
         // DESKTOP PC WEB LAYOUT (Wide browser viewport)
@@ -1416,6 +1455,7 @@ export default function App() {
             isChatOpen={isChatOpen}
             onToggleChat={() => setIsChatOpen(!isChatOpen)}
             onOpenShareHub={() => setIsShareHubOpen(true)}
+            onOpenDonation={() => setIsDonationOpen(true)}
           />
 
           {/* 2. Main Content Canvas + Top Web Bar */}
@@ -1428,6 +1468,8 @@ export default function App() {
               onToggleChat={() => setIsChatOpen(!isChatOpen)}
               onToggleDock={() => setIsChatDocked(!isChatDocked)}
               onOpenShareHub={() => setIsShareHubOpen(true)}
+              isWarmSafe={isWarmSafeOn}
+              onToggleWarmSafe={toggleWarmSafe}
             />
 
             <main className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8">
@@ -1543,6 +1585,20 @@ export default function App() {
                 <span>{xp}</span>
               </div>
 
+              {/* Warm Safe Quick Toggle for Mobile */}
+              <button
+                type="button"
+                onClick={toggleWarmSafe}
+                title={isWarmSafeOn ? 'Warm Safe ON' : 'Warm Safe OFF'}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0 transition-all cursor-pointer ${
+                  isWarmSafeOn
+                    ? 'bg-amber-400/20 text-amber-200 border-amber-400/40 shadow-[0_0_10px_rgba(251,191,36,0.25)]'
+                    : 'bg-[#1e293b] text-[#cbd5e1] border-white/10'
+                }`}
+              >
+                <span>👁️ {isWarmSafeOn ? 'Warm ON' : 'Warm OFF'}</span>
+              </button>
+
               {/* Book Drive Hub Shortcut */}
               <button
                 type="button"
@@ -1616,6 +1672,20 @@ export default function App() {
           />
         </div>
       )}
+
+      {/* Warm Safe Ambient Overlay (Active only when toggled ON, zero obstruction) */}
+      <div
+        id="warmOverlay"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(255,210,120,0.06)',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          opacity: isWarmSafeOn ? 1 : 0,
+          transition: 'opacity 0.5s ease',
+        }}
+      />
     </div>
   );
 }

@@ -18,6 +18,9 @@ import {
   FolderSync,
   Share2,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   BottomNavTab,
@@ -93,11 +96,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setMilestoneTitle('');
   };
 
-  // Duolingo Stepping Path & Dola Task Sync states
   const [isDuoPathView, setIsDuoPathView] = useState<boolean>(true);
   const [duoNodeModal, setDuoNodeModal] = useState<LevelItem | null>(null);
   const [isGoogleTasksModalOpen, setIsGoogleTasksModalOpen] = useState<boolean>(false);
   const [tasksSyncToast, setTasksSyncToast] = useState<string | null>(null);
+  const [isMapelExpanded, setIsMapelExpanded] = useState<boolean>(false);
+
+  const scrollContainer = (elementId: string, amount: number) => {
+    const el = document.getElementById(elementId);
+    if (el) {
+      el.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
 
   const availableClasses = CLASSES_BY_LEVEL[uiState.selectedEducationLevel] || [];
   const availableSubjects = SUBJECTS_BY_LEVEL[uiState.selectedEducationLevel] || [];
@@ -106,19 +116,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   ).length;
 
   const handleSharePublicWebsiteLink = async () => {
-    const publicUrl = window.location.origin;
-    const shareText = `Yuk belajar seru bareng MIMI - Asisten Belajar Masa Depan Indonesia ("Asisten BelajarMu - GuruMu, AsistenMu, Teman CurhatMu")! Klik langsung tanpa ribet: ${publicUrl}`;
+    const publicUrl = 'https://gen-lang-client-0798249381.web.app';
+    const shareText = `Yuk belajar seru bareng MIMI V15 - Asisten Belajar Masa Depan Indonesia! Klik langsung: ${publicUrl} (atau https://gen-lang-client-0798249381.firebaseapp.com)`;
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'MIMI — Asisten Belajar Masa Depan Indonesia',
+          title: 'MIMI V15 — Asisten Belajar Masa Depan Indonesia',
           text: shareText,
           url: publicUrl,
         });
       } else {
         await navigator.clipboard.writeText(publicUrl);
       }
-      setShareToast('Link Website Publik berhasil disalin! Siapa pun yang membuka link ini bisa langsung melihat & belajar.');
+      setShareToast('Link Website Live (https://gen-lang-client-0798249381.web.app) berhasil disalin!');
       setTimeout(() => setShareToast(null), 4500);
     } catch {
       try {
@@ -150,21 +160,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   return (
-    <div className="space-y-6 sm:space-y-9 pb-16 sm:pb-12">
+    <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-12">
       {/* 1. Hero Student Welcome Card (Adaptive Smartphone & PC) */}
-      <section className="p-6 sm:p-8 card-study space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch border-b border-slate-800/80 pb-6">
+      <section className="p-4 sm:p-7 card-study space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch border-b border-slate-800/80 pb-4 sm:pb-6">
           {/* Left Hero Column: Greeting & Action Hub (7 cols) */}
-          <div className="lg:col-span-7 flex flex-col justify-between space-y-5">
-            <div className="space-y-2.5">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-sky-400 font-semibold tracking-wide">
+          <div className="lg:col-span-7 flex flex-col justify-between space-y-3.5 sm:space-y-5">
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-sky-400 font-semibold tracking-wide">
                 <span>MIMI — Asisten Belajar Masa Depan Indonesia</span>
                 <span aria-hidden="true">·</span>
                 <span className="text-emerald-400 font-bold">
                   ● GuruMu, AsistenMu, Teman CurhatMu
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
+              <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
                 Halo bestie {uiState.studentName}! ✨ Semangat Belajar Hari Ini!
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
@@ -264,10 +274,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
 
         {shareToast && (
-          <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md">
             <span>✅ {shareToast}</span>
             <span className="font-mono text-[11px] text-emerald-300 break-all">
-              {typeof window !== 'undefined' ? window.location.origin : ''}
+              https://gen-lang-client-0798249381.web.app
             </span>
           </div>
         )}
@@ -343,148 +353,262 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </section>
 
       {/* 2. Hierarchy Selection: Tingkatan (SD / SMP / SMA / SMK / UMUM) -> Kelas -> Mata Pelajaran + Mimi Profesor Mode */}
-      <section className="p-5 sm:p-7 card-study space-y-4 sm:space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <section className="p-4 sm:p-6 card-study space-y-3.5 sm:space-y-4 rounded-3xl border border-slate-800/80 bg-[#0c1222]/90 backdrop-blur-md shadow-xl">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="space-y-1">
-            <h2 className="text-base sm:text-lg font-extrabold text-white">
-              Pilih Tingkatan, Kelas & Mata Pelajaran (SD, SMP, SMA, SMK & Umum)
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Sumber Wajib: Buku Paket Resmi Kemendikbud Kurikulum Merdeka (
-              <a
-                href="https://buku.kemendikdasmen.go.id/daftar-katalog"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sky-400 hover:underline"
-              >
-                buku.kemendikdasmen.go.id
-              </a>
-              ) · Matematika = 3 Langkah + 3 Opsi A/B/C · Mapel Lain = Clue + Kisi + Sumber + Analogi Seru
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                <span>Pilih Jenjang, Kelas & Mapel</span>
+              </h2>
+              <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20 lg:hidden">
+                Kurikulum Merdeka
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
+              Sumber: Buku Paket Resmi Kemendikbud (<a href="https://buku.kemendikdasmen.go.id/daftar-katalog" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">buku.kemendikdasmen.go.id</a>) · Matematika = 3 Langkah + Opsi · Mapel Lain = Clue + Kisi + Analogi
             </p>
           </div>
 
-          {/* Interactive Segmented Control for SD / SMP / SMA / SMK / UMUM (Swipeable on Smartphone, Wrapped on PC) */}
-          <div className="w-full lg:w-auto overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-1.5 p-1.5 bg-[#0B101E] border-2 border-slate-800 rounded-2xl w-max sm:w-auto">
-              {[
-                { id: EducationLevel.SD, label: 'SD (1–6)' },
-                { id: EducationLevel.SMP, label: 'SMP (7–9)' },
-                { id: EducationLevel.SMA, label: 'SMA (10–12)' },
-                { id: EducationLevel.SMK, label: 'SMK (10–12)' },
-                { id: EducationLevel.UMUM, label: 'UMUM / Random' },
-              ].map((item) => {
-                const isSelected = uiState.selectedEducationLevel === item.id;
-                return (
-                  <motion.button
-                    key={item.id}
-                    type="button"
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => onSelectEducationLevel(item.id)}
-                    className={`relative px-3.5 py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
-                      isSelected
-                        ? 'text-slate-950'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {isSelected && (
-                      <motion.div
-                        layoutId="homeEducationLevelPill"
-                        className="absolute inset-0 bg-sky-400 rounded-xl"
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10">{item.label}</span>
-                  </motion.button>
-                );
-              })}
+          {/* Interactive Segmented Control for SD / SMP / SMA / SMK / UMUM with Left/Right Scroll Controls */}
+          <div className="relative w-full lg:w-auto flex items-center group">
+            {/* Mobile Scroll Controls */}
+            <button
+              type="button"
+              onClick={() => scrollContainer('tingkatan-scroll-container', -140)}
+              className="lg:hidden absolute left-0 z-20 w-6 h-6 -ml-1 flex items-center justify-center rounded-full bg-slate-900/90 text-slate-300 border border-slate-700 shadow hover:bg-slate-800 active:scale-95"
+              aria-label="Geser kiri tingkatan"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollContainer('tingkatan-scroll-container', 140)}
+              className="lg:hidden absolute right-0 z-20 w-6 h-6 -mr-1 flex items-center justify-center rounded-full bg-slate-900/90 text-slate-300 border border-slate-700 shadow hover:bg-slate-800 active:scale-95"
+              aria-label="Geser kanan tingkatan"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+
+            <div
+              id="tingkatan-scroll-container"
+              className="w-full lg:w-auto overflow-x-auto no-scrollbar scroll-smooth touch-pan-x px-6 sm:px-0"
+            >
+              <div className="flex items-center gap-1.5 p-1 bg-[#070b14] border-2 border-slate-800 rounded-2xl w-max sm:w-auto">
+                {[
+                  { id: EducationLevel.SD, label: 'SD (1–6)' },
+                  { id: EducationLevel.SMP, label: 'SMP (7–9)' },
+                  { id: EducationLevel.SMA, label: 'SMA (10–12)' },
+                  { id: EducationLevel.SMK, label: 'SMK (10–12)' },
+                  { id: EducationLevel.UMUM, label: 'UMUM / Random' },
+                ].map((item) => {
+                  const isSelected = uiState.selectedEducationLevel === item.id;
+                  return (
+                    <motion.button
+                      key={item.id}
+                      type="button"
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => onSelectEducationLevel(item.id)}
+                      className={`relative px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
+                        isSelected
+                          ? 'text-slate-950 font-black'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="homeEducationLevelPill"
+                          className="absolute inset-0 bg-sky-400 rounded-xl"
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        />
+                      )}
+                      <span className="relative z-10">{item.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Step 2: Class Buttons (Touch Swipeable on Mobile) */}
-        <div className="pt-3 border-t border-slate-800/70 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
-          <span className="text-xs font-semibold text-slate-400 block sm:inline mr-2">
-            1. Pilih Kelas:
-          </span>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
-            {availableClasses.map((cls) => {
-              const active = uiState.selectedClass === cls;
-              return (
-                <motion.button
-                  key={cls}
-                  type="button"
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onSelectClass(cls)}
-                  className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
-                    active
-                      ? 'text-slate-950'
-                      : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
-                  }`}
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="homeClassPill"
-                      className="absolute inset-0 btn-tactile-sky rounded-xl"
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{cls}</span>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Step 3: Subject Buttons + Mimi Profesor Mode Toggle */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 pt-3 border-t border-slate-800/70">
-          <div className="space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-2 min-w-0">
-            <span className="text-xs font-semibold text-slate-400 block sm:inline mr-1">
-              2. Pilih Mapel:
+        {/* Step 2: Class Buttons (Smooth Touch Scroll with Navigation Chevrons) */}
+        <div className="pt-2.5 border-t border-slate-800/70 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
+          <div className="flex items-center justify-between sm:justify-start">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-300 flex items-center gap-1.5 mr-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              1. Pilih Kelas:
             </span>
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
-              {availableSubjects.map((subj) => {
-                const active = uiState.selectedSubject === subj;
+            <span className="text-[10px] text-slate-500 sm:hidden">
+              Geser samping ➔
+            </span>
+          </div>
+
+          <div className="relative flex-1 min-w-0">
+            <div
+              id="kelas-scroll-container"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-1 sm:pb-0 sm:flex-wrap pr-6 sm:pr-0"
+            >
+              {availableClasses.map((cls, idx) => {
+                const active = uiState.selectedClass === cls;
                 return (
                   <motion.button
-                    key={subj}
+                    key={`cls-${cls}-${idx}`}
                     type="button"
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => onSelectSubject(subj)}
-                    className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
+                    onClick={() => onSelectClass(cls)}
+                    className={`relative px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
                       active
-                        ? 'text-slate-950 font-extrabold'
+                        ? 'text-slate-950 font-black'
                         : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
                     }`}
                   >
                     {active && (
                       <motion.div
-                        layoutId="homeSubjectPill"
-                        className="absolute inset-0 bg-emerald-400 rounded-xl"
+                        layoutId="homeClassPill"
+                        className="absolute inset-0 btn-tactile-sky rounded-xl"
                         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       />
                     )}
-                    <span className="relative z-10">{subj}</span>
+                    <span className="relative z-10">{cls}</span>
                   </motion.button>
                 );
               })}
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:flex items-center gap-2 shrink-0">
+        {/* Step 3: Subject Buttons with Horizontal Swipe & Grid Expand Mode */}
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 pt-2.5 border-t border-slate-800/70">
+          <div className="space-y-2 min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-[11px] sm:text-xs font-bold text-slate-300">
+                  2. Pilih Mapel ({availableSubjects.length} Pilihan):
+                </span>
+              </div>
+
+              {/* Mobile quick actions: Left/Right arrows + Expand all toggle */}
+              <div className="flex items-center gap-1 bg-[#070b14] p-0.5 rounded-lg border border-slate-800 shrink-0">
+                {!isMapelExpanded && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => scrollContainer('mapel-scroll-container', -140)}
+                      className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors active:scale-95"
+                      title="Geser Kiri"
+                      aria-label="Geser Kiri"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollContainer('mapel-scroll-container', 140)}
+                      className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors active:scale-95"
+                      title="Geser Kanan"
+                      aria-label="Geser Kanan"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsMapelExpanded(!isMapelExpanded)}
+                  className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-sky-300 transition-colors flex items-center gap-1 active:scale-95"
+                  title="Ubah Tampilan Mapel"
+                >
+                  {isMapelExpanded ? (
+                    <>
+                      <Sliders className="w-2.5 h-2.5" />
+                      <span>Baris</span>
+                    </>
+                  ) : (
+                    <>
+                      <LayoutGrid className="w-2.5 h-2.5" />
+                      <span>Semua</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Mapel display: Expandable full grid OR smooth swipeable row */}
+            {isMapelExpanded ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {availableSubjects.map((subj, idx) => {
+                  const active = uiState.selectedSubject === subj;
+                  return (
+                    <motion.button
+                      key={`subj-exp-${subj}-${idx}`}
+                      type="button"
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onSelectSubject(subj)}
+                      className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition-all overflow-hidden ${
+                        active
+                          ? 'bg-emerald-400 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                          : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <span>{subj}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="relative">
+                {/* Edge fade hint for mobile swipe */}
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0c1222] to-transparent z-10 sm:hidden" />
+                <div
+                  id="mapel-scroll-container"
+                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x pb-1 pr-10 sm:pr-0 sm:flex-wrap"
+                >
+                  {availableSubjects.map((subj, idx) => {
+                    const active = uiState.selectedSubject === subj;
+                    return (
+                      <motion.button
+                        key={`subj-scroll-${subj}-${idx}`}
+                        type="button"
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => onSelectSubject(subj)}
+                        className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
+                          active
+                            ? 'text-slate-950 font-extrabold'
+                            : 'bg-[#0B101E] text-slate-300 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        {active && (
+                          <motion.div
+                            layoutId="homeSubjectPill"
+                            className="absolute inset-0 bg-emerald-400 rounded-xl"
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        <span className="relative z-10">{subj}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons: Profesor Mode and Hack Hafal */}
+          <div className="grid grid-cols-1 sm:flex items-center gap-2 shrink-0 pt-1 lg:pt-0">
             <motion.button
               type="button"
               whileTap={{ scale: 0.96 }}
               onClick={onToggleProfesorMode}
-              className={`px-4 py-2.5 sm:py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all whitespace-nowrap shrink-0 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap shrink-0 ${
                 uiState.isProfesorMode
-                  ? 'bg-amber-400 text-slate-950 shadow-lg'
+                  ? 'bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20'
                   : 'bg-[#0B101E] text-amber-300 border border-amber-400/50 hover:bg-slate-900'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {uiState.isProfesorMode
-                  ? 'Mimi Profesor Mode: AKTIF'
+                  ? 'Mimi Profesor: AKTIF'
                   : 'Aktifkan Mimi Profesor Mode'}
               </span>
             </motion.button>
@@ -497,7 +621,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   `Mimi Profesor, kasih aku HACK TRIK HAFAL & Jembatan Keledai buat mapel ${uiState.selectedSubject} (${uiState.selectedClass}) dong! 🚀`
                 )
               }
-              className="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 text-center whitespace-nowrap shrink-0"
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 text-center whitespace-nowrap shrink-0"
             >
               Minta Hack Hafal
             </motion.button>
@@ -508,15 +632,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* 3. Aesthetic Unit Banner & Duolingo Stepping Path vs. Compact Cards Switcher */}
       <section className="space-y-6">
         {/* Aesthetic Gradient Banner (Vibrant Teen/Gen-Z Aesthetic) */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-700 text-white shadow-2xl shadow-indigo-900/40 border-2 border-violet-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-5 relative overflow-hidden">
-          <div className="absolute -right-8 -bottom-8 w-40 h-40 rounded-full bg-sky-400/20 blur-2xl pointer-events-none" />
+        <div className="p-6 sm:p-8 rounded-[20px] bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-700 text-slate-100 shadow-[0_0_40px_rgba(124,58,237,0.3)] border border-violet-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative overflow-hidden">
+          <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
+          <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full bg-purple-500/25 blur-3xl pointer-events-none" />
           <div className="space-y-2 relative z-10">
             <div className="text-xs font-mono font-extrabold uppercase tracking-widest text-violet-200 flex items-center gap-2">
               <span>UNIT 1 · {uiState.selectedEducationLevel} KELAS {uiState.selectedClass.toUpperCase().replace('KELAS ', '')}</span>
               <span aria-hidden="true">·</span>
               <span className="text-emerald-300 font-bold">Kurikulum Merdeka</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-50 tracking-tight leading-snug">
               {uiState.selectedSubject} — Kurikulum Merdeka
             </h2>
             <div className="text-xs sm:text-sm text-violet-100 font-medium flex items-center gap-3">
@@ -597,7 +722,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                   return (
                     <div
-                      key={lvl.id}
+                      key={`duo-${lvl.id}-${index}`}
                       className={`relative flex flex-col items-center transition-all ${offsetClasses}`}
                     >
                       {/* Active "Mulai Di Sini!" Floating Tooltip */}
@@ -698,7 +823,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 const isDone = studyProgress.completedLevelIds.includes(lvl.id);
                 return (
                   <motion.div
-                    key={lvl.id}
+                    key={`grid-${lvl.id}-${index}`}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.22, delay: index * 0.05 }}
@@ -772,7 +897,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             formula: lvl.simulation.formulaDisplay,
                           })
                         }
-                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all duration-300 hover:brightness-110 hover:shadow-lg"
                       >
                         <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                         <span>Unduh PDF</span>
@@ -788,7 +913,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         <button
                           type="button"
                           onClick={() => openModuleModal(lvl)}
-                          className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                          className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-2 whitespace-nowrap shrink-0 transition-all duration-300 hover:brightness-110 hover:shadow-lg ${
                             isDone ? 'btn-tactile-slate' : 'btn-tactile-sky'
                           }`}
                         >
@@ -874,9 +999,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Target List with Tactile Checkbox Toggle */}
         <div className="space-y-2.5 divide-y divide-slate-800/80">
-          {milestones.map((ms) => (
+          {milestones.map((ms, index) => (
             <div
-              key={ms.id}
+              key={`ms-${ms.id || 'ms'}-${index}`}
               className="pt-2.5 flex items-center justify-between gap-3 text-xs sm:text-sm"
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -1332,7 +1457,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
                 <div className="p-4 rounded-2xl bg-[#0B101E] border border-slate-800 text-xs font-mono text-slate-200 space-y-2 max-h-48 overflow-y-auto">
                   {milestones.map((m, idx) => (
-                    <div key={m.id} className="flex items-start gap-2">
+                    <div key={`gtask-${m.id || 'item'}-${idx}`} className="flex items-start gap-2">
                       <span className="text-sky-400 font-bold">{idx + 1}.</span>
                       <span className={m.completed ? 'line-through text-slate-500' : ''}>
                         [{m.completed ? '✓' : ' '}] {m.title}

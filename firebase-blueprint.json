@@ -20,12 +20,35 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["uid", "displayName"]
+    },
+    "DuelRoom": {
+      "title": "DuelRoom",
+      "description": "Real-time duel arena match document between players or bot",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "number" },
+        "mode": { "type": "string", "maxLength": 10 },
+        "status": { "type": "string", "maxLength": 20 },
+        "host": { "type": "object" },
+        "guest": { "type": "object" },
+        "questions": { "type": "array" },
+        "currentRound": { "type": "number" },
+        "totalRounds": { "type": "number" },
+        "winnerUid": { "type": "string" },
+        "xpStake": { "type": "number" }
+      },
+      "required": ["roomId", "status", "host"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Stores user learning progression and preferences"
+    },
+    "/duel_rooms/{roomId}": {
+      "schema": "DuelRoom",
+      "description": "Real-time synchronized duel room for fast cyber quiz challenges"
     }
   }
 }

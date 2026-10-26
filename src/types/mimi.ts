@@ -235,3 +235,40 @@ export interface MimiUiState {
   rivalWins: number;
   rivalMatches: number;
 }
+
+export interface DuelQuestion {
+  id: string;
+  category: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  timeLimitSec: number;
+}
+
+export interface DuelPlayer {
+  uid: string;
+  displayName: string;
+  score: number;
+  currentQIndex: number;
+  isReady: boolean;
+  selectedAnswer: number | null;
+  hasAnsweredCurrent: boolean;
+  streak: number;
+}
+
+export interface DuelRoom {
+  roomId: string;
+  createdAt: number;
+  mode: 'bot' | 'pvp';
+  status: 'waiting' | 'countdown' | 'in_progress' | 'finished';
+  countdown: number;
+  host: DuelPlayer;
+  guest?: DuelPlayer | null;
+  questions: DuelQuestion[];
+  currentRound: number;
+  totalRounds: number;
+  winnerUid?: string | null;
+  xpStake: number;
+  updatedAt?: any;
+}

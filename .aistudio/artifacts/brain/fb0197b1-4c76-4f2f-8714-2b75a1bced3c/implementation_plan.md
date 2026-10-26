@@ -76,15 +76,23 @@ This update transforms the mobile experience of MIMI V15 into a highly engaging,
 
 ---
 
-## 5. Implementation Steps
+## 6. Real-Time Duel Arena & Mobile Ergonomics Update
 
-1. **Update `src/App.tsx` Mobile Header**:
-   - Refine the mobile header into an ultra-slim single row displaying `🎓 SMP Kelas 8`, `🔥 3`, `💎 120 XP`, `📚`, and a tappable mini profile avatar.
-2. **Refactor `src/components/screens/HomeScreen.tsx`**:
-   - Add the Duolingo Stepping Path component with winding SVG/CSS node connectors, 3D tactile circular nodes (Completed, Active glowing star, Trophy exam).
-   - Implement the Duolingo Unit Preview Modal with "Mulai Belajar (+40 XP)" and "Unduh PDF".
-   - Add the Dola-style Daily Target checklist with inline form and "Sinkron Google Tasks" button.
-3. **Verify Dialog Viewport Fit**:
-   - Ensure all modals (Avatar selector, Level preview, Curhat sheet) use `max-h-[88dvh] overflow-y-auto` for seamless display across all mobile device screen heights.
-4. **Build Verification**:
-   - Run `compile_applet` and `lint_applet` to confirm zero build or lint issues.
+### Completed Features:
+1. **Real-Time 'Duel Arena' Architecture**:
+   - **Firestore Synchronization**: Real-time room subscription (`subscribeToDuelRoom`) with Firestore collection `duel_rooms/{roomId}`.
+   - **Mode 1: Duel Lawan Cyber Bot (AI)**: Instant 1-click solo matchmaking with realistic dynamic bot delay (2–4.5s) and 75% accuracy simulation.
+   - **Mode 2: Duel Lawan Teman (Realtime PVP)**:
+     - Room host creates a 5-character neon code (e.g. `CYB921`) with instant clipboard copy & share.
+     - Friend enters code to join; both screens immediately transition to a synchronous countdown (3.. 2.. 1.. GO!).
+   - **Synchronous Split HUD**: Live head-to-head score comparison, round tracker (5 rapid rounds), dual health/score progress bar, and 10s per-question countdown.
+   - **Curated Cyber Quiz Dataset (`DUEL_CYBER_QUESTIONS`)**: Fast-paced cyber security, logic, programming, algorithms, and Mimi hacks questions.
+   - **Audio & Haptic Feedback**: Lightweight Web Audio API synthesizer for countdown ticks, correct answers, wrong blips, and victory fanfare + haptic vibration.
+   - **Podium Victory Screen**: Post-match stats, XP award (+150-200 XP), rematch trigger, and return to arena lobby.
+
+2. **Mobile Screen (HP) Ergonomics & Aesthetic Optimization**:
+   - Compact responsive padding (`p-3.5 sm:p-5` instead of bulky `p-8`).
+   - Balanced spacing (`gap-2.5 sm:gap-4`, `space-y-3.5 sm:space-y-5`) that eliminates awkward empty voids without crowding text.
+   - High-contrast, legible typography (`text-xs`/`text-sm` captions, `text-sm sm:text-base` questions) fitting small mobile screens (360px-430px) without aggressive scrolling.
+   - Ergonomic 46px+ touch target buttons for fast one-thumb answering.
+   - Firestore rules deployed and validated.

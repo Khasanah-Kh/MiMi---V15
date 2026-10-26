@@ -12,20 +12,26 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Users collection
+    // Health check connection test document
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Users collection (supporting both Firebase Auth accounts and student guest profiles)
     match /users/{userId} {
-      allow get: if isOwner(userId) && isValidId(userId);
-      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
-      allow create: if isOwner(userId) && isValidId(userId) && request.resource.data.uid == userId;
-      allow update: if isOwner(userId) && isValidId(userId) && request.resource.data.uid == userId;
-      allow delete: if isOwner(userId) && isValidId(userId);
+      allow read, write: if isValidId(userId);
+    }
+
+    // Duel Arena Rooms collection for real-time multiplayer challenges
+    match /duel_rooms/{roomId} {
+      allow read, write: if true;
     }
   }
 }

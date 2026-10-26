@@ -234,8 +234,8 @@ const ChatCoreContent: React.FC<MimiChatProps & { showDockToggle: boolean }> = (
             onChange={(e) => onSelectClass(e.target.value)}
             className="w-full px-2.5 py-1.5 text-xs font-semibold bg-slate-900 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-sky-400"
           >
-            {availableClasses.map((cls) => (
-              <option key={cls} value={cls}>
+            {availableClasses.map((cls, idx) => (
+              <option key={`mimi-cls-${cls}-${idx}`} value={cls}>
                 {cls}
               </option>
             ))}
@@ -247,8 +247,8 @@ const ChatCoreContent: React.FC<MimiChatProps & { showDockToggle: boolean }> = (
             onChange={(e) => onSelectSubject(e.target.value)}
             className="w-full px-2.5 py-1.5 text-xs font-semibold bg-slate-900 border border-slate-700 rounded-lg text-sky-300 focus:outline-none focus:border-sky-400"
           >
-            {availableSubjects.map((subj) => (
-              <option key={subj} value={subj}>
+            {availableSubjects.map((subj, idx) => (
+              <option key={`mimi-subj-${subj}-${idx}`} value={subj}>
                 {subj}
               </option>
             ))}
@@ -300,14 +300,14 @@ const ChatCoreContent: React.FC<MimiChatProps & { showDockToggle: boolean }> = (
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-5">
-        {messages.map((msg) => {
+        {messages.map((msg, msgIdx) => {
           const isUser = msg.sender === 'user';
           const cleanText = msg.text.replace(/\*\*/g, '').replace(/\*/g, '');
           const paragraphs = cleanText.split(/\n+/).filter((p) => p.trim().length > 0);
 
           return (
             <div
-              key={msg.id}
+              key={`mimi-msg-${msg.id || 'msg'}-${msgIdx}`}
               className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
             >
               <div className="flex items-center gap-2 text-xs text-slate-400 mb-1.5 px-1">

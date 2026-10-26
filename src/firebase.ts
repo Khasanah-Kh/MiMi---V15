@@ -21,8 +21,11 @@ import {
   getDoc,
   getDocFromServer,
   setDoc,
+  deleteDoc,
+  onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
+import { DuelRoom } from './types/mimi';
 import rawConfig from '../firebase-applet-config.json';
 
 // Configuration provided by user and synced with firebase-applet-config.json
@@ -151,6 +154,7 @@ export async function saveUserProgressToFirestore(
     await setDoc(
       userDocRef,
       {
+        uid: userId,
         ...userData,
         updatedAt: serverTimestamp(),
       },
@@ -174,6 +178,104 @@ export async function getUserProgressFromFirestore(
     return null;
   } catch (err) {
     handleFirestoreError(err, OperationType.GET, docPath);
+  }
+}
+
+// 7. Real-Time Duel Arena Sync Helpers
+export async function createDuelRoom(roomData: DuelRoom): Promise<string> {
+  const docPath = `duel_rooms/${roomData.roomId}`;
+  try {
+    const roomRef = doc(db, 'duel_rooms', roomData.roomId);
+    await setDoc(roomRef, {
+      ...roomData,
+      updatedAt: serverTimestamp(),
+    });
+    return roomData.roomId;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, docPath);
+  }
+}
+
+export async function joinDuelRoom(
+  roomId: string,
+  guestPlayer: DuelRoom['host']
+): Promise<boolean> {
+  const docPath = `duel_rooms/${roomId}`;
+  try {
+    const roomRef = doc(db, 'duel_rooms', roomId);
+    const snap = await getDoc(roomRef);
+    if (!snap.exists()) {
+      throw new Error(`Room duel ${roomId} tidak ditemukan.`);
+    }
+    const current = snap.data() as DuelRoom;
+    if (current.status !== 'waiting') {
+      throw new Error(`Room duel sudah dimulai atau selesai.`);
+    }
+    await setDoc(
+      roomRef,
+      {
+        guest: guestPlayer,
+        status: 'countdown',
+        countdown: 3,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, docPath);
+  }
+}
+
+export async function updateDuelRoomState(
+  roomId: string,
+  updates: Partial<DuelRoom>
+): Promise<void> {
+  const docPath = `duel_rooms/${roomId}`;
+  try {
+    const roomRef = doc(db, 'duel_rooms', roomId);
+    await setDoc(
+      roomRef,
+      {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, docPath);
+  }
+}
+
+export function subscribeToDuelRoom(
+  roomId: string,
+  onUpdate: (room: DuelRoom | null) => void,
+  onError?: (err: any) => void
+): () => void {
+  const roomRef = doc(db, 'duel_rooms', roomId);
+  return onSnapshot(
+    roomRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onUpdate(snapshot.data() as DuelRoom);
+      } else {
+        onUpdate(null);
+      }
+    },
+    (error) => {
+      console.warn('Duel room snapshot listener error:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+export async function removeDuelRoom(roomId: string): Promise<void> {
+  const docPath = `duel_rooms/${roomId}`;
+  try {
+    const roomRef = doc(db, 'duel_rooms', roomId);
+    await deleteDoc(roomRef);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, docPath);
   }
 }
 

@@ -388,30 +388,50 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
         </div>
 
         {/* Public Website Share Link Bar (Terlihat Bagi Semua Orang) */}
-        <div className="p-4 rounded-2xl bg-[#0B101E] border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <div className="text-xs font-extrabold text-emerald-400">
-              ● Link Website Publik Aktif (Terlihat & Bisa Diakses Semua Orang Tanpa Login)
+        <div className="p-4 rounded-2xl bg-[#0B101E] border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div className="space-y-1 min-w-0">
+            <div className="text-xs font-extrabold text-emerald-400 flex items-center gap-1.5">
+              <span>● Link Aplikasi Live (Bisa Diakses Bebas Tanpa Login):</span>
             </div>
-            <div className="text-xs text-slate-300 font-mono truncate">
-              {typeof window !== 'undefined' ? window.location.origin : ''}
+            <div className="text-xs sm:text-sm text-sky-300 font-mono font-bold flex items-center gap-1">
+              <span>👉</span>
+              <a
+                href="https://gen-lang-client-0798249381.web.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-white transition-colors"
+              >
+                https://gen-lang-client-0798249381.web.app
+              </a>
+            </div>
+            <div className="text-[11px] text-slate-400 font-mono">
+              (Juga aktif di{' '}
+              <a
+                href="https://gen-lang-client-0798249381.firebaseapp.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-300 hover:text-white underline"
+              >
+                https://gen-lang-client-0798249381.firebaseapp.com
+              </a>
+              )
             </div>
           </div>
           <button
             type="button"
             onClick={async () => {
-              const url = window.location.origin;
+              const liveUrl = 'https://gen-lang-client-0798249381.web.app';
               try {
-                await navigator.clipboard.writeText(url);
+                await navigator.clipboard.writeText(liveUrl);
                 setStatusBanner({
                   type: 'success',
-                  text: `Link website publik (${url}) berhasil disalin! Siapa pun yang membuka link ini langsung bisa melihat & menggunakan website Mimi.`,
+                  text: `Link aplikasi live (${liveUrl}) berhasil disalin! Siapa pun yang membuka link ini langsung bisa melihat & belajar bareng Mimi V15.`,
                 });
               } catch {
                 // ignore
               }
             }}
-            className="px-4 py-2 rounded-xl btn-tactile-emerald text-xs font-extrabold whitespace-nowrap shrink-0"
+            className="px-4 py-2.5 rounded-xl btn-tactile-emerald text-xs font-extrabold whitespace-nowrap shrink-0 shadow-md cursor-pointer"
           >
             Salin Link Website Publik
           </button>

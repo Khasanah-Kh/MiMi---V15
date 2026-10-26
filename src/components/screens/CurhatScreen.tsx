@@ -274,13 +274,13 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
 
           {/* Messages Stream */}
           <div className="h-[380px] overflow-y-auto pr-1 space-y-4">
-            {messages.map((msg) => {
+            {messages.map((msg, idx) => {
               const isUser = msg.sender === 'user';
               const cleanText = msg.text.replace(/\*\*/g, '').replace(/\*/g, '');
               const paragraphs = cleanText.split(/\n+/).filter((p) => p.trim().length > 0);
               return (
                 <div
-                  key={msg.id}
+                  key={`curhat-msg-${msg.id || 'msg'}-${idx}`}
                   className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
                 >
                   <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1 px-1">
@@ -362,9 +362,9 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
             </form>
 
             <div className="pt-3 border-t border-slate-800 space-y-2.5 max-h-60 overflow-y-auto">
-              {milestones.map((ms) => (
+              {milestones.map((ms, idx) => (
                 <div
-                  key={ms.id}
+                  key={`curhat-ms-${ms.id || 'item'}-${idx}`}
                   className="p-3 rounded-xl bg-[#0B101E] border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
                 >
                   <div className="min-w-0 space-y-0.5">

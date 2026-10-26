@@ -7,6 +7,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { MimiUiState } from '../../types/mimi';
+import { soundService } from '../../services/soundService';
 
 interface KuisScreenProps {
   uiState: MimiUiState;
@@ -158,10 +159,17 @@ export const KuisScreen: React.FC<KuisScreenProps> = ({
 
               return (
                 <button
-                  key={idx}
+                  key={`quiz-opt-${idx}`}
                   type="button"
                   disabled={hasAnswered}
-                  onClick={() => onAnswerSelected(idx)}
+                  onClick={() => {
+                    if (isCorrect) {
+                      soundService.playCorrectSound();
+                    } else {
+                      soundService.playWrongSound();
+                    }
+                    onAnswerSelected(idx);
+                  }}
                   className={`w-full p-4 rounded-xl border text-left text-xs sm:text-sm font-medium transition-colors flex items-center justify-between gap-3 ${styleClass}`}
                 >
                   <span>

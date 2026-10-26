@@ -192,7 +192,7 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
 
             return (
               <div
-                key={student.uid}
+                key={`podium-${student.uid || 'std'}-${student.rankPosition || idx}`}
                 className={`p-6 rounded-2xl bg-[#0F172A] border ${
                   student.isCurrentUser ? 'border-sky-400' : 'border-slate-800/90'
                 } flex flex-col justify-between gap-4`}
@@ -304,9 +304,9 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 text-xs sm:text-sm">
-              {filteredList.map((row) => (
+              {filteredList.map((row, idx) => (
                 <tr
-                  key={row.uid}
+                  key={`row-${row.uid || 'row'}-${row.rankPosition || idx}`}
                   className={`transition-colors ${
                     row.isCurrentUser
                       ? 'bg-sky-500/10'
