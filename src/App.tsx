@@ -1,3 +1,5 @@
+import emailjs from "@emailjs/browser";
+emailjs.init("b6hnq4qiQ2z8cgYpj");
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -5,6 +7,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import emailjs from "@emailjs/browser";
+emailjs.init("b6hnq4qiQ2z8cgYpj");
 import {
   AuthUser,
   BadgeItem,
@@ -1805,6 +1809,40 @@ export default function App() {
           />
         </div>
       )}
+        </div>
+  )}
+
+  {/* 🚨 TOMBOL LAPOR ERROR - MiMi-V15 - Email ke Anna */}
+  <button
+    onClick={() => {
+      const pesan = prompt("🚨 Ada error apa di MiMi-V15?\nTulis disini Met:");
+      if(!pesan) return;
+      emailjs.send("Mimi-Service","Mimi-Service",{
+        name: "User MiMi-V15",
+        email: "reporter@mimi-v15.com",
+        waktu: new Date().toLocaleString('id-ID'),
+        device: navigator.userAgent,
+        error_url: window.location.href,
+        title: document.title,
+        message: pesan,
+        kelas: "-",
+        tipe: "Bug Report",
+        time: new Date().toString()
+      }).then(()=>alert("✅ Makasih! Laporan terkirim ke Anna!")).catch(()=>alert("❌ Gagal kirim!"));
+    }}
+    style={{
+      position: 'fixed', bottom: '20px', right: '20px',
+      background: '#ff3b3b', color: 'white', border: 'none',
+      padding: '14px 22px', borderRadius: '50px', fontWeight: 'bold',
+      zIndex: 99999, cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,0,0,0.4)'
+    }}
+  >
+    🚨 Lapor Error
+  </button>
+
+  {/* Warm Safe Ambient Overlay (Active only when toggled ON, zero obstruction) */}
+  <div
+    id="warmOverlay"
 
       {/* Warm Safe Ambient Overlay (Active only when toggled ON, zero obstruction) */}
       <div
