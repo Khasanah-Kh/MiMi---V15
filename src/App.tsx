@@ -53,6 +53,17 @@ import { PeringkatScreen } from './components/screens/PeringkatScreen';
 import { KuisScreen } from './components/screens/KuisScreen';
 import { LencanaScreen } from './components/screens/LencanaScreen';
 import { ProfilScreen } from './components/screens/ProfilScreen';
+import { XpToastNotification, XpToastData } from './components/XpToastNotification';
+import {
+  auth,
+  loginWithEmail,
+  registerWithEmail,
+  loginWithGoogle,
+  logoutFirebase,
+  onAuthStateChanged,
+  saveUserProgressToFirestore,
+  getUserProgressFromFirestore,
+} from './firebase';
 
 const TOKEN_STORAGE_KEY = 'mimi15_session_token';
 
@@ -164,6 +175,7 @@ export default function App() {
   const [isChatDocked, setIsChatDocked] = useState<boolean>(false);
   const [isMimiTyping, setIsMimiTyping] = useState<boolean>(false);
   const [latestXpNotification, setLatestXpNotification] = useState<string | null>(null);
+  const [xpToastData, setXpToastData] = useState<XpToastData | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-mimi',
@@ -257,6 +269,64 @@ export default function App() {
     }));
   }, []);
 
+  // Listen to Firebase Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        const isGoogle = fbUser.providerData.some((p) => p.providerId === 'google.com');
+        const authed: AuthUser = {
+          uid: fbUser.uid,
+          email: fbUser.email || 'pelajar@mimi15.id',
+          displayName: fbUser.displayName || 'Bestie Pelajar',
+          authMethod: isGoogle ? 'GOOGLE_VERIFIED' : 'PBKDF2_SCRYPT',
+          hasSecurityPin: false,
+          createdAt: 'Hari ini',
+          lastLoginAt: 'Aktif via Firebase Auth',
+          securityAudit: [
+            {
+              id: 'aud_fb_' + Date.now(),
+              action: 'Login via Firebase Authentication',
+              method: isGoogle ? 'Google Sign-In' : 'Email/Password',
+              timestamp: formatShortTime(),
+              status: 'TERVERIFIKASI',
+            },
+          ],
+        };
+        setAuthUser(authed);
+
+        // Fetch progress from Firestore
+        try {
+          const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
+          if (firestoreData) {
+            applyServerUserData(firestoreData);
+          }
+        } catch (e) {
+          console.warn('Could not load Firestore progress:', e);
+        }
+
+        // Keep server session active for AI chat & APIs
+        fetch('/api/auth/google-quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName: authed.displayName,
+            email: authed.email,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.token) {
+              localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+              setSessionToken(data.token);
+            }
+          })
+          .catch(() => {});
+      }
+    });
+
+    return () => unsubscribe();
+  }, [applyServerUserData]);
+
   // Verify existing session or automatically create a public visitor session so
   // shared links ALWAYS open directly into the full website for everyone!
   useEffect(() => {
@@ -303,10 +373,11 @@ export default function App() {
     initPublicOrSavedSession();
   }, [sessionToken, applyServerUserData]);
 
-  // Sync progress to server whenever key metrics change
+  // Sync progress to server and Firestore whenever key metrics change
   useEffect(() => {
     if (!sessionToken) return;
     const timeout = setTimeout(() => {
+      // 1. Sync to local backend server
       fetch('/api/user/sync', {
         method: 'POST',
         headers: {
@@ -332,14 +403,34 @@ export default function App() {
           },
         }),
       }).catch(() => {});
+
+      // 2. Sync to Firebase Firestore directly
+      if (authUser?.uid && authUser.uid !== 'usr_public_visitor') {
+        saveUserProgressToFirestore(authUser.uid, {
+          uid: authUser.uid,
+          displayName: authUser.displayName,
+          email: authUser.email,
+          xp,
+          streakDays,
+          selectedEducationLevel,
+          selectedClass,
+          themeMode,
+          studyMinutes: studyProgress.studyMinutes,
+          lastStudiedTopic: studyProgress.lastStudiedTopic,
+          rivalWins,
+          rivalMatches,
+        }).catch(() => {});
+      }
     }, 400);
     return () => clearTimeout(timeout);
   }, [
     sessionToken,
+    authUser,
     xp,
     streakDays,
     selectedEducationLevel,
     selectedClass,
+    themeMode,
     studyProgress,
     rivalWins,
     rivalMatches,
@@ -379,23 +470,76 @@ export default function App() {
     setIsSigningIn(true);
     setSignInError(null);
     try {
-      const res = await fetch('/api/auth/login', {
+      // 1. Authenticate with real Firebase Authentication
+      const fbUser = await loginWithEmail(email, password);
+
+      // 2. Fetch progress from Firestore
+      const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
+      if (firestoreData) {
+        applyServerUserData(firestoreData);
+      }
+
+      // 3. Establish server session token
+      const res = await fetch('/api/auth/google-quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          displayName: fbUser.displayName || email.split('@')[0],
+          email: fbUser.email || email,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setSignInError(data.error || 'Gagal masuk. Periksa kembali email dan kata sandi.');
-        return;
+      if (res.ok && data.token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        setSessionToken(data.token);
       }
-      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-      setSessionToken(data.token);
-      setAuthUser(data.user);
-      applyServerUserData(data.userData);
+
+      setAuthUser({
+        uid: fbUser.uid,
+        email: fbUser.email || email,
+        displayName: fbUser.displayName || email.split('@')[0],
+        authMethod: 'PBKDF2_SCRYPT',
+        hasSecurityPin: false,
+        createdAt: 'Hari ini',
+        lastLoginAt: 'Aktif via Firebase Auth',
+        securityAudit: [
+          {
+            id: 'aud_fb_login_' + Date.now(),
+            action: 'Login via Firebase Auth (Email)',
+            method: 'Email & Password',
+            timestamp: formatShortTime(),
+            status: 'TERVERIFIKASI',
+          },
+        ],
+      });
       setShowSignInModal(false);
-    } catch {
-      setSignInError('Gagal terhubung ke server autentikasi.');
+      triggerXpToast('Berhasil masuk dengan Firebase Auth!');
+    } catch (err: any) {
+      console.warn('Firebase login attempt:', err);
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          const rawErr = err?.message || data?.error || 'Gagal masuk. Periksa kembali email dan kata sandi.';
+          const friendlyErr =
+            rawErr.includes('invalid-credential') || rawErr.includes('user-not-found')
+              ? 'Email atau kata sandi tidak cocok di Firebase Auth.'
+              : rawErr;
+          setSignInError(friendlyErr);
+          return;
+        }
+        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        setSessionToken(data.token);
+        setAuthUser(data.user);
+        applyServerUserData(data.userData);
+        setShowSignInModal(false);
+      } catch {
+        setSignInError(err?.message || 'Gagal terhubung ke Firebase Authentication.');
+      }
     } finally {
       setIsSigningIn(false);
     }
@@ -410,23 +554,79 @@ export default function App() {
     setIsSigningIn(true);
     setSignInError(null);
     try {
-      const res = await fetch('/api/auth/register', {
+      // 1. Create account with real Firebase Authentication
+      const fbUser = await registerWithEmail(displayName, email, password);
+
+      // 2. Save user progression document in Firestore
+      await saveUserProgressToFirestore(fbUser.uid, {
+        uid: fbUser.uid,
+        displayName: displayName.trim() || 'Bestie Pelajar',
+        email: fbUser.email || email,
+        xp,
+        streakDays,
+        selectedEducationLevel,
+        selectedClass,
+        themeMode,
+        createdAt: new Date().toISOString(),
+      });
+
+      // 3. Establish server session token
+      const res = await fetch('/api/auth/google-quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, email, password, securityPin }),
+        body: JSON.stringify({ displayName, email }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setSignInError(data.error || 'Gagal mendaftarkan akun baru.');
-        return;
+      if (res.ok && data.token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        setSessionToken(data.token);
       }
-      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-      setSessionToken(data.token);
-      setAuthUser(data.user);
-      applyServerUserData(data.userData);
+
+      setAuthUser({
+        uid: fbUser.uid,
+        email: fbUser.email || email,
+        displayName: displayName.trim() || 'Bestie Pelajar',
+        authMethod: 'PBKDF2_SCRYPT',
+        hasSecurityPin: Boolean(securityPin),
+        createdAt: 'Hari ini',
+        lastLoginAt: 'Baru mendaftar di Firebase Auth',
+        securityAudit: [
+          {
+            id: 'aud_fb_reg_' + Date.now(),
+            action: 'Registrasi via Firebase Auth',
+            method: 'Email & Password',
+            timestamp: formatShortTime(),
+            status: 'TERVERIFIKASI',
+          },
+        ],
+      });
       setShowSignInModal(false);
-    } catch {
-      setSignInError('Gagal menghubungi server pendaftaran.');
+      triggerXpToast('Akun berhasil dibuat di Firebase Auth! (+50 XP)');
+    } catch (err: any) {
+      console.warn('Firebase register attempt:', err);
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName, email, password, securityPin }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          const rawErr = err?.message || data?.error || 'Gagal mendaftarkan akun baru.';
+          const friendlyErr = rawErr.includes('email-already-in-use')
+            ? 'Email ini sudah terdaftar di Firebase. Silakan pilih Masuk Akun!'
+            : rawErr;
+          setSignInError(friendlyErr);
+          return;
+        }
+        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        setSessionToken(data.token);
+        setAuthUser(data.user);
+        applyServerUserData(data.userData);
+        setShowSignInModal(false);
+      } catch {
+        setSignInError(err?.message || 'Gagal mendaftar di Firebase Authentication.');
+      }
     } finally {
       setIsSigningIn(false);
     }
@@ -436,29 +636,98 @@ export default function App() {
     setIsSigningIn(true);
     setSignInError(null);
     try {
+      // 1. Real Google Sign-In via Firebase Authentication Popup
+      const fbUser = await loginWithGoogle();
+
+      // 2. Fetch or initialize progress in Firestore
+      const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
+      if (firestoreData) {
+        applyServerUserData(firestoreData);
+      } else {
+        await saveUserProgressToFirestore(fbUser.uid, {
+          uid: fbUser.uid,
+          displayName: fbUser.displayName || displayName || 'Bestie Pelajar',
+          email: fbUser.email || email,
+          xp,
+          streakDays,
+          selectedEducationLevel,
+          selectedClass,
+          themeMode,
+        });
+      }
+
+      // 3. Establish server session token
       const res = await fetch('/api/auth/google-quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, email }),
+        body: JSON.stringify({
+          displayName: fbUser.displayName || displayName,
+          email: fbUser.email || email,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setSignInError(data.error || 'Gagal masuk cepat.');
-        return;
+      if (res.ok && data.token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        setSessionToken(data.token);
       }
-      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-      setSessionToken(data.token);
-      setAuthUser(data.user);
-      applyServerUserData(data.userData);
+
+      setAuthUser({
+        uid: fbUser.uid,
+        email: fbUser.email || email || 'pelajar@mimi15.id',
+        displayName: fbUser.displayName || displayName || 'Bestie Pelajar',
+        authMethod: 'GOOGLE_VERIFIED',
+        hasSecurityPin: false,
+        createdAt: 'Hari ini',
+        lastLoginAt: 'Aktif via Google Firebase Auth',
+        securityAudit: [
+          {
+            id: 'aud_google_fb_' + Date.now(),
+            action: 'Masuk via Google Firebase Authentication',
+            method: 'Google OAuth Popup',
+            timestamp: formatShortTime(),
+            status: 'TERVERIFIKASI',
+          },
+        ],
+      });
       setShowSignInModal(false);
-    } catch {
-      setSignInError('Gagal memulai sesi masuk cepat.');
+      triggerXpToast('Login Google Firebase Berhasil!');
+    } catch (err: any) {
+      console.warn('Google Firebase Auth fallback:', err);
+      // If popup closed or restricted in iframe, fallback smoothly to quick Google session
+      try {
+        const res = await fetch('/api/auth/google-quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName, email }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+          setSessionToken(data.token);
+          setAuthUser(data.user);
+          applyServerUserData(data.userData);
+          setShowSignInModal(false);
+          triggerXpToast('Sesi masuk terverifikasi!');
+        } else {
+          setSignInError(err?.message || data?.error || 'Gagal masuk dengan Google.');
+        }
+      } catch {
+        setSignInError(err?.message || 'Gagal menghubungkan Google Sign-In.');
+      }
     } finally {
       setIsSigningIn(false);
     }
   };
 
   const handleSignOut = async () => {
+    try {
+      await logoutFirebase();
+    } catch {
+      // Ignore signOut errors
+    }
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    setSessionToken(null);
+    setAuthUser(PUBLIC_DEFAULT_USER);
     setShowSignInModal(true);
   };
 
@@ -1119,6 +1388,12 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] w-full bg-[#0B1120] text-slate-100 overflow-hidden flex flex-col">
+      {/* Global Animated XP Reward Toast Notification (Framer Motion) */}
+      <XpToastNotification
+        notification={xpToastData}
+        onDismiss={() => setXpToastData(null)}
+      />
+
       {/* Share & Download Hub Dialog */}
       {isShareHubOpen && (
         <ShareAndDownloadHubDialog

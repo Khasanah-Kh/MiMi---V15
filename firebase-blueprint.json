@@ -1,0 +1,31 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and learning progress stored in Firestore",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "xp": { "type": "number" },
+        "streakDays": { "type": "number" },
+        "selectedEducationLevel": { "type": "string", "maxLength": 20 },
+        "selectedClass": { "type": "string", "maxLength": 50 },
+        "themeMode": { "type": "string", "maxLength": 20 },
+        "studyMinutes": { "type": "number" },
+        "lastStudiedTopic": { "type": "string", "maxLength": 200 },
+        "rivalWins": { "type": "number" },
+        "rivalMatches": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "displayName"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores user learning progression and preferences"
+    }
+  }
+}
