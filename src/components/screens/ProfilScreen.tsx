@@ -42,6 +42,8 @@ interface ProfilScreenProps {
   ) => Promise<string | null>;
   onSignOut: () => void;
   onOpenDonation?: () => void;
+  onOpenErrorReport?: () => void;
+  onOpenAdminDashboard?: () => void;
 }
 
 export const ProfilScreen: React.FC<ProfilScreenProps> = ({
@@ -57,6 +59,8 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({
   onUpdateProfileSecurity,
   onSignOut,
   onOpenDonation,
+  onOpenErrorReport,
+  onOpenAdminDashboard,
 }) => {
   const [editName, setEditName] = useState(uiState.studentName);
   const [newPassword, setNewPassword] = useState('');
@@ -151,11 +155,31 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          {onOpenErrorReport && (
+            <button
+              type="button"
+              onClick={onOpenErrorReport}
+              className="px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 hover:text-amber-100 font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-sm cursor-pointer"
+            >
+              <span>⚠️ Lapor Error / Masukan</span>
+            </button>
+          )}
+
+          {onOpenAdminDashboard && (
+            <button
+              type="button"
+              onClick={onOpenAdminDashboard}
+              className="px-4 py-2.5 rounded-xl border border-sky-500/40 bg-sky-950/30 hover:bg-sky-900/40 text-sky-300 hover:text-sky-100 font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-sm cursor-pointer"
+            >
+              <span>📊 Dashboard Owner</span>
+            </button>
+          )}
+
           {onOpenDonation && (
             <button
               type="button"
               onClick={onOpenDonation}
-              className="px-4 py-2.5 rounded-xl border border-rose-500/40 bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 hover:text-rose-100 font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-sm hover:brightness-110"
+              className="px-4 py-2.5 rounded-xl border border-rose-500/40 bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 hover:text-rose-100 font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-sm hover:brightness-110 cursor-pointer"
             >
               <Heart className="w-4 h-4 fill-rose-400/20 text-rose-300" />
               <span>💖 Dukung Mimi</span>
@@ -165,7 +189,7 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({
           <button
             type="button"
             onClick={onSignOut}
-            className="px-4 py-2.5 rounded-xl bg-red-950/60 hover:bg-red-900/70 border border-red-800/70 text-red-200 font-semibold text-xs transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
+            className="px-4 py-2.5 rounded-xl bg-red-950/60 hover:bg-red-900/70 border border-red-800/70 text-red-200 font-semibold text-xs transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <LogOut className="w-4 h-4 shrink-0" />
             <span>Keluar Sesi Aman</span>

@@ -19,6 +19,9 @@ import {
   ArrowRight,
   Flame,
   Share2,
+  Volume2,
+  VolumeX,
+  Music,
 } from 'lucide-react';
 import { MimiUiState, RivalProfile, DuelRoom, DuelPlayer, DuelQuestion } from '../../types/mimi';
 import { DUEL_CYBER_QUESTIONS, getRandomDuelQuestions } from '../../data/duelQuizData';
@@ -27,8 +30,20 @@ import {
   joinDuelRoom,
   updateDuelRoomState,
   subscribeToDuelRoom,
+  logActivity,
 } from '../../firebase';
 import { soundService } from '../../services/soundService';
+import {
+  AdaptiveArenaConfig,
+  DUEL_CLASS_OPTIONS,
+  DUEL_LEVEL_BADGES,
+  DuelClassKey,
+  DuelDifficultyLevel,
+  DuelSubjectFilter,
+  getAdaptiveArenasForClass,
+  getAdaptiveQuestionsForArena,
+  mapUiClassToDuelClassKey,
+} from '../../services/adaptiveDuelService';
 
 interface TantanganScreenProps {
   uiState: MimiUiState;
@@ -56,30 +71,9 @@ function playCyberSound(type: 'beep' | 'correct' | 'wrong' | 'victory' | 'countd
     soundService.playCountdownBeep(true);
     return;
   }
-
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    if (type === 'victory') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.setValueAtTime(554.37, now + 0.1);
-      osc.frequency.setValueAtTime(659.25, now + 0.2);
-      osc.frequency.setValueAtTime(880, now + 0.3);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-      osc.start(now);
-      osc.stop(now + 0.55);
-    }
-  } catch {
-    // Audio autoplay policy handled safely
+  if (type === 'victory') {
+    soundService.playVictoryMusic();
+    return;
   }
 }
 
@@ -96,6 +90,21 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
   const [roomErrorMessage, setRoomErrorMessage] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Adaptive Class, Level & Subject Filter states
+  const [selectedDuelClass, setSelectedDuelClass] = useState<DuelClassKey>(() =>
+    mapUiClassToDuelClassKey(uiState.selectedClass, uiState.selectedEducationLevel)
+  );
+  const [selectedDuelLevel, setSelectedDuelLevel] = useState<DuelDifficultyLevel>('pemula');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<DuelSubjectFilter>('semua');
+  const [lastPlayedArena, setLastPlayedArena] = useState<AdaptiveArenaConfig | null>(null);
+
+  // Sync adaptive class when top-bar class/jenjang changes
+  useEffect(() => {
+    setSelectedDuelClass(
+      mapUiClassToDuelClassKey(uiState.selectedClass, uiState.selectedEducationLevel)
+    );
+  }, [uiState.selectedClass, uiState.selectedEducationLevel]);
+
   // Active Duel State
   const [activeDuelRoom, setActiveDuelRoom] = useState<DuelRoom | null>(null);
   const [isHost, setIsHost] = useState(true);
@@ -103,19 +112,38 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
   const [isAnswerLocked, setIsAnswerLocked] = useState(false);
   const [questionTimeLeft, setQuestionTimeLeft] = useState(10);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [isSoundMuted, setIsSoundMuted] = useState(() => soundService.getIsMuted());
+  const [isBgmOn, setIsBgmOn] = useState(() => soundService.isBgmEnabled());
+  const [bgmVolume, setBgmVolume] = useState(() => soundService.getVolume());
 
-  // Start/Stop thrilling, gentle ambient duel battle music
+  const handleToggleBgm = () => {
+    soundService.resumeAudio();
+    const next = soundService.toggleBgm();
+    setIsBgmOn(next);
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    soundService.resumeAudio();
+    soundService.setVolume(newVol);
+    setBgmVolume(newVol);
+    if (newVol > 0 && !isBgmOn) {
+      const next = soundService.toggleBgm();
+      setIsBgmOn(next);
+    }
+  };
+
+  // Start/Stop thrilling, clearly audible cyber duel battle music
   useEffect(() => {
-    if (activeDuelRoom?.status === 'in_progress') {
-      soundService.startDuelMusic();
-    } else {
+    if (activeDuelRoom?.status === 'in_progress' || activeDuelRoom?.status === 'countdown') {
+      if (isBgmOn) {
+        soundService.startDuelMusic();
+      }
+    } else if (activeDuelRoom?.status !== 'finished') {
       soundService.stopDuelMusic();
     }
     return () => {
       soundService.stopDuelMusic();
     };
-  }, [activeDuelRoom?.status]);
+  }, [activeDuelRoom?.status, isBgmOn]);
 
   // Timer refs
   const questionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -402,6 +430,16 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
       }
 
       // Notify parent applet to add XP and increase win record
+      logActivity('kuis_finish', {
+        email: uiState.studentEmail || 'tamu_anonim@mimi15.id',
+        nama: uiState.studentName || 'Pelajar',
+        mode: 'Duel Arena',
+        skor: isHost ? hostScore : guestScore,
+        mapel: lastPlayedArena?.title || selectedSubjectFilter,
+        kelas: selectedDuelClass,
+        waktu: new Date().toLocaleString('id-ID'),
+      });
+
       onChallengeRival(
         {
           id: 'duel_arena_bot',
@@ -422,12 +460,33 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 6. START BOT DUEL
+  // 6. START ADAPTIVE ARENA DUEL (10 SOAL SESUAI KELAS, MAPEL & LEVEL)
   // ─────────────────────────────────────────────────────────────────────────────
-  const startBotDuel = () => {
-    const questions = getRandomDuelQuestions(5);
+  const startAdaptiveArenaDuel = (arena: AdaptiveArenaConfig) => {
+    soundService.resumeAudio();
+    if (isBgmOn) {
+      soundService.startDuelMusic();
+    }
+    setLastPlayedArena(arena);
+
+    logActivity('duel_start', {
+      email: uiState.studentEmail || 'tamu_anonim@mimi15.id',
+      nama: uiState.studentName || 'Pelajar',
+      kelas: selectedDuelClass,
+      mapel: arena.subjectKey,
+      arena: arena.title,
+      level: selectedDuelLevel,
+    });
+
+    const questions = getAdaptiveQuestionsForArena(
+      selectedDuelClass,
+      selectedDuelLevel,
+      arena.subjectKey,
+      arena.questionCount || 10
+    );
+
     const room: DuelRoom = {
-      roomId: 'BOT-' + Math.floor(1000 + Math.random() * 9000),
+      roomId: `ARENA-${selectedDuelClass.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
       createdAt: Date.now(),
       mode: 'bot',
       status: 'countdown',
@@ -444,7 +503,7 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
       },
       guest: {
         uid: 'bot_mimi',
-        displayName: 'Cyber Bot Mimi (AI)',
+        displayName: `Bot Mimi (${arena.title})`,
         score: 0,
         currentQIndex: 0,
         isReady: true,
@@ -455,11 +514,24 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
       questions,
       currentRound: 0,
       totalRounds: questions.length,
-      xpStake: 150,
+      xpStake: arena.xpReward,
     };
 
     setIsHost(true);
     setActiveDuelRoom(room);
+  };
+
+  const startBotDuel = () => {
+    if (lastPlayedArena) {
+      startAdaptiveArenaDuel(lastPlayedArena);
+      return;
+    }
+    const arenas = getAdaptiveArenasForClass(selectedDuelClass, selectedDuelLevel);
+    const defaultArena =
+      selectedSubjectFilter !== 'semua'
+        ? arenas.find((a) => a.subjectKey === selectedSubjectFilter) || arenas[0]
+        : arenas.find((a) => a.subjectKey === 'cerdas_cermat') || arenas[0];
+    startAdaptiveArenaDuel(defaultArena);
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -468,11 +540,21 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
   const handleCreatePvpRoom = async () => {
     setIsCreatingRoom(true);
     setRoomErrorMessage(null);
+    soundService.resumeAudio();
+    if (isBgmOn) {
+      soundService.startDuelMusic();
+    }
     try {
-      // 5-character aesthetic room code e.g. CYB92
       const randomCode =
         'CYB' + Math.floor(100 + Math.random() * 900).toString();
-      const questions = getRandomDuelQuestions(5);
+      const arenaSubj =
+        selectedSubjectFilter !== 'semua' ? selectedSubjectFilter : 'cerdas_cermat';
+      const questions = getAdaptiveQuestionsForArena(
+        selectedDuelClass,
+        selectedDuelLevel,
+        arenaSubj,
+        10
+      );
       const room: DuelRoom = {
         roomId: randomCode,
         createdAt: Date.now(),
@@ -516,6 +598,10 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
 
     setIsJoiningRoom(true);
     setRoomErrorMessage(null);
+    soundService.resumeAudio();
+    if (isBgmOn) {
+      soundService.startDuelMusic();
+    }
     try {
       const guestPlayer: DuelPlayer = {
         uid: currentPlayerUid,
@@ -530,7 +616,12 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
 
       await joinDuelRoom(code, guestPlayer);
       setIsHost(false);
-      // Room listener will populate activeDuelRoom state immediately
+      const fallbackQuestions = getAdaptiveQuestionsForArena(
+        selectedDuelClass,
+        selectedDuelLevel,
+        'cerdas_cermat',
+        10
+      );
       setActiveDuelRoom({
         roomId: code,
         createdAt: Date.now(),
@@ -548,9 +639,9 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
           streak: 0,
         },
         guest: guestPlayer,
-        questions: getRandomDuelQuestions(5),
+        questions: fallbackQuestions,
         currentRound: 0,
-        totalRounds: 5,
+        totalRounds: fallbackQuestions.length,
         xpStake: 200,
       });
     } catch (err: any) {
@@ -575,8 +666,23 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
     if (questionTimerRef.current) clearInterval(questionTimerRef.current);
     if (botSimTimerRef.current) clearTimeout(botSimTimerRef.current);
     if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+    soundService.stopDuelMusic();
     setActiveDuelRoom(null);
   };
+
+  const activeClassMeta =
+    DUEL_CLASS_OPTIONS.find((c) => c.key === selectedDuelClass) || DUEL_CLASS_OPTIONS[1];
+  const activeLevelMeta = DUEL_LEVEL_BADGES[selectedDuelLevel];
+  const allArenas = getAdaptiveArenasForClass(selectedDuelClass, selectedDuelLevel);
+  const filteredArenas =
+    selectedSubjectFilter === 'semua'
+      ? allArenas
+      : allArenas.filter(
+          (a) =>
+            a.subjectKey === selectedSubjectFilter ||
+            a.subjectKey === 'cerdas_cermat' ||
+            a.subjectKey === 'tantang_kakak'
+        );
 
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER: 1. COUNTDOWN VIEW (3.. 2.. 1.. GO!)
@@ -606,7 +712,23 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
 
         <div className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0F172A] border border-slate-800 text-[11px] text-sky-300 font-mono">
           <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span>Jawab secepat mungkin untuk bonus poin waktu!</span>
+          <span>10 Soal Adaptif · Jawab secepat mungkin untuk bonus poin!</span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={handleToggleBgm}
+            title={isBgmOn ? 'BGM Cyber Aktif (Klik untuk mematikan)' : 'BGM Cyber Mati (Klik untuk menyalakan)'}
+            className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              isBgmOn
+                ? 'bg-amber-400/20 text-amber-300 border-amber-400/50 shadow-sm shadow-amber-400/20'
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}
+          >
+            {isBgmOn ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
+            <span>BGM Pertarungan: {isBgmOn ? 'ON' : 'OFF'}</span>
+          </button>
         </div>
       </div>
     );
@@ -629,7 +751,7 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
               Kode Room Duel Kamu
             </h2>
             <p className="text-xs text-slate-400">
-              Bagikan kode ini kepada temanmu untuk mabar kuis cyber
+              Bagikan kode ini kepada temanmu untuk mabar 10 soal adaptif ({activeClassMeta.label} • {activeLevelMeta.label})
             </p>
           </div>
 
@@ -690,10 +812,10 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
         {/* ── Real-Time Split Duel HUD ── */}
         <section className="p-3 sm:p-4 rounded-2xl bg-[#0F172A] border border-slate-800 shadow-lg space-y-2.5">
           {/* Top Info Bar */}
-          <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
             <span className="flex items-center gap-1.5 text-sky-400 font-bold">
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              Ronde {activeDuelRoom.currentRound + 1}/{activeDuelRoom.totalRounds}
+              Soal {activeDuelRoom.currentRound + 1}/{activeDuelRoom.totalRounds}
             </span>
 
             {/* Countdown Badge */}
@@ -708,24 +830,32 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
               <span>{questionTimeLeft}s</span>
             </div>
 
-            {/* Duel Music & Sound Control */}
-            <button
-              type="button"
-              onClick={() => {
-                const nextMuted = soundService.toggleMute();
-                setIsSoundMuted(nextMuted);
-              }}
-              title={isSoundMuted ? 'Aktifkan Musik & Suara Duel' : 'Bisukan Musik & Suara Duel'}
-              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors flex items-center gap-1 cursor-pointer active:scale-95 ${
-                isSoundMuted
-                  ? 'bg-slate-800 text-slate-400 border-slate-700'
-                  : 'bg-amber-400/15 text-amber-300 border-amber-400/40 shadow-sm'
-              }`}
-            >
-              <span>{isSoundMuted ? '🔇 Mute' : '🎵 Musik'}</span>
-            </button>
+            {/* Duel Music & Volume Control */}
+            <div className="flex items-center gap-2 bg-[#0B1120] px-2.5 py-1 rounded-lg border border-slate-800">
+              <button
+                type="button"
+                onClick={handleToggleBgm}
+                title={isBgmOn ? 'BGM Pertarungan Aktif (Klik untuk matikan)' : 'BGM Pertarungan Mati (Klik untuk nyalakan)'}
+                className={`text-[10px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 ${
+                  isBgmOn ? 'text-amber-300' : 'text-slate-400'
+                }`}
+              >
+                {isBgmOn ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
+                <span>{isBgmOn ? 'BGM ON' : 'MUTE'}</span>
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={isBgmOn ? bgmVolume : 0}
+                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                aria-label="Volume Musik Pertarungan"
+                className="w-14 sm:w-20 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
+              />
+            </div>
 
-            <span className="text-[11px] text-slate-400 truncate max-w-[120px] sm:max-w-none">
+            <span className="text-[11px] text-slate-400 truncate max-w-[130px] sm:max-w-none">
               {currentQ?.category}
             </span>
           </div>
@@ -798,9 +928,14 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
         {/* ── Question Card (Aesthetic, Compact, Zero Bloat) ── */}
         <section className="p-4 sm:p-5 rounded-2xl bg-[#0F172A] border border-sky-500/30 shadow-xl space-y-3.5">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-sky-400/10 text-sky-300 text-[10px] font-mono font-bold">
-              <ShieldCheck className="w-3 h-3 text-sky-400" />
-              <span>SOAL CYBER #{activeDuelRoom.currentRound + 1}</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-sky-400/10 text-sky-300 text-[10px] font-mono font-bold">
+                <ShieldCheck className="w-3 h-3 text-sky-400" />
+                <span>SOAL #{activeDuelRoom.currentRound + 1} · {currentQ?.category}</span>
+              </div>
+              <span className="text-[10px] font-mono text-amber-300">
+                {activeLevelMeta.emoji} Level {activeLevelMeta.label}
+              </span>
             </div>
             <h2 className="text-sm sm:text-base font-bold text-white leading-snug">
               {currentQ.question}
@@ -874,7 +1009,7 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER: 4. FINISHED / PODIUM SCREEN
+  // RENDER: 4. FINISHED / PODIUM SCREEN (WITH VICTORY FANFARE!)
   // ─────────────────────────────────────────────────────────────────────────────
   if (activeDuelRoom?.status === 'finished') {
     const isPlayerHost = isHost;
@@ -892,7 +1027,7 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
 
           <div className="space-y-1">
             <div className="text-[11px] font-mono font-bold text-amber-400 uppercase tracking-wider">
-              {won ? 'DUEL CHAMPION' : isDraw ? 'HASIL SEIMBANG' : 'MATCH SELESAI'}
+              {won ? '🏆 DUEL CHAMPION · VICTORY FANFARE' : isDraw ? 'HASIL SEIMBANG' : 'MATCH SELESAI'}
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white">
               {won
@@ -903,8 +1038,8 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
             </h2>
             <p className="text-xs text-slate-400">
               {won
-                ? `Kamu berhasil mengungguli ${opponentStats?.displayName || 'lawan'}`
-                : `Refleks yang luar biasa dalam menjawab tantangan kuis cyber`}
+                ? `Kamu berhasil mengungguli ${opponentStats?.displayName || 'lawan'} di ${activeClassMeta.label}`
+                : `Refleks yang luar biasa dalam menjawab tantangan 10 soal adaptif`}
             </p>
           </div>
 
@@ -937,18 +1072,21 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button
               type="button"
-              onClick={startBotDuel}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              onClick={() => {
+                soundService.playVictoryMusic();
+                startBotDuel();
+              }}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Duel Lagi (Bot)</span>
+              <span>Main Lagi (10 Soal Baru)</span>
             </button>
             <button
               type="button"
               onClick={handleExitDuel}
-              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs transition-colors"
+              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs transition-colors cursor-pointer"
             >
-              Kembali ke Arena
+              Pilih Arena Lain
             </button>
           </div>
         </div>
@@ -957,28 +1095,46 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER: 5. MAIN LOBBY (DUEL ARENA HOMEPAGE - MOBILE BEAUTIFIED)
+  // RENDER: 5. MAIN LOBBY (ADAPTIVE DUEL ARENA BY CLASS, LEVEL & 8 SUBJECT ARENAS)
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4 sm:space-y-6 pb-12 sm:pb-8">
-      {/* ── Compact Aesthetic Top Header ── */}
-      <section className="p-4 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-md">
-        <div className="space-y-1">
+    <div className="space-y-4 sm:space-y-5 pb-12 sm:pb-8">
+      {/* ── Dynamic Adaptive Header ── */}
+      <section className="p-4 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800/90 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-md">
+        <div className="space-y-1.5">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-400/15 border border-sky-400/30 text-sky-300 text-[11px] font-mono font-bold">
             <Swords className="w-3.5 h-3.5 text-sky-400" />
-            <span>DUEL ARENA CYBER · REAL-TIME</span>
+            <span>ARENA DUEL ADAPTIF · 5.000+ BANK SOAL</span>
           </div>
-          <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight">
-            Arena Tantangan Kuis Cyber
+          <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight flex flex-wrap items-center gap-2">
+            <span>Duel Arena — {activeClassMeta.label}</span>
+            <span className="text-sky-400">•</span>
+            <span className="inline-flex items-center gap-1 text-amber-300">
+              <span>{activeLevelMeta.emoji} Level {activeLevelMeta.label}</span>
+              <span>🏆</span>
+            </span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xl">
-            Asah kecepatan refleks logika & coding. Tantang Cyber Bot Mimi atau mabar bareng teman
-            secara real-time!
+          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl">
+            Soal otomatis menyesuaikan kelas & level kemampuanmu! Tersedia Matematika, Bahasa Inggris, PKN, IPA, IPS, Bahasa Indonesia, Cerdas Cermat Campur, hingga Tantang Kakak Kelas.
           </p>
         </div>
 
-        {/* Win/Loss Pill & Global Leaderboard */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-1 sm:pt-0">
+        {/* Win/Loss Pill, BGM Cyber Toggle & Global Leaderboard */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleBgm}
+            title={isBgmOn ? 'BGM Cyber Duel Aktif (Klik untuk matikan)' : 'BGM Cyber Duel Mati (Klik untuk nyalakan)'}
+            className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 ${
+              isBgmOn
+                ? 'bg-amber-400/15 text-amber-300 border-amber-400/40 shadow-sm shadow-amber-400/10'
+                : 'bg-[#0B1120] text-slate-400 border-slate-800 hover:text-slate-200'
+            }`}
+          >
+            {isBgmOn ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
+            <span>BGM Duel: {isBgmOn ? 'ON' : 'OFF'}</span>
+          </button>
+
           <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#0B1120] border border-slate-800">
             <div>
               <div className="text-[10px] text-slate-400">Rekor Menang</div>
@@ -993,11 +1149,123 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
             <button
               type="button"
               onClick={onOpenLeaderboard}
-              className="px-3.5 py-2.5 rounded-xl bg-sky-400/15 hover:bg-sky-400/25 border border-sky-400/30 text-sky-300 font-bold text-xs transition-colors shrink-0"
+              className="px-3.5 py-2.5 rounded-xl bg-sky-400/15 hover:bg-sky-400/25 border border-sky-400/30 text-sky-300 font-bold text-xs transition-colors shrink-0 cursor-pointer"
             >
               Papan Peringkat
             </button>
           )}
+        </div>
+      </section>
+
+      {/* ── Adaptive Class & Level Selector Bar ── */}
+      <section className="p-4 sm:p-5 rounded-2xl bg-[#0F172A] border border-sky-500/30 shadow-md space-y-3.5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+          {/* 1. Pilih Kelas Siswa */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-sky-300 flex items-center justify-between">
+              <span>1. Pilih Kelas / Kategori Peserta:</span>
+              <span className="text-slate-400 font-normal">Target: {activeClassMeta.nextClassLabel}</span>
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              {DUEL_CLASS_OPTIONS.map((cls) => {
+                const active = selectedDuelClass === cls.key;
+                return (
+                  <button
+                    key={cls.key}
+                    type="button"
+                    onClick={() => setSelectedDuelClass(cls.key)}
+                    className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 text-center ${
+                      active
+                        ? 'bg-sky-400 text-slate-950 border-sky-300 shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+                        : 'bg-[#0B1120] text-slate-300 border-slate-800 hover:border-sky-500/40'
+                    }`}
+                  >
+                    <div className="truncate">{cls.shortLabel}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Pilih Level Kesulitan */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-300 flex items-center justify-between">
+              <span>2. Pilih Level Kesulitan Arena:</span>
+              <span className="text-slate-400 font-normal">{activeLevelMeta.stars}</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {(['pemula', 'menengah', 'mahir', 'ahli'] as DuelDifficultyLevel[]).map((lvl) => {
+                const meta = DUEL_LEVEL_BADGES[lvl];
+                const active = selectedDuelLevel === lvl;
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setSelectedDuelLevel(lvl)}
+                    className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
+                      active
+                        ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.3)]'
+                        : 'bg-[#0B1120] text-slate-300 border-slate-800 hover:border-amber-400/40'
+                    }`}
+                  >
+                    <span>{meta.emoji}</span>
+                    <span>{meta.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Filter Mapel */}
+        <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-mono text-slate-400 mr-1">Filter Mapel:</span>
+            {[
+              { key: 'semua', label: 'Semua Arena (8)' },
+              { key: 'mtk', label: '🔢 MTK' },
+              { key: 'inggris', label: '🇬🇧 Inggris' },
+              { key: 'pkn', label: '🏛️ PKN' },
+              { key: 'ipa', label: '🧬 IPA' },
+              { key: 'ips', label: '📜 IPS' },
+              { key: 'indo', label: '📝 Indo' },
+            ].map((item) => {
+              const active = selectedSubjectFilter === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setSelectedSubjectFilter(item.key as DuelSubjectFilter)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    active
+                      ? 'bg-sky-400/20 text-sky-300 border border-sky-400/50'
+                      : 'bg-[#0B1120] text-slate-400 border border-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Volume Slider Bar */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0B1120] border border-slate-800">
+            <Music className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[11px] text-slate-300 font-mono">Volume Musik Duel:</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={isBgmOn ? bgmVolume : 0}
+              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+              aria-label="Kontrol Volume Musik Latar Duel"
+              className="w-20 sm:w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
+            />
+            <span className="text-[10px] font-mono text-amber-300 w-8 text-right">
+              {isBgmOn ? `${Math.round(bgmVolume * 100)}%` : 'OFF'}
+            </span>
+          </div>
         </div>
       </section>
 
@@ -1006,95 +1274,128 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
         <button
           type="button"
           onClick={() => setArenaTab('bot')}
-          className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             arenaTab === 'bot'
               ? 'bg-sky-400 text-slate-950 shadow-md'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <Bot className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Lawan Bot</span>
+          <span className="truncate">Pilih Arena Duel (8)</span>
         </button>
 
         <button
           type="button"
           onClick={() => setArenaTab('pvp')}
-          className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             arenaTab === 'pvp'
               ? 'bg-sky-400 text-slate-950 shadow-md'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <Users className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Lawan Teman</span>
+          <span className="truncate">Mabar Teman (PvP)</span>
         </button>
 
         <button
           type="button"
           onClick={() => setArenaTab('rivals')}
-          className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             arenaTab === 'rivals'
               ? 'bg-sky-400 text-slate-950 shadow-md'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <Trophy className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Daftar Rival</span>
+          <span className="truncate">Rival Sekolah</span>
         </button>
       </div>
 
-      {/* ── TAB 1: DUEL LAWAN CYBER BOT ── */}
+      {/* ── TAB 1: 8 ADAPTIVE ARENA CARDS (MTK, INGGRIS, PKN, IPA, IPS, INDO, CERDAS CERMAT, TANTANG KAKAK KELAS) ── */}
       {arenaTab === 'bot' && (
-        <section className="p-4 sm:p-6 rounded-2xl bg-[#0F172A] border border-sky-500/30 shadow-lg space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-sky-500/15 border border-sky-400/40 flex items-center justify-center text-sky-400 shrink-0">
-                <Bot className="w-6 h-6" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-white">Cyber Bot Mimi AI</h3>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold">
-                    ONLINE
-                  </span>
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wide flex items-center gap-2">
+                <span>PILIH ARENA SESUAI KELASMU ({activeClassMeta.label})</span>
+                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-400/30">
+                  {activeLevelMeta.emoji} {activeLevelMeta.label}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Klik salah satu kartu arena di bawah untuk langsung bertanding 10 soal anti-bosan melawan Cyber Bot Mimi!
+              </p>
+            </div>
+          </div>
+
+          {/* Grid 8 Kartu Arena */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {filteredArenas.map((arena) => {
+              return (
+                <div
+                  key={arena.id}
+                  onClick={() => startAdaptiveArenaDuel(arena)}
+                  className="group relative p-4 rounded-2xl bg-[#0F172A] hover:bg-slate-900 border border-slate-800 hover:border-sky-400/60 transition-all shadow-lg flex flex-col justify-between gap-3 cursor-pointer active:scale-[0.99]"
+                >
+                  <div className="space-y-2">
+                    {/* Top Row: Icon + Badges */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="w-11 h-11 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 transition-transform">
+                        {arena.icon}
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                            arena.isDoubleXp
+                              ? 'bg-amber-400/20 border-amber-400/50 text-amber-300'
+                              : activeLevelMeta.colorClass
+                          }`}
+                        >
+                          {arena.badgeText}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-[#0B1120] border border-slate-800 text-[10px] font-mono text-slate-300">
+                          {activeLevelMeta.stars}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Arena Title & Subtitle */}
+                    <div>
+                      <h3 className="text-sm sm:text-base font-black text-white group-hover:text-sky-300 transition-colors">
+                        {arena.title}
+                      </h3>
+                      <p className="text-xs font-semibold text-sky-400 leading-snug mt-0.5">
+                        {arena.subtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Bottom Footer Info */}
+                  <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                      <span>📋 {arena.questionCount} Soal</span>
+                      <span className="text-amber-400 font-bold">
+                        +{arena.xpReward} XP
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startAdaptiveArenaDuel(arena);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-300 hover:to-indigo-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    >
+                      <Swords className="w-3.5 h-3.5" />
+                      <span>Mulai Duel Arena</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-400">
-                  Bot dengan respon dinamis 2–4 detik. Cocok untuk pemanasan refleks!
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-lg bg-[#0B1120] border border-slate-800 text-amber-400 font-mono font-bold text-xs">
-                Taruhan: +150 XP
-              </span>
-            </div>
+              );
+            })}
           </div>
-
-          <div className="p-3.5 rounded-xl bg-[#0B1120] border border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs text-slate-300">
-            <div className="flex items-center gap-2">
-              <Timer className="w-4 h-4 text-sky-400 shrink-0" />
-              <span>10 Detik / Soal</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>5 Ronde Kilat</span>
-            </div>
-            <div className="col-span-2 sm:col-span-1 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Tema Cyber & Koding</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={startBotDuel}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-300 hover:to-indigo-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.99]"
-          >
-            <Swords className="w-4 h-4" />
-            <span>Mulai Duel Lawan Bot Sekarang</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
         </section>
       )}
 
@@ -1109,10 +1410,10 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
                   <Share2 className="w-5 h-5" />
                 </div>
                 <h3 className="text-sm sm:text-base font-bold text-white">
-                  Buat Room Duel Baru
+                  Buat Room Duel Baru ({activeClassMeta.shortLabel} • {activeLevelMeta.label})
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Dapatkan kode room 5-karakter lalu bagikan ke temanmu untuk langsung mabar kuis.
+                  Dapatkan kode room 5-karakter lalu bagikan ke temanmu untuk langsung mabar 10 soal adaptif.
                 </p>
               </div>
 
@@ -1120,7 +1421,7 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
                 type="button"
                 disabled={isCreatingRoom}
                 onClick={handleCreatePvpRoom}
-                className="w-full py-2.5 px-4 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 px-4 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isCreatingRoom ? (
                   <span>Membuat Room...</span>
@@ -1160,7 +1461,7 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
                 type="button"
                 disabled={isJoiningRoom || !joinRoomInput.trim()}
                 onClick={handleJoinPvpRoom}
-                className="w-full py-2.5 px-4 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 px-4 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isJoiningRoom ? (
                   <span>Menghubungkan...</span>
@@ -1221,7 +1522,16 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const questions = getRandomDuelQuestions(5);
+                    soundService.resumeAudio();
+                    if (isBgmOn) {
+                      soundService.startDuelMusic();
+                    }
+                    const questions = getAdaptiveQuestionsForArena(
+                      selectedDuelClass,
+                      selectedDuelLevel,
+                      'cerdas_cermat',
+                      10
+                    );
                     const room: DuelRoom = {
                       roomId: 'RIVAL-' + rival.id,
                       createdAt: Date.now(),
@@ -1256,10 +1566,10 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
                     setIsHost(true);
                     setActiveDuelRoom(room);
                   }}
-                  className="w-full py-2 px-3 bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2 px-3 bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Swords className="w-3.5 h-3.5" />
-                  <span>Tantang {rival.name.split(' ')[0]}</span>
+                  <span>Tantang {rival.name.split(' ')[0]} (10 Soal)</span>
                 </button>
               </div>
             </div>

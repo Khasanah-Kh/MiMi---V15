@@ -55,6 +55,8 @@ import { LencanaScreen } from './components/screens/LencanaScreen';
 import { ProfilScreen } from './components/screens/ProfilScreen';
 import { DonationDialog } from './components/DonationDialog';
 import { XpToastNotification, XpToastData } from './components/XpToastNotification';
+import { ErrorReportModal } from './components/ErrorReportModal';
+import { AdminLaporanScreen } from './components/screens/AdminLaporanScreen';
 import {
   auth,
   loginWithEmail,
@@ -64,6 +66,8 @@ import {
   onAuthStateChanged,
   saveUserProgressToFirestore,
   getUserProgressFromFirestore,
+  logActivity,
+  logUserAccess,
 } from './firebase';
 
 const TOKEN_STORAGE_KEY = 'mimi15_session_token';
@@ -195,6 +199,19 @@ export default function App() {
   // Donation Dialog (5 Editable Links + VERSI A Supporter View)
   const [isDonationOpen, setIsDonationOpen] = useState<boolean>(false);
 
+  // Error Report Modal ("⚠️ Lapor Error / Masukan")
+  const [isErrorReportOpen, setIsErrorReportOpen] = useState<boolean>(false);
+
+  // Owner Admin Dashboard (`/admin-laporan` for anna.adriiann@gmail.com)
+  const [isAdminLaporanOpen, setIsAdminLaporanOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.location.pathname.includes('/admin-laporan') ||
+      window.location.hash.includes('admin-laporan') ||
+      window.location.search.includes('admin-laporan')
+    );
+  });
+
   // Quiz state
   const [customAiQuizzes, setCustomAiQuizzes] = useState<QuizQuestion[] | null>(null);
   const [currentQuizIndex, setCurrentQuizIndex] = useState<number>(0);
@@ -244,8 +261,44 @@ export default function App() {
   }, [isWarmSafeOn]);
 
   const toggleWarmSafe = useCallback(() => {
-    setIsWarmSafeOn((prev) => !prev);
-  }, []);
+    setIsWarmSafeOn((prev) => {
+      const next = !prev;
+      logActivity('warm_safe_toggle', {
+        status: next ? 'on' : 'off',
+        email: authUser.email,
+        nama: authUser.displayName,
+      });
+      return next;
+    });
+  }, [authUser.email, authUser.displayName]);
+
+  // Save current class to localStorage and log page_view whenever tab changes
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('kelas', selectedClass);
+    }
+  }, [selectedClass]);
+
+  useEffect(() => {
+    const startTs = Date.now();
+    logActivity('page_view', {
+      page: currentTab,
+      halaman: currentTab,
+      kelas: selectedClass,
+      email: authUser.email,
+      nama: authUser.displayName,
+    });
+    return () => {
+      const durasiDetik = Math.round((Date.now() - startTs) / 1000);
+      if (durasiDetik >= 3) {
+        logActivity('page_duration', {
+          halaman: currentTab,
+          durasiDetik,
+          email: authUser.email,
+        });
+      }
+    };
+  }, [currentTab]);
 
   // ==========================================================================
   // 3. HYDRATE USER DATA HELPER & AUTO-ESTABLISH PUBLIC SESSION
@@ -398,6 +451,18 @@ export default function App() {
           setAuthUser(data.user);
           applyServerUserData(data.userData);
         }
+
+        // Log guest/tamu session visit once per browser session
+        if (!sessionStorage.getItem('mimi_guest_logged')) {
+          sessionStorage.setItem('mimi_guest_logged', 'true');
+          logUserAccess({
+            email: 'tamu_anonim@mimi15.id',
+            nama: 'Tamu (Bestie Pelajar)',
+            kelas: localStorage.getItem('kelas') || 'Kelas 8',
+            isGuest: true,
+            actionType: 'guest_visit',
+          });
+        }
       } catch {
         // Keep PUBLIC_DEFAULT_USER gracefully if offline
       }
@@ -546,6 +611,13 @@ export default function App() {
       });
       setShowSignInModal(false);
       triggerXpToast('Berhasil masuk dengan Firebase Auth!');
+      logUserAccess({
+        email: fbUser.email || email,
+        nama: fbUser.displayName || email.split('@')[0],
+        kelas: selectedClass,
+        isGuest: false,
+        actionType: 'login',
+      });
     } catch (err: any) {
       console.warn('Firebase login attempt:', err);
       try {
@@ -634,6 +706,13 @@ export default function App() {
       });
       setShowSignInModal(false);
       triggerXpToast('Akun berhasil dibuat di Firebase Auth! (+50 XP)');
+      logUserAccess({
+        email: fbUser.email || email,
+        nama: displayName.trim() || 'Bestie Pelajar',
+        kelas: selectedClass,
+        isGuest: false,
+        actionType: 'register',
+      });
     } catch (err: any) {
       console.warn('Firebase register attempt:', err);
       try {
@@ -723,6 +802,13 @@ export default function App() {
       });
       setShowSignInModal(false);
       triggerXpToast('Login Google Firebase Berhasil!');
+      logUserAccess({
+        email: fbUser.email || email || 'pelajar@mimi15.id',
+        nama: fbUser.displayName || displayName || 'Bestie Pelajar',
+        kelas: selectedClass,
+        isGuest: false,
+        actionType: 'login',
+      });
     } catch (err: any) {
       console.warn('Google Firebase Auth fallback:', err);
       // If popup closed or restricted in iframe, fallback smoothly to quick Google session
@@ -739,6 +825,13 @@ export default function App() {
           setAuthUser(data.user);
           applyServerUserData(data.userData);
           setShowSignInModal(false);
+          logUserAccess({
+            email: data.user?.email || email || 'pelajar@mimi15.id',
+            nama: data.user?.displayName || displayName || 'Bestie Pelajar',
+            kelas: selectedClass,
+            isGuest: false,
+            actionType: 'login',
+          });
           triggerXpToast('Sesi masuk terverifikasi!');
         } else {
           setSignInError(err?.message || data?.error || 'Gagal masuk dengan Google.');
@@ -1022,6 +1115,17 @@ export default function App() {
         ...prev,
         totalQuizzesTaken: prev.totalQuizzesTaken + 1,
       }));
+      logActivity('kuis_finish', {
+        email: authUser.email,
+        nama: authUser.displayName,
+        benar: quizScore,
+        salah: Math.max(0, activeQuizPool.length - quizScore),
+        skor: Math.round((quizScore / Math.max(1, activeQuizPool.length)) * 100),
+        mapel: selectedSubject,
+        kelas: selectedClass,
+        mode: 'Kuis Reguler',
+        waktu: new Date().toLocaleString('id-ID'),
+      });
     }
   };
 
@@ -1414,10 +1518,31 @@ export default function App() {
             onUpdateProfileSecurity={handleUpdateProfileSecurity}
             onSignOut={handleSignOut}
             onOpenDonation={() => setIsDonationOpen(true)}
+            onOpenErrorReport={() => setIsErrorReportOpen(true)}
+            onOpenAdminDashboard={() => {
+              window.history.pushState({}, '', '/admin-laporan');
+              setIsAdminLaporanOpen(true);
+            }}
           />
         );
     }
   };
+
+  if (isAdminLaporanOpen) {
+    return (
+      <div className="min-h-screen w-full bg-[#0B1120] text-slate-100 overflow-y-auto px-4 sm:px-8 py-6">
+        <div className="max-w-7xl mx-auto">
+          <AdminLaporanScreen
+            currentUserEmail={authUser.email}
+            onBackToHome={() => {
+              window.history.pushState({}, '', '/');
+              setIsAdminLaporanOpen(false);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[100dvh] w-full bg-[#0B1120] text-slate-100 overflow-hidden flex flex-col">
@@ -1440,6 +1565,14 @@ export default function App() {
       <DonationDialog
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
+      />
+
+      {/* Modal Lapor Error / Masukan ke Owner (anna.adriiann@gmail.com) */}
+      <ErrorReportModal
+        isOpen={isErrorReportOpen}
+        onClose={() => setIsErrorReportOpen(false)}
+        userEmail={authUser.email}
+        userName={authUser.displayName}
       />
 
       {isWideScreen ? (

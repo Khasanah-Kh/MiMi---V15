@@ -33,5 +33,20 @@ service cloud.firestore {
     match /duel_rooms/{roomId} {
       allow read, write: if true;
     }
+
+    // Activity logs collection (supports logged-in and guest student telemetry + owner dashboard)
+    match /activity_logs/{logId} {
+      allow read, write: if isValidId(logId);
+    }
+
+    // Users log collection (tracks registered and guest login counts, device, IP)
+    match /users_log/{userLogId} {
+      allow read, write: if isValidId(userLogId);
+    }
+
+    // Error reports collection (supports manual bug reports, auto-caught errors, and owner status updates)
+    match /error_reports/{reportId} {
+      allow read, write: if isValidId(reportId);
+    }
   }
 }

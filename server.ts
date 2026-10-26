@@ -1866,6 +1866,17 @@ app.post('/api/quiz/generate', async (req, res) => {
   });
 });
 
+// Owner notification relay endpoint for anna.adriiann@gmail.com
+app.post('/api/notify-owner', (req, res) => {
+  const payload = req.body || {};
+  console.log(
+    `[MIMI OWNER REPORT -> anna.adriiann@gmail.com] [${payload.tipe || 'log'}] From: ${
+      payload.from_name || 'Anonim'
+    } (${payload.from_email || '-'}) | Message: ${payload.message || '-'}`
+  );
+  res.json({ ok: true, recipient: 'anna.adriiann@gmail.com' });
+});
+
 // ============================================================================
 // 8. VITE DEV MIDDLEWARE / STATIC ASSETS (24/7 Cloud Run Ready)
 // ============================================================================
