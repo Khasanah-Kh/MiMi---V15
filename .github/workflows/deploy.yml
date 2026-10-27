@@ -27,6 +27,10 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
+      - name: Deploy to Firebase Hosting (gen-lang-client-0798249381)
+        if: ${{ secrets.FIREBASE_TOKEN != '' }}
+        continue-on-error: true
+        run: npx firebase-tools deploy --only hosting --project gen-lang-client-0798249381 --token "${{ secrets.FIREBASE_TOKEN }}"
 
   deploy:
     environment:

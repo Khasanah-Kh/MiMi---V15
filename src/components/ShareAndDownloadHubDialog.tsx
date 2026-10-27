@@ -30,6 +30,7 @@ import {
   uploadPdfToDriveFolder,
   verifySharedDriveFolderByLink,
 } from '../services/googleDriveService';
+import { apiFetch } from '../services/ai';
 
 interface ShareAndDownloadHubDialogProps {
   uiState: MimiUiState;
@@ -102,8 +103,8 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
 
   const fetchServerBookCatalog = useCallback(async () => {
     try {
-      const res = await fetch('/api/books');
-      if (res.ok) {
+      const res = await apiFetch('/api/books');
+      if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
         const data = await res.json();
         if (Array.isArray(data.books)) {
           setCatalogBooks(data.books);
@@ -202,7 +203,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
       const pdfFiles = await listDrivePdfsInFolder(folderInfo.id);
 
       const sessionToken = localStorage.getItem('mimi15_session_token');
-      const syncRes = await fetch('/api/books/sync-drive', {
+      const syncRes = await apiFetch('/api/books/sync-drive', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +219,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
         }),
       });
 
-      if (syncRes.ok) {
+      if (syncRes.ok && (syncRes.headers.get('content-type') || '').includes('application/json')) {
         const data = await syncRes.json();
         setCatalogBooks(data.books || []);
         setActiveDriveConfig(data.driveConfig || null);
@@ -301,11 +302,11 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
           await deleteDriveFile(bookPendingDelete.driveFileId);
         }
       }
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/books/${encodeURIComponent(bookPendingDelete.id)}`,
         { method: 'DELETE' }
       );
-      if (res.ok) {
+      if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
         const data = await res.json();
         setCatalogBooks(data.books || []);
         setStatusBanner({

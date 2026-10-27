@@ -64,13 +64,13 @@ export const AdminLaporanScreen: React.FC<AdminLaporanScreenProps> = ({
   // EmailJS Runtime Config Modal for Owner
   const [showEmailConfig, setShowEmailConfig] = useState(false);
   const [serviceId, setServiceId] = useState(
-    () => localStorage.getItem('mimi_emailjs_service_id') || 'service_mimi'
+    () => localStorage.getItem('mimi_emailjs_service_id') || 'Mimi-Service'
   );
   const [templateId, setTemplateId] = useState(
-    () => localStorage.getItem('mimi_emailjs_template_id') || 'template_error_report'
+    () => localStorage.getItem('mimi_emailjs_template_id') || 'Mimi-Service'
   );
   const [publicKey, setPublicKey] = useState(
-    () => localStorage.getItem('mimi_emailjs_public_key') || ''
+    () => localStorage.getItem('mimi_emailjs_public_key') || 'b6hnq4qiQ2z8cgYpj'
   );
   const [testEmailStatus, setTestEmailStatus] = useState<string | null>(null);
 

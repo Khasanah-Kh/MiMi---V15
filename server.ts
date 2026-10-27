@@ -11,6 +11,17 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
 app.use(express.json({ limit: '4mb' }));
 
 // ============================================================================
@@ -316,11 +327,19 @@ function formatNow(): string {
 // ============================================================================
 const MIMI_FLASH_CHAIN = [
   'gemini-3.8-flash',
-  'gemini-3.1-flash-lite',
   'gemini-flash-latest',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
+  'gemini-3.1-flash-lite',
 ] as const;
+
+const MIMI_MODEL_ALIAS_MAP: Record<string, string> = {
+  'mimi-3.6-flash': 'gemini-3.8-flash',
+  'mimi-3.5-flash': 'gemini-flash-latest',
+  'mimi-3.8-flash': 'gemini-3.8-flash',
+  'mimi-3.1-flash': 'gemini-3.1-flash-lite',
+  'gemini-3.8-flash': 'gemini-3.8-flash',
+  'gemini-flash-latest': 'gemini-flash-latest',
+  'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite',
+};
 
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
@@ -337,11 +356,12 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+const sleepMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
- * Sistem Failover Otomatis Gemini Flash Engine.
- * Chain: gemini-3.8-flash ➔ gemini-3.1-flash-lite ➔ gemini-flash-latest ➔ gemini-2.5-flash ➔ gemini-2.5-flash-lite
- * Batas Waktu Ketat (Strict Timeout 1,9 Detik Per Model, Hard Ceiling 2.500 ms).
- * Jika seluruh AI luar sibuk/timeout, beralih instan ke Mesin Respon Kontekstual Lokal (< 2 Detik).
+ * Sistem Auto-Retry & Model Fallback Otomatis Gemini Flash Engine.
+ * Mendukung alias mimi-3.6-flash, mimi-3.5-flash, mimi-3.8-flash, mimi-3.1-flash
+ * serta fallback berurutan: gemini-3.8-flash -> gemini-flash-latest -> gemini-3.1-flash-lite
  */
 async function generateWithMimiFlashEngine(options: {
   contents: string;
@@ -349,6 +369,7 @@ async function generateWithMimiFlashEngine(options: {
   temperature?: number;
   responseMimeType?: string;
   responseSchema?: any;
+  preferredModel?: string;
 }): Promise<string | null> {
   const ai = getGeminiClient();
   if (!ai) {
@@ -364,64 +385,54 @@ async function generateWithMimiFlashEngine(options: {
   if (options.responseMimeType) config.responseMimeType = options.responseMimeType;
   if (options.responseSchema) config.responseSchema = options.responseSchema;
 
-  // Single model call with strict 1900ms (1.9s) cutoff
-  const callSingleModel = async (modelName: string, maxWaitMs: number = 1900): Promise<string | null> => {
-    try {
-      const callPromise = ai.models
-        .generateContent({
-          model: modelName,
-          contents: options.contents,
-          config,
-        })
-        .then((response) => {
-          if (response.text && response.text.trim().length > 0) {
-            return response.text.trim();
-          }
-          return null;
-        })
-        .catch(() => null);
+  const mappedPreferred = options.preferredModel
+    ? MIMI_MODEL_ALIAS_MAP[options.preferredModel] || 'gemini-3.8-flash'
+    : undefined;
 
-      const timeoutPromise = new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), maxWaitMs)
+  const orderedModels = mappedPreferred
+    ? [
+        mappedPreferred,
+        ...MIMI_FLASH_CHAIN.filter((m) => m !== mappedPreferred),
+      ]
+    : [...MIMI_FLASH_CHAIN];
+
+  const retryDelays = [800, 1500, 2500];
+
+  for (let i = 0; i < orderedModels.length; i++) {
+    const modelName = orderedModels[i];
+    try {
+      const callPromise = ai.models.generateContent({
+        model: modelName,
+        contents: options.contents,
+        config,
+      });
+
+      const timeoutPromise = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT')), 4500)
       );
 
-      return await Promise.race([callPromise, timeoutPromise]);
-    } catch {
-      return null;
-    }
-  };
-
-  // Concurrent multi-model failover race across the requested chain
-  const promises = MIMI_FLASH_CHAIN.map((m) => callSingleModel(m, 1900));
-
-  return new Promise((resolve) => {
-    let resolved = false;
-    let pendingCount = promises.length;
-
-    promises.forEach((p) => {
-      p.then((result) => {
-        if (!resolved) {
-          if (result) {
-            resolved = true;
-            resolve(result);
-          } else {
-            pendingCount--;
-            if (pendingCount <= 0) {
-              resolve(null);
-            }
-          }
-        }
-      });
-    });
-
-    // Hard ceiling safety timeout at 2500ms (2.5 seconds)
-    setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        resolve(null);
+      const response = (await Promise.race([callPromise, timeoutPromise])) as any;
+      if (response && response.text && response.text.trim().length > 0) {
+        return response.text.trim();
       }
-    }, 2500);
-  });
+    } catch (err: any) {
+      const errMsg = String(err?.message || err || '').toLowerCase();
+      const isRetryable =
+        errMsg.includes('429') ||
+        errMsg.includes('500') ||
+        errMsg.includes('503') ||
+        errMsg.includes('overloaded') ||
+        errMsg.includes('quota') ||
+        errMsg.includes('timeout') ||
+        errMsg.includes('rate');
+      if (isRetryable && i < orderedModels.length - 1) {
+        await sleepMs(retryDelays[Math.min(i, retryDelays.length - 1)]);
+      }
+      continue;
+    }
+  }
+
+  return null;
 }
 
 // ============================================================================
@@ -1764,10 +1775,13 @@ ATURAN WAJIB PENJELASAN PELAJARAN:
     ? `Percakapan sebelumnya:\n${recentHistory}\n\n${nameLabel}: ${promptText}`
     : promptText;
 
+  const preferredModel = typeof req.body?.model === 'string' ? req.body.model : undefined;
+
   const aiReply = await generateWithMimiFlashEngine({
     contents: fullContents,
     systemInstruction,
     temperature: flowTemperature,
+    preferredModel,
   });
 
   const rawFinalReply =
@@ -1883,12 +1897,22 @@ app.post('/api/notify-owner', (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
+      base: '/',
       server: { middlewareMode: true },
       appType: 'spa',
+    });
+    app.use((req, _res, next) => {
+      if (req.url.startsWith('/MiMi-V15/')) {
+        req.url = req.url.replace(/^\/MiMi-V15/, '') || '/';
+      } else if (req.url === '/MiMi-V15') {
+        req.url = '/';
+      }
+      next();
     });
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(process.cwd(), 'dist');
+    app.use('/MiMi-V15', express.static(distPath));
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));

@@ -6,6 +6,16 @@
 import emailjs from '@emailjs/browser';
 
 export const OWNER_EMAIL = 'anna.adriiann@gmail.com';
+export const DEFAULT_EMAILJS_SERVICE_ID = 'Mimi-Service';
+export const DEFAULT_EMAILJS_TEMPLATE_ID = 'Mimi-Service';
+export const DEFAULT_EMAILJS_PUBLIC_KEY = 'b6hnq4qiQ2z8cgYpj';
+
+// Initialize EmailJS with the owner's public key
+try {
+  emailjs.init(DEFAULT_EMAILJS_PUBLIC_KEY);
+} catch {
+  // Ignore init errors in SSR/non-browser environments
+}
 
 export interface EmailReportPayload {
   emailPelapor?: string;
@@ -20,7 +30,7 @@ export interface EmailReportPayload {
 
 /**
  * Mengirim laporan otomatis ke email Owner (anna.adriiann@gmail.com)
- * menggunakan EmailJS (jika public key sudah diisi di .env / pengaturan)
+ * menggunakan EmailJS (Service: Mimi-Service, Public Key: b6hnq4qiQ2z8cgYpj)
  * sekaligus meneruskan ke endpoint server /api/notify-owner.
  */
 export async function kirimEmailLaporan(
@@ -29,27 +39,31 @@ export async function kirimEmailLaporan(
   const serviceId =
     (import.meta as any).env?.VITE_EMAILJS_SERVICE_ID ||
     localStorage.getItem('mimi_emailjs_service_id') ||
-    'service_mimi';
+    DEFAULT_EMAILJS_SERVICE_ID;
   const templateId =
     (import.meta as any).env?.VITE_EMAILJS_TEMPLATE_ID ||
     localStorage.getItem('mimi_emailjs_template_id') ||
-    'template_error_report';
+    DEFAULT_EMAILJS_TEMPLATE_ID;
   const publicKey =
     (import.meta as any).env?.VITE_EMAILJS_PUBLIC_KEY ||
     localStorage.getItem('mimi_emailjs_public_key') ||
-    '';
+    DEFAULT_EMAILJS_PUBLIC_KEY;
 
   const waktu = new Date().toLocaleString('id-ID');
   const templateParams = {
     to_email: OWNER_EMAIL,
+    name: data.namaPelapor || data.emailPelapor || 'User MiMi-V15',
+    email: data.emailPelapor || 'reporter@mimi-v15.com',
     from_name: data.namaPelapor || data.emailPelapor || 'Anonim / Tamu',
     from_email: data.emailPelapor || 'tamu@mimi15.id',
-    message: data.pesan,
-    error_url: data.url || (typeof window !== 'undefined' ? window.location.href : ''),
     waktu,
-    tipe: data.type,
-    kelas: data.kelas || '-',
+    time: new Date().toString(),
     device: data.deviceInfo || (typeof navigator !== 'undefined' ? navigator.userAgent : '-'),
+    error_url: data.url || (typeof window !== 'undefined' ? window.location.href : ''),
+    title: typeof document !== 'undefined' ? document.title : 'MiMi-V15',
+    message: data.pesan,
+    kelas: data.kelas || '-',
+    tipe: data.type || 'Bug Report',
     ip: data.ip || '-',
   };
 
@@ -64,19 +78,19 @@ export async function kirimEmailLaporan(
     // Ignore network error
   }
 
-  // 2. Kirim via EmailJS jika Public Key tersedia dan bukan placeholder
+  // 2. Kirim via EmailJS menggunakan kredensial aktif
   if (publicKey && publicKey !== 'YOUR_PUBLIC_KEY' && publicKey !== 'xxx') {
     try {
       await emailjs.send(serviceId, templateId, templateParams, publicKey);
       return {
         sentViaEmailJs: true,
-        message: `Email laporan berhasil dikirim ke ${OWNER_EMAIL} via EmailJS`,
+        message: `✅ Laporan berhasil dikirim ke ${OWNER_EMAIL} via EmailJS!`,
       };
     } catch (err) {
       console.warn('EmailJS send warning:', err);
       return {
         sentViaEmailJs: false,
-        message: 'Laporan tersimpan di Firestore (EmailJS membutuhkan konfigurasi key aktif)',
+        message: 'Laporan tersimpan di Firestore (EmailJS sedang sinkronisasi)',
       };
     }
   }
