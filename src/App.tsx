@@ -1809,9 +1809,7 @@ export default function App() {
           />
         </div>
       )}
-        </div>
-  )}
-
+      
   {/* 🚨 TOMBOL LAPOR ERROR - MiMi-V15 - Email ke Anna */}
   <button
     onClick={() => {
