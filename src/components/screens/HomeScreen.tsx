@@ -48,12 +48,7 @@ import {
 import { downloadGeneratedModulePdf } from '../../services/googleDriveService';
 import { fetchAiLearningPath } from '../../services/ai';
 import { ShareButton, NEW_PUBLIC_APP_URL } from '../ShareButton';
-import {
-  PwaInstallButton,
-  downloadStandaloneHtmlShortcut,
-  downloadDesktopUrlShortcut,
-  downloadChromeExtensionFiles,
-} from '../PwaInstallButton';
+import { PwaInstallButton } from '../PwaInstallButton';
 import { NewCoursesSection } from '../NewCoursesSection';
 
 interface HomeScreenProps {
@@ -395,71 +390,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
 
-        {/* Link Publik Baru & Download Shortcut / Ekstensi Chrome Bar */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#080d19] border border-sky-500/30 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="space-y-1 min-w-0">
-            <div className="text-xs font-extrabold text-sky-400 flex items-center gap-2 flex-wrap">
-              <span>🌐 Link Publik Baru Resmi (Bisa Dibuka di Tempat Lain &amp; Semua Perangkat):</span>
-            </div>
-            <a
-              href={NEW_PUBLIC_APP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs sm:text-sm font-mono font-bold text-emerald-300 hover:text-white underline break-all inline-flex items-center gap-1.5"
-            >
-              <span>{NEW_PUBLIC_APP_URL}</span>
-              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-            </a>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                downloadStandaloneHtmlShortcut();
-                setShareToast('Shortcut App Laptop/HP (.html) berhasil di-download!');
-                setTimeout(() => setShareToast(null), 3500);
-              }}
-              className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Shortcut HP/Laptop (.html)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                downloadDesktopUrlShortcut();
-                setShareToast('Shortcut Desktop (.url) berhasil di-download!');
-                setTimeout(() => setShareToast(null), 3500);
-              }}
-              className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Shortcut Desktop (.url)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                downloadChromeExtensionFiles();
-                setShareToast('Paket Ekstensi Chrome (manifest.json & popup.html) di-download!');
-                setTimeout(() => setShareToast(null), 3500);
-              }}
-              className="px-3 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/40 font-extrabold text-xs flex items-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5 text-indigo-300" />
-              <span>Ekstensi Chrome</span>
-            </button>
-          </div>
-        </div>
-
         {shareToast && (
-          <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md">
+          <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex items-center justify-between gap-2 shadow-md">
             <span>✅ {shareToast}</span>
-            <span className="font-mono text-[11px] text-emerald-300 break-all">
-              {NEW_PUBLIC_APP_URL}
-            </span>
           </div>
         )}
 

@@ -388,54 +388,45 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
           </button>
         </div>
 
-        {/* Public Website Share Link Bar (Terlihat Bagi Semua Orang) */}
+        {/* Public Website Share Link Bar (Cukup Tombol Tanpa Teks URL Panjang) */}
         <div className="p-4 rounded-2xl bg-[#0B101E] border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
           <div className="space-y-1 min-w-0">
             <div className="text-xs font-extrabold text-emerald-400 flex items-center gap-1.5">
-              <span>● Link Publik Baru Aplikasi Live (Bisa Diakses Bebas Tanpa Login):</span>
+              <span>● Akses &amp; Bagikan Aplikasi Publik Mimi V15</span>
             </div>
-            <div className="text-xs sm:text-sm text-sky-300 font-mono font-bold flex items-center gap-1 break-all">
-              <span>👉</span>
-              <a
-                href="https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-white transition-colors"
-              >
-                https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app
-              </a>
-            </div>
-            <div className="text-[11px] text-slate-400 font-mono break-all">
-              (Mirror Dev:{' '}
-              <a
-                href="https://ais-dev-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-300 hover:text-white underline"
-              >
-                https://ais-dev-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app
-              </a>
-              )
-            </div>
+            <p className="text-xs text-slate-300">
+              Bagikan link aplikasi publik atau buka langsung di tab baru tanpa perlu login.
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={async () => {
-              const liveUrl = 'https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app';
-              try {
-                await navigator.clipboard.writeText(liveUrl);
-                setStatusBanner({
-                  type: 'success',
-                  text: `Link publik baru (${liveUrl}) berhasil disalin! Siapa pun yang membuka link ini langsung bisa melihat & belajar bareng Mimi V15.`,
-                });
-              } catch {
-                // ignore
-              }
-            }}
-            className="px-4 py-2.5 rounded-xl btn-tactile-emerald text-xs font-extrabold whitespace-nowrap shrink-0 shadow-md cursor-pointer"
-          >
-            Salin Link Publik Baru
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <a
+              href="https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-extrabold text-xs flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <span>Buka Link Baru</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                const liveUrl = 'https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app';
+                try {
+                  await navigator.clipboard.writeText(liveUrl);
+                  setStatusBanner({
+                    type: 'success',
+                    text: 'Link publik baru berhasil disalin! Siapa pun yang membuka link ini langsung bisa belajar bareng Mimi V15.',
+                  });
+                } catch {
+                  // ignore
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl btn-tactile-emerald text-xs font-extrabold whitespace-nowrap shrink-0 shadow-md cursor-pointer"
+            >
+              Salin Link Publik
+            </button>
+          </div>
         </div>
 
         {/* Navigation Tabs inside Modal */}

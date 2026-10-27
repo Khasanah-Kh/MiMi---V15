@@ -395,11 +395,6 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
           className="px-3 py-2 text-xs font-bold rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/35 hover:bg-indigo-500/30 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all"
         />
 
-        <PwaInstallButton
-          compact
-          className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs transition-all"
-        />
-
         {/* 👁️ Warm Safe Button */}
         <button
           id="warmSafeBtn"

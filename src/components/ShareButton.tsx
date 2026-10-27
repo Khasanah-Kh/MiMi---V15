@@ -5,6 +5,8 @@ export const NEW_PUBLIC_APP_URL =
   'https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app';
 export const NEW_DEV_APP_URL =
   'https://ais-dev-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app';
+export const FIREBASE_WEB_APP_URL =
+  'https://gen-lang-client-0798249381.web.app';
 
 interface ShareButtonProps {
   title?: string;

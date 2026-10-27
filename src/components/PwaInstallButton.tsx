@@ -325,32 +325,23 @@ export const PwaInstallButton: React.FC<PwaInstallButtonProps> = ({
               </button>
             </div>
 
-            {/* New Public Link Box */}
-            <div className="p-4 rounded-2xl bg-[#070b14] border border-sky-500/30 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-extrabold text-sky-400 flex items-center gap-1.5">
+            {/* New Public Link Action Buttons (Tanpa Teks URL Mentah) */}
+            <div className="p-4 rounded-2xl bg-[#070b14] border border-sky-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="text-xs font-extrabold text-sky-400 flex items-center gap-1.5">
                   <Globe className="w-3.5 h-3.5" />
-                  <span>Link Publik Baru Resmi (Aktif 24 Jam):</span>
-                </span>
-                <a
-                  href={NEW_PUBLIC_APP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-                >
-                  <span>Buka di Tab Baru Chrome</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                  <span>Akses Link Publik Resmi (Aktif 24 Jam)</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Salin link atau buka langsung di tab baru Chrome
+                </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
-                <code className="text-[11px] text-sky-200 font-mono break-all">
-                  {NEW_PUBLIC_APP_URL}
-                </code>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={handleCopyPublicUrl}
-                  className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5 shrink-0"
+                  className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5"
                 >
                   {copiedLink ? (
                     <>
@@ -364,9 +355,16 @@ export const PwaInstallButton: React.FC<PwaInstallButtonProps> = ({
                     </>
                   )}
                 </button>
-              </div>
-              <div className="text-[11px] text-slate-400 font-mono">
-                Mirror Dev: <a href={NEW_DEV_APP_URL} target="_blank" rel="noopener noreferrer" className="text-slate-300 underline hover:text-white">{NEW_DEV_APP_URL}</a>
+
+                <a
+                  href={NEW_PUBLIC_APP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs flex items-center gap-1.5"
+                >
+                  <span>Buka Aplikasi</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
             </div>
 
