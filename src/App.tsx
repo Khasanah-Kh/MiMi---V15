@@ -1840,10 +1840,6 @@ export default function App() {
     🚨 Lapor Error
   </button>
 
-  {/* Warm Safe Ambient Overlay (Active only when toggled ON, zero obstruction) */}
-  <div
-    id="warmOverlay"
-
       {/* Warm Safe Ambient Overlay (Active only when toggled ON, zero obstruction) */}
       <div
         id="warmOverlay"
@@ -1857,6 +1853,5 @@ export default function App() {
           transition: 'opacity 0.5s ease',
         }}
       />
-    </div>
   );
 }
