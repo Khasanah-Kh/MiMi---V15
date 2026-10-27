@@ -1,15 +1,19 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { buildStrictCurriculumPrompt } from './adaptiveDuelService';
+import type { AiLearningPath } from '../types/mimi';
 
 export const MIMI_FALLBACK_MODELS = [
   'gemini-3.8-flash',
   'gemini-3.1-flash-lite',
+  'gemini-2.5-flash',
   'gemini-flash-latest',
 ] as const;
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
   'gemini-3.8-flash': 'gemini-3.8-flash',
   'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite',
+  'gemini-2.5-flash': 'gemini-2.5-flash',
+  'gemini-2.5-pro': 'gemini-3.8-flash',
   'gemini-flash-latest': 'gemini-flash-latest',
   'gemini-3.5-flash': 'gemini-3.8-flash',
   'gemini-3.0-flash': 'gemini-3.8-flash',
@@ -18,7 +22,8 @@ const MODEL_ALIAS_MAP: Record<string, string> = {
   'mimi-3.5-flash': 'gemini-3.8-flash',
   'mimi-3.1-flash': 'gemini-3.1-flash-lite',
   'gemini-2.0-flash': 'gemini-3.8-flash',
-  'gemini-1.5-flash': 'gemini-flash-latest',
+  'gemini-1.5-flash': 'gemini-3.1-flash-lite',
+  'gemini-1.0-pro': 'gemini-flash-latest',
 };
 
 export function resolveGeminiModelName(modelName: string): string {
@@ -253,11 +258,16 @@ Aturan Penting:
     ? `Riwayat obrolan singkat:\n${recentHistory}\n\n${studentName}: ${promptText}`
     : promptText;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const modelsToTry = [
+    'gemini-3.8-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+  ];
   for (let i = 0; i < modelsToTry.length; i++) {
     const model = modelsToTry[i];
     try {
-      const response = await ai.models.generateContent({
+      const callPromise = ai.models.generateContent({
         model,
         contents,
         config: {
@@ -265,12 +275,18 @@ Aturan Penting:
           temperature: 0.75,
         },
       });
-      const text = cleanHumanChatText(String(response.text || ''));
+
+      const timeoutPromise = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT_EXCEEDED')), 2400)
+      );
+
+      const response = (await Promise.race([callPromise, timeoutPromise])) as any;
+      const text = cleanHumanChatText(String(response?.text || ''));
       if (text) {
         return { reply: text, modelUsed: model };
       }
     } catch {
-      // Immediately failover to next model (e.g. gemini-3.1-flash-lite) without blocking delay
+      // Immediately failover to next model without blocking delay
       continue;
     }
   }
@@ -301,6 +317,20 @@ export function buildClientMimiContextualReply(
   const raw = promptText.trim();
   const q = raw.toLowerCase().replace(/[?!.,✨]+$/g, '').trim();
 
+  // Sapaan & Tanya Kabar Sehat
+  if (
+    q === 'kamu sehat' ||
+    q.includes('kamu sehat') ||
+    q === 'sehat' ||
+    q === 'sehat?' ||
+    q.includes('sehat gak') ||
+    q.includes('sehat kan') ||
+    q.includes('apa kabar') ||
+    q.includes('gimana kabar')
+  ) {
+    return `Aku sehat dan semangat banget bestie ${studentName}! Senang kamu nanya. Kamu sendiri gimana kabarnya hari ini, sehat juga kan? Lagi mau ngobrol santai atau ada yang mau diobrolin nih?`;
+  }
+
   if (
     q.includes('siapa kamu') ||
     q.includes('kamu siapa') ||
@@ -317,7 +347,6 @@ export function buildClientMimiContextualReply(
     q === 'hi' ||
     q === 'p' ||
     q === 'mimi' ||
-    q.includes('apa kabar') ||
     q.includes('pagi') ||
     q.includes('siang') ||
     q.includes('sore') ||
@@ -612,3 +641,86 @@ export const SEEDED_GLOBAL_LEADERBOARD = [
     isCurrentUser: false,
   },
 ];
+
+/**
+ * Fetch personalized learning path recommendations from Mimi AI
+ * utilizing the backend failover engine and client fallback.
+ */
+export async function fetchAiLearningPath(params: {
+  educationLevel: string;
+  selectedClass: string;
+  selectedSubject: string;
+  completedModulesCount: number;
+  lastStudiedTopic?: string;
+  studentName?: string;
+  isProfesorMode?: boolean;
+}): Promise<AiLearningPath> {
+  const {
+    educationLevel,
+    selectedClass,
+    selectedSubject,
+    completedModulesCount,
+    lastStudiedTopic = 'Materi Dasar',
+    studentName = 'Bestie',
+    isProfesorMode = false,
+  } = params;
+
+  try {
+    const res = await apiFetch('/api/learning-path/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        educationLevel,
+        selectedClass,
+        selectedSubject,
+        completedModulesCount,
+        lastStudiedTopic,
+        studentName,
+        isProfesorMode,
+      }),
+    });
+
+    const data = await safeJson<{ ok: boolean; learningPath: AiLearningPath }>(res);
+    if (data?.ok && data.learningPath && Array.isArray(data.learningPath.steps)) {
+      return data.learningPath;
+    }
+  } catch (err) {
+    console.warn('Backend learning path suggest error, falling back:', err);
+  }
+
+  // Client-side fallback with structured steps
+  return {
+    title: `Roadmap Belajar ${selectedSubject} (${selectedClass} ${educationLevel})`,
+    strategyTip: `Halo bestie ${studentName}! Fokus bertahap satu per satu ya. Pahami konsep intinya dulu, baru lanjut eksplorasi dan latihan soal. Mimi siap nemenin kapan pun kamu butuh clue! 🚀✨`,
+    estimatedTotalMinutes: 60,
+    steps: [
+      {
+        stepNumber: 1,
+        title: `Fondasi & Konsep Dasar ${selectedSubject}`,
+        description: `Pahami definisi kunci dan peta konsep utama di ${selectedClass}.`,
+        keyConcept: 'Kaitkan dengan contoh sehari-hari agar langsung masuk akal.',
+        estimatedMinutes: 15,
+        xpReward: 35,
+        difficulty: 'Mudah',
+      },
+      {
+        stepNumber: 2,
+        title: `Eksplorasi Pola & Hubungan Materi`,
+        description: `Kupas cara kerja rumus atau keterkaitan antar konsep di bab ini.`,
+        keyConcept: 'Gunakan analogi visual atau logika sebab-akibat.',
+        estimatedMinutes: 20,
+        xpReward: 45,
+        difficulty: 'Menengah',
+      },
+      {
+        stepNumber: 3,
+        title: `Latihan Soal & Tantangan Praktik`,
+        description: `Uji pemahaman dengan kuis adaptif atau duel soal interaktif.`,
+        keyConcept: 'Active recall: ulangi penjelasannya pakai kalimat sendiri.',
+        estimatedMinutes: 25,
+        xpReward: 50,
+        difficulty: 'Tantangan',
+      },
+    ],
+  };
+}

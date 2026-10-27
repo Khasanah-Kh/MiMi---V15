@@ -2,11 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -32,6 +27,17 @@ service cloud.firestore {
     // Duel Arena Rooms collection for real-time multiplayer challenges
     match /duel_rooms/{roomId} {
       allow read, write: if true;
+    }
+
+    // Real-time chat messages
+    match /chats/{userId}/messages/{messageId} {
+      allow read, write: if isValidId(userId);
+    }
+
+    // Global Public Leaderboard
+    match /leaderboard/{entryId} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     // Activity logs collection (supports logged-in and guest student telemetry + owner dashboard)

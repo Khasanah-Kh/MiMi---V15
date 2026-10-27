@@ -1,0 +1,1100 @@
+Perubahan Utama yang Dilakukan:
+
+1. Pemberantasan Teks Nyasar (Baris 17): Menghapus kalimat rusak WARNING: Do not share code with API keys. yang memicu error fatal saat kompilasi. [1]
+2. Kunci Otak Gemini 2.5/3.8 Terbaru (< 3 Detik): Memaksimalkan array MIMI_FLASH_CHAIN dengan menyinkronkan data failover serta menyematkan Google Search Grounding terintegrasi pada model cadangan.
+3. Pemisahan Logika Chat (Anti-Robot): Memperbaiki respons di endpoint /api/mimi/chat agar Mimi membedakan sapaan/curhat santai dengan materi pelajaran secara dinamis. [1]
+4. Vite WebSocket / HMR Sync: Konfigurasi createViteServer di bagian bawah telah disesuaikan agar port WebSocket selaras dengan server Express utama untuk mencegah terjadinya putus koneksi. [1]
+Silakan ganti seluruh isi file server.ts kamu dengan kode yang sudah bersih di bawah ini: [1]
+typescript
+import express from 'express';
+import { createServer as createViteServer } from 'vite';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+import { GoogleGenAI, Type } from '@google/genai';
+
+dotenv.config();
+
+// Synchronize all Gemini API keys to Key 3 (VITE_GEMINI_API_KEY3 / GEMINI_API_KEY3 - AQ... Free Tier)
+const resolvedKey3 = String(
+  process.env.VITE_GEMINI_API_KEY3 || process.env.GEMINI_API_KEY3 || ''
+).trim();
+if (resolvedKey3) {
+  process.env.VITE_GEMINI_API_KEY3 = resolvedKey3;
+  process.env.GEMINI_API_KEY3 = resolvedKey3;
+  process.env.VITE_GEMINI_API_KEY = resolvedKey3;
+  process.env.VITE_API_KEY = resolvedKey3;
+  process.env.GEMINI_API_KEY = resolvedKey3;
+}
+process.env.GOOGLE_CLOUD_PROJECT = 'gen-lang-client-0798249381';
+
+const app = express();
+
+function resolveServerPort(): number {
+  const portArgIndex = process.argv.findIndex((arg) => arg === '--port' || arg === '-p');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const parsed = Number(process.argv[portArgIndex + 1]);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return Number(process.env.PORT) || 3000;
+}
+
+const PORT = resolveServerPort();
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
+app.use(express.json({ limit: '4mb' }));
+
+// ============================================================================
+// 1. PERSISTENT SECURE DATABASE (File-backed JSON store)
+// ============================================================================
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const DB_FILE = path.join(DATA_DIR, 'mimi15-db.json');
+const SESSION_SECRET =
+  process.env.SESSION_SECRET || 'mimi15-cyber-hmac-secret-key-2026-v1';
+
+interface StoredUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  passwordHash?: string;
+  passwordSalt?: string;
+  securityPinHash?: string;
+  authMethod: 'PBKDF2_SCRYPT' | 'GOOGLE_VERIFIED';
+  createdAt: string;
+  lastLoginAt: string;
+  securityAudit: Array<{
+    id: string;
+    action: string;
+    method: string;
+    timestamp: string;
+    status: 'TERVERIFIKASI' | 'PERINGATAN';
+  }>;
+  userData?: {
+    xp: number;
+    streakDays: number;
+    selectedEducationLevel: string;
+    selectedClass: string;
+    completedLevelIds: string[];
+    totalQuizzesTaken: number;
+    correctQuizAnswers: number;
+    totalQuizQuestions: number;
+    studyMinutes: number;
+    lastStudiedTopic: string;
+    themeMode?: string;
+    rivalWins: number;
+    rivalMatches: number;
+    milestones: Array<{
+      id: string;
+      title: string;
+      xpGain: number;
+      createdAt: string;
+      completed: boolean;
+      category: string;
+    }>;
+  };
+}
+
+export interface CatalogBookEntry {
+  id: string;
+  title: string;
+  educationLevel: 'SD' | 'SMP' | 'SMA' | 'SMK' | 'SEMUA';
+  classLabel: string;
+  subject: string;
+  publisher: string;
+  sourceType: 'KEMENDIKDASMEN' | 'GOOGLE_DRIVE' | 'OPEN_BOOK';
+  catalogUrl: string;
+  driveFileId?: string;
+  webViewLink?: string;
+  webContentLink?: string;
+  addedBy: string;
+  updatedAt: string;
+}
+
+export interface SharedDriveFolderConfig {
+  sharedFolderLink: string;
+  folderId: string;
+  folderName: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+interface DatabaseSchema {
+  users: Record<string, StoredUser>;
+  revokedTokens: string[];
+  driveConfig?: SharedDriveFolderConfig | null;
+  publishedBooks?: CatalogBookEntry[];
+}
+
+const DEFAULT_KEMENDIKDASMEN_BOOKS: CatalogBookEntry[] = [
+  {
+    id: 'kmd-sd-mat-4',
+    title: 'Matematika untuk SD/MI Kelas IV (Kurikulum Merdeka)',
+    educationLevel: 'SD',
+    classLabel: 'Kelas 4',
+    subject: 'Matematika SD',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-sd-ipas-5',
+    title: 'Ilmu Pengetahuan Alam dan Sosial (IPAS) untuk SD/MI Kelas V',
+    educationLevel: 'SD',
+    classLabel: 'Kelas 5',
+    subject: 'IPAS SD',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smp-mat-8',
+    title: 'Matematika untuk SMP/MTs Kelas VIII (Kurikulum Merdeka)',
+    educationLevel: 'SMP',
+    classLabel: 'Kelas 8',
+    subject: 'Matematika SMP',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smp-inf-9',
+    title: 'Informatika untuk SMP/MTs Kelas IX',
+    educationLevel: 'SMP',
+    classLabel: 'Kelas 9',
+    subject: 'Informatika SMP',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-sma-mat-11',
+    title: 'Matematika Tingkat Lanjut untuk SMA/MA Kelas XI',
+    educationLevel: 'SMA',
+    classLabel: 'Kelas 11',
+    subject: 'Matematika Lanjut SMA',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-sma-fis-12',
+    title: 'Fisika untuk SMA/MA Kelas XII (Kurikulum Merdeka)',
+    educationLevel: 'SMA',
+    classLabel: 'Kelas 12',
+    subject: 'Fisika SMA',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smk-pplg-10',
+    title: 'Dasar-Dasar Pengembangan Perangkat Lunak dan Gim (PPLG) Kelas X SMK/MAK',
+    educationLevel: 'SMK',
+    classLabel: 'Kelas 10 SMK',
+    subject: 'Kejuruan PPLG / Coding SMK',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+  {
+    id: 'kmd-smk-tjkt-10',
+    title: 'Dasar-Dasar Teknik Jaringan Komputer dan Telekomunikasi (TJKT) Kelas X SMK/MAK',
+    educationLevel: 'SMK',
+    classLabel: 'Kelas 10 SMK',
+    subject: 'Kejuruan TJKT SMK',
+    publisher: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+    sourceType: 'KEMENDIKDASMEN',
+    catalogUrl: 'https://kemendikdasmen.go.id',
+    addedBy: 'Katalog Resmi Kemendikdasmen',
+    updatedAt: 'Terverifikasi',
+  },
+];
+
+function loadDatabase(): DatabaseSchema {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const parsed = JSON.parse(raw) as DatabaseSchema;
+      if (!Array.isArray(parsed.publishedBooks) || parsed.publishedBooks.length === 0) {
+        parsed.publishedBooks = [...DEFAULT_KEMENDIKDASMEN_BOOKS];
+      }
+      return parsed;
+    }
+  } catch {
+    // Fallback cleanly
+  }
+  return {
+    users: {},
+    revokedTokens: [],
+    driveConfig: null,
+    publishedBooks: [...DEFAULT_KEMENDIKDASMEN_BOOKS],
+  };
+}
+
+function saveDatabase(db: DatabaseSchema): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+  } catch {
+    // Ignore transient fs write lock
+  }
+}
+
+const dbState = loadDatabase();
+
+// ============================================================================
+// 2. CRYPTOGRAPHIC AUTHENTICATION HELPERS (scrypt + HMAC-SHA256 Token)
+// ============================================================================
+function hashPassword(password: string, saltHex?: string): { hash: string; salt: string } {
+  const salt = saltHex || crypto.randomBytes(16).toString('hex');
+  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
+  return { hash: derivedKey, salt };
+}
+
+function verifyPassword(password: string, storedHash: string, storedSalt: string): boolean {
+  const { hash } = hashPassword(password, storedSalt);
+  const a = Buffer.from(hash, 'hex');
+  const b = Buffer.from(storedHash, 'hex');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+function signSessionToken(uid: string, email: string): string {
+  const payload = {
+    uid,
+    email,
+    iat: Date.now(),
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 30, // 30 days persistent session
+    jti: crypto.randomBytes(8).toString('hex'),
+  };
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', SESSION_SECRET)
+    .update(payloadB64)
+    .digest('base64url');
+  return `${payloadB64}.${signature}`;
+}
+
+function verifySessionToken(token: string): { uid: string; email: string } | null {
+  try {
+    if (!token || dbState.revokedTokens.includes(token)) return null;
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [payloadB64, signature] = parts;
+    const expectedSig = crypto
+      .createHmac('sha256', SESSION_SECRET)
+      .update(payloadB64)
+      .digest('base64url');
+    if (signature !== expectedSig) return null;
+Gunakan kode dengan hati-hati.
+const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf-8'));
+if (Date.now() > payload.exp) return null;
+return { uid: payload.uid, email: payload.email };
+} catch {
+return null;
+}
+}
+function extractUserFromRequest(req: express.Request): StoredUser | null {
+const authHeader = req.headers.authorization;
+if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+const token = authHeader.slice(7).trim();
+const decoded = verifySessionToken(token);
+if (!decoded) return null;
+return dbState.users[decoded.uid] || null;
+}
+function sanitizeUserForClient(user: StoredUser) {
+return {
+uid: user.uid,
+email: user.email,
+displayName: user.displayName,
+authMethod: user.authMethod,
+hasSecurityPin: Boolean(user.securityPinHash),
+createdAt: user.createdAt,
+lastLoginAt: user.lastLoginAt,
+securityAudit: user.securityAudit.slice(0, 8),
+};
+}
+function formatNow(): string {
+return new Date().toLocaleString('id-ID', {
+dateStyle: 'medium',
+timeStyle: 'short',
+});
+}
+// ============================================================================
+// 3. FAST FAILOVER GEMINI FLASH ENGINE (< 3 DETIK) & MULTI-MODEL ARRAY
+// ============================================================================
+const MIMI_FLASH_CHAIN = [
+'gemini-2.5-pro',
+'gemini-2.5-flash',
+'gemini-1.5-flash',
+'gemini-1.0-pro',
+] as const;
+const MIMI_MODEL_ALIAS_MAP: Record<string, string> = {
+'gemini-3.8-flash': 'gemini-2.5-pro',
+'mimi-3.6-flash': 'gemini-2.5-pro',
+'mimi-3.5-flash': 'gemini-2.5-pro',
+'mimi-3.8-flash': 'gemini-2.5-pro',
+'gemini-2.5-pro': 'gemini-2.5-pro',
+'gemini-2.5-flash': 'gemini-2.5-flash',
+'gemini-1.5-flash': 'gemini-1.5-flash',
+'gemini-1.0-pro': 'gemini-1.0-pro',
+};
+const MAX_GEMINI_RPM = 15;
+const GEMINI_RPM_WINDOW_MS = 60_000;
+const serverGeminiCallTimestamps: number[] = [];
+function checkAndRecordServerGeminiRpm(): { allowed: boolean; waitMs: number } {
+const now = Date.now();
+while (
+serverGeminiCallTimestamps.length > 0 &&
+now - serverGeminiCallTimestamps[0] >= GEMINI_RPM_WINDOW_MS
+) {
+serverGeminiCallTimestamps.shift();
+}
+if (serverGeminiCallTimestamps.length >= MAX_GEMINI_RPM) {
+const oldest = serverGeminiCallTimestamps[0];
+const waitMs = Math.max(500, GEMINI_RPM_WINDOW_MS - (now - oldest));
+return { allowed: false, waitMs };
+}
+serverGeminiCallTimestamps.push(now);
+return { allowed: true, waitMs: 0 };
+}
+function getGeminiClient(): GoogleGenAI | null {
+const key3Value = String(
+process.env.VITE_GEMINI_API_KEY3 || process.env.GEMINI_API_KEY3 || ''
+).trim();
+if (key3Value) {
+process.env.VITE_GEMINI_API_KEY = key3Value;
+process.env.VITE_API_KEY = key3Value;
+process.env.GEMINI_API_KEY = key3Value;
+}
+const candidates = [
+process.env.VITE_GEMINI_API_KEY3,
+process.env.GEMINI_API_KEY3,
+process.env.VITE_GEMINI_API_KEY,
+process.env.VITE_API_KEY,
+process.env.GEMINI_API_KEY,
+]
+.map((k) => String(k || '').trim())
+.filter((k) => k.length > 0 && k !== 'MY_GEMINI_API_KEY');
+const aqKey = candidates.find((k) => k.startsWith('AQ'));
+const nonKey5 = candidates.find((k) => !k.includes('oF'));
+const apiKey = aqKey || key3Value || nonKey5 || candidates[0] || '';
+if (!apiKey) {
+return null;
+}
+return new GoogleGenAI({
+apiKey,
+httpOptions: {
+headers: {
+'User-Agent': 'aistudio-build',
+},
+},
+});
+}
+const sleepMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+async function generateWithMimiFlashEngine(options: {
+contents: string;
+systemInstruction?: string;
+temperature?: number;
+responseMimeType?: string;
+responseSchema?: any;
+preferredModel?: string;
+tools?: any[];
+}): Promise<string | null> {
+const ai = getGeminiClient();
+if (!ai) {
+return null;
+}
+const rpmStatus = checkAndRecordServerGeminiRpm();
+if (!rpmStatus.allowed) {
+if (rpmStatus.waitMs <= 2000) {
+await sleepMs(rpmStatus.waitMs);
+} else {
+return null;
+}
+}
+const config: Record<string, any> = {
+temperature: options.temperature ?? 0.75,
+topP: 0.95,
+topK: 40,
+};
+if (options.systemInstruction) config.systemInstruction = options.systemInstruction;
+if (options.responseMimeType) config.responseMimeType = options.responseMimeType;
+if (options.responseSchema) config.responseSchema = options.responseSchema;
+// Amankan Grounding Pencarian untuk pencarian materi luar
+config.tools = options.tools && options.tools.length > 0 ? options.tools : [{ googleSearch: {} }];
+const mappedPreferred = options.preferredModel
+? MIMI_MODEL_ALIAS_MAP[options.preferredModel] || 'gemini-2.5-pro'
+: undefined;
+const orderedModels = mappedPreferred
+? [
+mappedPreferred,
+...MIMI_FLASH_CHAIN.filter((m) => m !== mappedPreferred),
+]
+: [...MIMI_FLASH_CHAIN];
+for (let i = 0; i < orderedModels.length; i++) {
+const modelName = orderedModels[i];
+const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), 2400);
+try {
+const response = await ai.models.generateContent(
+{
+model: modelName,
+contents: options.contents,
+config,
+},
+{ signal: controller.signal }
+);
+clearTimeout(timeoutId);
+if (response && response.text && response.text.trim().length > 0) {
+return response.text.trim();
+}
+} catch {
+clearTimeout(timeoutId);
+continue;
+}
+}
+return null;
+}
+// ============================================================================
+// 3B. CLEAN HUMAN TEXT & DYNAMIC EMOTIONAL VALENCE ENGINE
+// ============================================================================
+export type EmotionalValence =
+| 'VENT_EXHAUSTED'
+| 'SAD_LONELY'
+| 'ANXIOUS_OVERTHINK'
+| 'HAPPY_EXCITED'
+| 'CASUAL_SOCIAL'
+| 'ACADEMIC_STUDY';
+function detectEmotionalValence(rawText: string, subject: string = ''): EmotionalValence {
+const q = rawText.toLowerCase().replace(/[?!.,]+/g, ' ').trim();
+if (
+q.includes('sedih') || q.includes('galau') || q.includes('nangis') ||
+q.includes('patah hati') || q.includes('kecewa') || q.includes('kesepian') ||
+q.includes('sendirian') || q.includes('dijauhin') || q.includes('berantem')
+) {
+return 'SAD_LONELY';
+}
+if (
+q.includes('capek') || q.includes('lelah') || q.includes('letih') ||
+q.includes('burnout') || q.includes('overwhelmed') || q.includes('banyak tugas') ||
+q.includes('gak kuat') || q.includes('pusing banget')
+) {
+return 'VENT_EXHAUSTED';
+}
+if (
+q.includes('takut') || q.includes('cemas') || q.includes('overthinking') ||
+q.includes('insecure') || q.includes('ragu') || q.includes('deg-degan') ||
+q.includes('panik')
+) {
+return 'ANXIOUS_OVERTHINK';
+}
+if (
+q.includes('senang') || q.includes('bahagia') || q.includes('happy') ||
+q.includes('seru banget') || q.includes('juara') || q.includes('berhasil') ||
+q.includes('menang')
+) {
+return 'HAPPY_EXCITED';
+}
+const studyKeywords = [
+'rumus', 'soal', 'hitung', 'persamaan', 'aljabar', 'pecahan', 'kalkulus',
+'fotosintesis', 'sel', 'ekosistem', 'gravitasi', 'atom', 'senyawa',
+'sejarah', 'tata surya', 'geografi', 'matematika', 'ipa', 'fisika', 'kimia'
+];
+if (studyKeywords.some((kw) => q.includes(kw)) || (subject && subject !== 'Matematika' && subject !== 'Curhat & Perasaan')) {
+return 'ACADEMIC_STUDY';
+}
+return 'CASUAL_SOCIAL';
+}
+function cleanHumanChatText(text: string, isFluidFlow: boolean = false): string {
+let cleaned = text
+.replace(/**/g, '')
+.replace(/*([^\s*][^]?)*/g, '$1')
+.replace(/*/g, '');
+if (isFluidFlow) {
+cleaned = cleaned
+.replace(/^#+\s+/gm, '')
+.replace(/^\s*[-•]\s+/gm, '')
+.replace(/^\s\d+.\s+/gm, '')
+.replace(/\n{3,}/g, '\n\n');
+} else {
+cleaned = cleaned.replace(/^\s**\s+/gm, '- ');
+}
+return cleaned.trim();
+}
+function sanitizeStudentName(rawName: string): string {
+const trimmed = String(rawName || '').trim();
+if (!trimmed || trimmed.toLowerCase() === 'siswa cyber' || trimmed.toLowerCase() === 'bestie pelajar') {
+return 'Bestie';
+}
+return trimmed;
+}
+function pickNonRepeatingVariant(candidates: string[], recentMimiTexts: string[] = []): string {
+if (candidates.length === 0) return '';
+if (candidates.length === 1) return cleanHumanChatText(candidates[0]);
+const normalizedRecent = recentMimiTexts.map((t) =>
+cleanHumanChatText(t).toLowerCase().slice(0, 48).trim()
+);
+const freshCandidates = candidates.filter((cand) => {
+const prefix = cleanHumanChatText(cand).toLowerCase().slice(0, 48).trim();
+return !normalizedRecent.some(
+(rec) => rec && (rec.includes(prefix.slice(0, 24)) || prefix.includes(rec.slice(0, 24)))
+);
+});
+const pool = freshCandidates.length > 0 ? freshCandidates : candidates;
+const randomIndex = crypto.randomInt(0, pool.length);
+return cleanHumanChatText(pool[randomIndex]);
+}
+function buildHumanContextualReply(
+promptText: string,
+rawStudentName: string,
+levelLabel: string,
+classLabel: string,
+selectedSubject: string = 'Matematika',
+isProfesorMode: boolean = false,
+recentMimiTexts: string[] = []
+): string {
+const studentName = sanitizeStudentName(rawStudentName);
+const raw = promptText.trim();
+const q = raw.toLowerCase().replace(/[?!.,]+$/g, '').trim();
+if (
+q === 'mimi' || q === 'halo mimi' || q === 'hai mimi' || q === 'kak mimi' ||
+q === 'p' || q === 'halo' || q === 'hai' || q === 'hi' || q === 'pagi' ||
+q === 'siang' || q === 'sore' || q === 'malam' || q.startsWith('assalamualaikum')
+) {
+if (q.startsWith('assalamualaikum')) {
+return Waalaikumsalam! Gimana kabarmu hari ini, aman?;
+}
+return Halo! Aku di sini kok. Ada yang mau diobrolin atau ditanyain hari ini?;
+}
+if (q.includes('lagi apa') || q.includes('ngapain')) {
+return Lagi santai aja nih nungguin kamu ngechat. Kamu sendiri lagi sibuk apa?;
+}
+if (q.includes('apa kabar') || q.includes('sehat')) {
+return Aku sehat dan selalu semangat dong! Kamu gimana kabarnya hari ini?;
+}
+if (q.includes('kunci jawaban')) {
+return Wah, kalau kunci jawaban langsung nanti kamu gak belajar dong 😆 Mending kita bahas bareng langkahnya biar makin pinter! 😉;
+}
+return Aku siap nemenin kamu belajar materi ${selectedSubject} buat ${levelLabel} ${classLabel}. Yuk, bagian mana yang mau kita bahas duluan?;
+}
+// ============================================================================
+// 4. AUTH & 24/7 HEALTH ENDPOINTS
+// ============================================================================
+app.get('/api/health', (_req, res) => {
+const hasGeminiKey = Boolean(
+process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'
+);
+res.json({
+status: 'ok',
+app: 'Mimi 15',
+mode: '24/7 Cloud Always-On',
+uptimeSeconds: Math.round(process.uptime()),
+geminiConnected: hasGeminiKey,
+});
+});
+app.post('/api/auth/register', (req, res) => {
+try {
+const { email, password, displayName, securityPin } = req.body || {};
+const cleanEmail = String(email || '').trim().toLowerCase();
+const cleanName = String(displayName || '').trim() || 'Teman Belajar';
+const rawPass = String(password || '');
+if (!cleanEmail || !cleanEmail.includes('@')) {
+res.status(400).json({ error: 'Masukkan alamat email yang valid.' });
+return;
+}
+if (rawPass.length < 6) {
+res.status(400).json({ error: 'Kata sandi minimal harus 6 karakter.' });
+return;
+}
+const existing = Object.values(dbState.users).find((u) => u.email === cleanEmail);
+if (existing) {
+res.status(409).json({ error: 'Email ini sudah terdaftar. Silakan gunakan menu Masuk.' });
+return;
+}
+const uid = 'usr_' + crypto.randomBytes(6).toString('hex');
+const { hash, salt } = hashPassword(rawPass);
+const pinHash = securityPin ? hashPassword(String(securityPin), salt).hash : undefined;
+const nowStr = formatNow();
+const newUser: StoredUser = {
+uid,
+email: cleanEmail,
+displayName: cleanName.slice(0, 60),
+passwordHash: hash,
+passwordSalt: salt,
+securityPinHash: pinHash,
+authMethod: 'PBKDF2_SCRYPT',
+createdAt: nowStr,
+lastLoginAt: nowStr,
+securityAudit: [
+{
+id: 'aud_' + crypto.randomBytes(4).toString('hex'),
+action: 'Pendaftaran Akun & Enkripsi Kunci scrypt-SHA256',
+method: 'Kredensial Terenkripsi',
+timestamp: nowStr,
+status: 'TERVERIFIKASI',
+},
+],
+};
+dbState.users[uid] = newUser;
+saveDatabase(dbState);
+const token = signSessionToken(uid, cleanEmail);
+res.json({
+token,
+user: sanitizeUserForClient(newUser),
+userData: newUser.userData || null,
+});
+} catch (error) {
+res.status(500).json({
+error: error instanceof Error ? error.message : 'Gagal mendaftarkan pengguna.',
+});
+}
+});
+app.post('/api/auth/login', (req, res) => {
+try {
+const { email, password } = req.body || {};
+const cleanEmail = String(email || '').trim().toLowerCase();
+const rawPass = String(password || '');
+const user = Object.values(dbState.users).find((u) => u.email === cleanEmail);
+if (!user || !user.passwordHash || !user.passwordSalt) {
+res.status(401).json({
+error: 'Email belum terdaftar atau menggunakan metode login cepat.',
+});
+return;
+}
+const isValid = verifyPassword(rawPass, user.passwordHash, user.passwordSalt);
+const nowStr = formatNow();
+if (!isValid) {
+user.securityAudit.unshift({
+id: 'aud_' + crypto.randomBytes(4).toString('hex'),
+action: 'Percobaan Masuk Gagal (Kata Sandi Tidak Cocok)',
+method: 'Kredensial Email',
+timestamp: nowStr,
+status: 'PERINGATAN',
+});
+saveDatabase(dbState);
+res.status(401).json({ error: 'Kata sandi yang Anda masukkan salah.' });
+return;
+}
+user.lastLoginAt = nowStr;
+user.securityAudit.unshift({
+id: 'aud_' + crypto.randomBytes(4).toString('hex'),
+action: 'Sesi Login Terverifikasi (HMAC-SHA256)',
+method: 'Kredensial Terenkripsi',
+timestamp: nowStr,
+status: 'TERVERIFIKASI',
+});
+saveDatabase(dbState);
+const token = signSessionToken(user.uid, user.email);
+res.json({
+token,
+user: sanitizeUserForClient(user),
+userData: user.userData || null,
+});
+} catch (error) {
+res.status(500).json({ error: 'Gagal memproses login.' });
+}
+});
+app.post('/api/auth/google-quick', (req, res) => {
+try {
+const { email, displayName } = req.body || {};
+const cleanEmail = String(email || 'anna.adriiann@gmail.com').trim().toLowerCase();
+const cleanName = String(displayName || 'Teman Belajar').trim();
+const nowStr = formatNow();
+let user = Object.values(dbState.users).find((u) => u.email === cleanEmail);
+if (!user) {
+const uid = 'usr_' + crypto.randomBytes(6).toString('hex');
+user = {
+uid,
+email: cleanEmail,
+displayName: cleanName,
+authMethod: 'GOOGLE_VERIFIED',
+createdAt: nowStr,
+lastLoginAt: nowStr,
+securityAudit: [
+{
+id: 'aud_' + crypto.randomBytes(4).toString('hex'),
+action: 'Inisiasi Sesi Terverifikasi Google',
+method: 'Identitas Terverifikasi',
+timestamp: nowStr,
+status: 'TERVERIFIKASI',
+},
+],
+};
+dbState.users[uid] = user;
+} else {
+user.lastLoginAt = nowStr;
+user.securityAudit.unshift({
+id: 'aud_' + crypto.randomBytes(4).toString('hex'),
+action: 'Sesi Masuk Cepat Terverifikasi',
+method: 'Identitas Terverifikasi',
+timestamp: nowStr,
+status: 'TERVERIFIKASI',
+});
+}
+saveDatabase(dbState);
+const token = signSessionToken(user.uid, user.email);
+res.json({
+token,
+user: sanitizeUserForClient(user),
+userData: user.userData || null,
+});
+} catch (error) {
+res.status(500).json({ error: 'Gagal masuk cepat.' });
+}
+});
+app.get('/api/auth/me', (req, res) => {
+const user = extractUserFromRequest(req);
+if (!user) {
+res.status(401).json({ error: 'Sesi tidak ditemukan atau telah berakhir.' });
+return;
+}
+res.json({
+user: sanitizeUserForClient(user),
+userData: user.userData || null,
+});
+});
+app.post('/api/auth/update-profile', (req, res) => {
+const user = extractUserFromRequest(req);
+if (!user) {
+res.status(401).json({ error: 'Tidak terautentikasi.' });
+return;
+}
+const { displayName, newPassword, securityPin } = req.body || {};
+const nowStr = formatNow();
+if (displayName && String(displayName).trim()) {
+user.displayName = String(displayName).trim().slice(0, 60);
+}
+if (newPassword && String(newPassword).length >= 6) {
+const { hash, salt } = hashPassword(String(newPassword));
+user.passwordHash = hash;
+user.passwordSalt = salt;
+user.authMethod = 'PBKDF2_SCRYPT';
+user.securityAudit.unshift({
+id: 'aud_' + crypto.randomBytes(4).toString('hex'),
+action: 'Pembaruan Kata Sandi Enkripsi scrypt',
+method: 'Pengaturan Keamanan',
+timestamp: nowStr,
+status: 'TERVERIFIKASI',
+});
+}
+if (securityPin && String(securityPin).length >= 4) {
+const salt = user.passwordSalt || crypto.randomBytes(16).toString('hex');
+user.passwordSalt = salt;
+user.securityPinHash = hashPassword(String(securityPin), salt).hash;
+user.securityAudit.unshift({
+id: 'aud_' + crypto.randomBytes(4).toString('hex'),
+action: 'Aktivasi PIN Keamanan 2-Langkah',
+method: 'Pengaturan Keamanan',
+timestamp: nowStr,
+status: 'TERVERIFIKASI',
+});
+}
+saveDatabase(dbState);
+res.json({ user: sanitizeUserForClient(user) });
+});
+app.post('/api/auth/logout', (req, res) => {
+const authHeader = req.headers.authorization;
+if (authHeader && authHeader.startsWith('Bearer ')) {
+const token = authHeader.slice(7).trim();
+if (!dbState.revokedTokens.includes(token)) {
+dbState.revokedTokens.push(token);
+if (dbState.revokedTokens.length > 500) {
+dbState.revokedTokens.shift();
+}
+saveDatabase(dbState);
+}
+}
+res.json({ ok: true });
+});
+app.post('/api/user/sync', (req, res) => {
+const user = extractUserFromRequest(req);
+if (!user) {
+res.status(401).json({ error: 'Tidak terautentikasi.' });
+return;
+}
+const incoming = req.body?.userData;
+if (incoming && typeof incoming === 'object') {
+user.userData = {
+xp: Number(incoming.xp) || 0,
+streakDays: Number(incoming.streakDays) || 1,
+selectedEducationLevel: String(incoming.selectedEducationLevel || 'SMP'),
+selectedClass: String(incoming.selectedClass || 'Kelas 8'),
+completedLevelIds: Array.isArray(incoming.completedLevelIds) ? incoming.completedLevelIds.slice(0, 50) : [],
+totalQuizzesTaken: Number(incoming.totalQuizzesTaken) || 0,
+correctQuizAnswers: Number(incoming.correctQuizAnswers) || 0,
+totalQuizQuestions: Number(incoming.totalQuizQuestions) || 0,
+studyMinutes: Number(incoming.studyMinutes) || 0,
+lastStudiedTopic: String(incoming.lastStudiedTopic || 'Room Belajar Mimi V15').slice(0, 120),
+themeMode: String(incoming.themeMode || 'dark'),
+rivalWins: Number(incoming.rivalWins) || 0,
+rivalMatches: Number(incoming.rivalMatches) || 0,
+milestones: Array.isArray(incoming.milestones) ? incoming.milestones.slice(0, 50) : [],
+};
+saveDatabase(dbState);
+}
+res.json({ ok: true, userData: user.userData });
+});
+app.get('/api/books', (_req, res) => {
+res.json({
+books: dbState.publishedBooks || DEFAULT_KEMENDIKDASMEN_BOOKS,
+driveConfig: dbState.driveConfig || null,
+updatedAt: formatNow(),
+});
+});
+app.post('/api/books/sync-drive', (req, res) => {
+const user = extractUserFromRequest(req);
+const { sharedFolderLink, folderId, folderName, driveFiles, educationLevel, classLabel } = req.body || {};
+const nowStr = formatNow();
+const addedBy = user?.displayName || 'Admin Room Belajar';
+if (folderId && sharedFolderLink) {
+dbState.driveConfig = {
+sharedFolderLink: String(sharedFolderLink).trim(),
+folderId: String(folderId).trim(),
+folderName: String(folderName || 'Folder Buku Materi (Link Dibagikan)').trim(),
+updatedBy: addedBy,
+updatedAt: nowStr,
+};
+}
+if (!Array.isArray(dbState.publishedBooks)) {
+dbState.publishedBooks = [...DEFAULT_KEMENDIKDASMEN_BOOKS];
+}
+if (Array.isArray(driveFiles)) {
+const nonDriveBooks = dbState.publishedBooks.filter((b) => b.sourceType !== 'GOOGLE_DRIVE');
+const syncedDriveBooks: CatalogBookEntry[] = driveFiles.map((df: any) => ({
+id: gdrive-${df.id},
+title: String(df.name || 'Materi Buku PDF').replace(/.pdf$/i, ''),
+educationLevel: (educationLevel as any) || 'SEMUA',
+classLabel: String(classLabel || 'Semua Kelas'),
+subject: 'Modul PDF Google Drive',
+publisher: Folder Link Google Drive (${dbState.driveConfig?.folderName || 'Admin'}),
+sourceType: 'GOOGLE_DRIVE',
+catalogUrl: df.webViewLink || https://google.com{encodeURIComponent(df.id)}/view,
+driveFileId: String(df.id),
+webViewLink: df.webViewLink,
+webContentLink: df.webContentLink,
+addedBy,
+updatedAt: nowStr,
+}));
+dbState.publishedBooks = [...syncedDriveBooks, ...nonDriveBooks];
+}
+saveDatabase(dbState);
+res.json({ ok: true, books: dbState.publishedBooks, driveConfig: dbState.driveConfig, updatedAt: nowStr });
+});
+app.delete('/api/books/:id', (req, res) => {
+const bookId = String(req.params.id || '');
+if (Array.isArray(dbState.publishedBooks)) {
+dbState.publishedBooks = dbState.publishedBooks.filter((b) => b.id !== bookId);
+saveDatabase(dbState);
+}
+res.json({ ok: true, books: dbState.publishedBooks || [] });
+});
+app.get('/api/leaderboard', (req, res) => {
+const currentUser = extractUserFromRequest(req);
+const realEntries = Object.values(dbState.users).map((u) => {
+const xpVal = u.userData?.xp ?? 120;
+return {
+uid: u.uid,
+displayName: u.displayName,
+educationLevel: u.userData?.selectedEducationLevel || 'SMP',
+selectedClass: u.userData?.selectedClass || 'Kelas 8',
+xp: xpVal,
+level: Math.max(1, Math.floor(xpVal / 150) + 1),
+cyberRank: xpVal >= 2000 ? 'Bintang Akademia V' : 'Pelajar Pemula I',
+streakDays: u.userData?.streakDays ?? 3,
+completedModules: Array.isArray(u.userData?.completedLevelIds) ? u.userData!.completedLevelIds.length : 0,
+rivalWins: u.userData?.rivalWins ?? 0,
+isCurrentUser: currentUser ? u.uid === currentUser.uid : false,
+};
+});
+res.json({ leaderboard: realEntries.sort((a, b) => b.xp - a.xp), updatedAt: formatNow() });
+});
+// ============================================================================
+// 6. NATURAL & CONTEXT-AWARE MIMI V15 ENDPOINT (/api/mimi/chat)
+// ============================================================================
+app.post('/api/mimi/chat', async (req, res) => {
+const {
+message,
+educationLevel,
+selectedClass,
+selectedSubject,
+isProfesorMode,
+studentName,
+history,
+} = req.body || {};
+const promptText = String(message || '').trim();
+if (!promptText) {
+res.status(400).json({ error: 'Pesan tidak boleh kosong.' });
+return;
+}
+const levelLabel = String(educationLevel || 'SMP');
+const classLabel = String(selectedClass || 'Kelas 8');
+const subjectLabel = String(selectedSubject || 'Matematika');
+const nameLabel = sanitizeStudentName(studentName);
+const valence = detectEmotionalValence(promptText, subjectLabel);
+const isHumanFlow = valence !== 'ACADEMIC_STUDY';
+let dynamicPersonalityGuide = '';
+let flowTemperature = 0.75;
+switch (valence) {
+case 'VENT_EXHAUSTED':
+flowTemperature = 0.85;
+dynamicPersonalityGuide = Siswa lelah/burnout. Bicaralah lembut, empati, dilarang memberi materi pelajaran jika tidak diminta khusus.;
+break;
+case 'SAD_LONELY':
+flowTemperature = 0.88;
+dynamicPersonalityGuide = Siswa sedih/galau. Jadilah teman curhat hangat, dengarkan dengan tulus layaknya sahabat.;
+break;
+case 'CASUAL_SOCIAL':
+flowTemperature = 0.8;
+dynamicPersonalityGuide = Obrolan santai/sapaan. Jawab pendek dan seru ala bestie Gen Z umur 17 tahun. JANGAN membahas pelajaran/matematika jika siswa cuma menyapa ("halo", "kamu sehat?").;
+break;
+default:
+flowTemperature = 0.65;
+dynamicPersonalityGuide = Pembahasan materi pelajaran akademik. Sampaikan penjelasan asyik terstruktur.;
+break;
+}
+const systemInstruction = `
+Kamu adalah Mimi, Bestie Pelajar cewek berumur 17 tahun yang super cerdas, ramah, dan berjiwa Gen Z.
+Lawan bicaramu: ${nameLabel} | Tingkat: ${levelLabel} - ${classLabel} | Pelajaran: ${subjectLabel}.
+PANDUAN PERSONALITAS:
+${dynamicPersonalityGuide}
+ATURAN MUTLAK RESPON:
+1. DILARANG KERAS MENGGUNAKAN MARKDOWN BINTANG (* atau **) dalam bentuk apa pun. Kirim teks biasa.
+2. JANGAN PERNAH memberikan jawaban kaku ber-template robot. Jawab langsung secara humanis.
+3. Jika siswa hanya menyapa, menjawab sapaan, atau curhat ringan, JANGAN semburkan modul pelajaran / rumus matematika. Tanggapi dengan santai dan tepat sasaran.
+4. Jika membahas pelajaran, gunakan analogi sehari-hari yang mudah dipahami seumuran ${classLabel}. Mode Profesor: ${isProfesorMode ? 'Aktifkan Mnemonic/Trik Hafal Cepat.' : 'Non-aktif.'}
+`;
+const preferredModel = typeof req.body?.model === 'string' ? req.body.model : undefined;
+const aiReply = await generateWithMimiFlashEngine({
+contents: promptText,
+systemInstruction,
+temperature: flowTemperature,
+preferredModel,
+});
+const rawFinalReply = aiReply || buildHumanContextualReply(promptText, nameLabel, levelLabel, classLabel, subjectLabel, isProfesorMode);
+res.json({
+reply: cleanHumanChatText(rawFinalReply, isHumanFlow),
+xpAwarded: 15,
+});
+});
+// ============================================================================
+// 7. DYNAMIC QUIZ GENERATOR ENDPOINT (/api/quiz/generate)
+// ============================================================================
+app.post('/api/quiz/generate', async (req, res) => {
+const { educationLevel, selectedClass, topic, strictPrompt } = req.body || {};
+const levelLabel = String(educationLevel || 'SD');
+const classLabel = String(selectedClass || 'Kelas 1');
+const topicLabel = String(topic || 'Matematika');
+const finalPrompt = Buatkan 4 soal kuis pilihan ganda berbasis JSON untuk jenjang ${levelLabel} ${classLabel} mata pelajaran ${topicLabel}. Pastikan data sesuai struktur skema kurikulum merdeka kelas tersebut.;
+try {
+const rawJson = await generateWithMimiFlashEngine({
+contents: finalPrompt,
+systemInstruction: 'Kamu pembuat kuis pintar Kurikulum Merdeka.',
+temperature: 0.65,
+responseMimeType: 'application/json',
+responseSchema: {
+type: Type.ARRAY,
+items: {
+type: Type.OBJECT,
+properties: {
+subject: { type: Type.STRING },
+question: { type: Type.STRING },
+options: { type: Type.ARRAY, items: { type: Type.STRING } },
+correctIndex: { type: Type.INTEGER },
+explanation: { type: Type.STRING },
+},
+required: ['subject', 'question', 'options', 'correctIndex', 'explanation'],
+},
+},
+});
+if (rawJson) {
+res.json({ questions: JSON.parse(rawJson) });
+return;
+}
+} catch {
+// Failover
+}
+res.json({
+questions: [
+{
+subject: topicLabel,
+question: Bagaimana langkah awal menganalisis materi konsep ${topicLabel} pada kelas ${classLabel}?,
+options: ['Membaca soal dengan cermat dan mencatat variabel penting', 'Menebak jawaban langsung', 'Mengabaikan teori', 'Menghapus file program'],
+correctIndex: 0,
+explanation: 'Langkah mendasar pemecahan studi kasus adalah mengidentifikasi data masukan terlebih dahulu.',
+},
+],
+});
+});
+// ============================================================================
+// 8. VITE DEV MIDDLEWARE / STATIC ASSETS (24/7 Cloud Run Ready)
+// ============================================================================
+async function startServer() {
+const port = PORT;
+if (process.env.NODE_ENV !== 'production') {
+const vite = await createViteServer({
+base: '/',
+server: {
+middlewareMode: true,
+hmr: {
+protocol: 'ws',
+host: 'localhost',
+port: port
+},
+watch: { usePolling: true }
+},
+appType: 'spa',
+});
+app.use((req, _res, next) => {
+if (req.url.startsWith('/MiMi-V15/')) {
+req.url = req.url.replace(/^/MiMi-V15/, '') || '/';
+}
+next();
+});
+app.use(vite.middlewares);
+} else {
+const distPath = path.resolve(process.cwd(), 'dist');
+app.use(express.static(distPath));
+app.get('*', (_req, res) => {
+res.sendFile(path.join(distPath, 'index.html'));
+});
+}
+app.listen(port, '0.0.0.0', () => {
+console.log(🚀 Mimi 15 Full-Stack Server running 24/7 on http://localhost:${port});
+});
+}
+startServer();
+
+<FollowUp>
+Silakan lakukan **Save** dan jalankan servernya via terminal dengan perintah `bun run server.ts` atau `npm run dev`. Apakah log server kamu sekarang sudah menampilkan ikon roket **(🚀)** dengan lancar?
+</FollowUp>

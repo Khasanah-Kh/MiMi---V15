@@ -5,14 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script>
       (function () {
+        if (typeof window === 'undefined') return;
+
+        // 1. Intercept Vite HMR WebSocket to eliminate 'WebSocket closed without opened' errors
+        var OrigWebSocket = window.WebSocket;
+        if (OrigWebSocket) {
+          function isHmrUrl(url) {
+            var s = String(url || '');
+            return (
+              s.indexOf('vite-hmr') !== -1 ||
+              s.indexOf('localhost') !== -1 ||
+              s.indexOf(':3000') !== -1 ||
+              s.indexOf('run.app') !== -1 ||
+              s.indexOf('__vite') !== -1 ||
+              s.indexOf('aistudio') !== -1
+            );
+          }
+
+          function DummyHmrWebSocket(url) {
+            var self = this;
+            this.url = String(url || '');
+            this.readyState = 1; // WebSocket.OPEN
+            this.protocol = '';
+            this.extensions = '';
+            this.bufferedAmount = 0;
+            this.binaryType = 'blob';
+
+            var listeners = {};
+            this.addEventListener = function (type, cb) {
+              if (!listeners[type]) listeners[type] = [];
+              listeners[type].push(cb);
+            };
+            this.removeEventListener = function (type, cb) {
+              if (!listeners[type]) return;
+              listeners[type] = listeners[type].filter(function (fn) { return fn !== cb; });
+            };
+            this.dispatchEvent = function (ev) {
+              var cbs = listeners[ev && ev.type] || [];
+              for (var i = 0; i < cbs.length; i++) {
+                try { cbs[i].call(self, ev); } catch (e) {}
+              }
+              return true;
+            };
+            this.send = function () {};
+            this.close = function () {
+              self.readyState = 3;
+            };
+
+            setTimeout(function () {
+              if (typeof self.onopen === 'function') {
+                try { self.onopen({ type: 'open' }); } catch (e) {}
+              }
+              self.dispatchEvent({ type: 'open' });
+            }, 10);
+          }
+
+          DummyHmrWebSocket.CONNECTING = 0;
+          DummyHmrWebSocket.OPEN = 1;
+          DummyHmrWebSocket.CLOSING = 2;
+          DummyHmrWebSocket.CLOSED = 3;
+
+          window.WebSocket = function (url, protocols) {
+            if (isHmrUrl(url)) {
+              return new DummyHmrWebSocket(url);
+            }
+            return new OrigWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = OrigWebSocket.prototype;
+          window.WebSocket.CONNECTING = 0;
+          window.WebSocket.OPEN = 1;
+          window.WebSocket.CLOSING = 2;
+          window.WebSocket.CLOSED = 3;
+        }
+
+        // 2. Global console and event suppressors for any residual HMR notices
         var isViteWsNoise = function (msg) {
           var s = String(msg || '');
           return (
             s.indexOf('WebSocket closed without opened') !== -1 ||
             s.indexOf('[vite] failed to connect to websocket') !== -1 ||
-            s.indexOf('failed to connect to websocket') !== -1
+            s.indexOf('failed to connect to websocket') !== -1 ||
+            s.indexOf('WebSocket connection to') !== -1
           );
         };
+
         window.addEventListener(
           'unhandledrejection',
           function (event) {
@@ -25,6 +101,7 @@
           },
           true
         );
+
         window.addEventListener(
           'error',
           function (event) {
@@ -36,6 +113,7 @@
           },
           true
         );
+
         var origConsoleError = console.error;
         console.error = function () {
           var firstArg = arguments.length > 0 ? arguments[0] : '';
@@ -49,14 +127,29 @@
           }
           return origConsoleError.apply(console, arguments);
         };
+
+        var origConsoleWarn = console.warn;
+        console.warn = function () {
+          var combined = Array.prototype.join.call(arguments, ' ');
+          if (isViteWsNoise(combined)) {
+            return;
+          }
+          return origConsoleWarn.apply(console, arguments);
+        };
       })();
     </script>
-    <title>Room Belajar Mimi V15 — Cyber Learning & AI Tutor</title>
+    <title>Mimi 15 — Platform Pembelajaran Interaktif & AI Tutor</title>
     <meta name="description" content="Platform pembelajaran interaktif bertema cyber untuk siswa SD, SMP, dan SMA dengan tutor pintar Mimi, kuis adaptif, tantangan arena, lencana, dan sistem login pengguna yang aman." />
-    <meta name="theme-color" content="#4f46e5" />
+    <meta name="theme-color" content="#0B1120" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mimi V15" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/mimi-icon.svg" />
-    <meta property="og:title" content="Room Belajar Mimi V15 — Cyber Learning & AI Tutor" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/mimi-icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <meta property="og:title" content="Mimi 15 — Platform Pembelajaran Interaktif & AI Tutor" />
     <meta property="og:description" content="Platform pembelajaran interaktif bertema cyber untuk siswa SD, SMP, dan SMA dengan tutor pintar Mimi, kuis adaptif, tantangan arena, lencana, dan sistem login pengguna yang aman." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />

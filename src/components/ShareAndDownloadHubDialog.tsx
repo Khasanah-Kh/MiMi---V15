@@ -392,28 +392,28 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
         <div className="p-4 rounded-2xl bg-[#0B101E] border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
           <div className="space-y-1 min-w-0">
             <div className="text-xs font-extrabold text-emerald-400 flex items-center gap-1.5">
-              <span>● Link Aplikasi Live (Bisa Diakses Bebas Tanpa Login):</span>
+              <span>● Link Publik Baru Aplikasi Live (Bisa Diakses Bebas Tanpa Login):</span>
             </div>
-            <div className="text-xs sm:text-sm text-sky-300 font-mono font-bold flex items-center gap-1">
+            <div className="text-xs sm:text-sm text-sky-300 font-mono font-bold flex items-center gap-1 break-all">
               <span>👉</span>
               <a
-                href="https://gen-lang-client-0798249381.web.app"
+                href="https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-white transition-colors"
               >
-                https://gen-lang-client-0798249381.web.app
+                https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app
               </a>
             </div>
-            <div className="text-[11px] text-slate-400 font-mono">
-              (Juga aktif di{' '}
+            <div className="text-[11px] text-slate-400 font-mono break-all">
+              (Mirror Dev:{' '}
               <a
-                href="https://gen-lang-client-0798249381.firebaseapp.com"
+                href="https://ais-dev-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-slate-300 hover:text-white underline"
               >
-                https://gen-lang-client-0798249381.firebaseapp.com
+                https://ais-dev-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app
               </a>
               )
             </div>
@@ -421,12 +421,12 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
           <button
             type="button"
             onClick={async () => {
-              const liveUrl = 'https://gen-lang-client-0798249381.web.app';
+              const liveUrl = 'https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app';
               try {
                 await navigator.clipboard.writeText(liveUrl);
                 setStatusBanner({
                   type: 'success',
-                  text: `Link aplikasi live (${liveUrl}) berhasil disalin! Siapa pun yang membuka link ini langsung bisa melihat & belajar bareng Mimi V15.`,
+                  text: `Link publik baru (${liveUrl}) berhasil disalin! Siapa pun yang membuka link ini langsung bisa melihat & belajar bareng Mimi V15.`,
                 });
               } catch {
                 // ignore
@@ -434,7 +434,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
             }}
             className="px-4 py-2.5 rounded-xl btn-tactile-emerald text-xs font-extrabold whitespace-nowrap shrink-0 shadow-md cursor-pointer"
           >
-            Salin Link Website Publik
+            Salin Link Publik Baru
           </button>
         </div>
 

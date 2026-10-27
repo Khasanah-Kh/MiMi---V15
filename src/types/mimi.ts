@@ -274,3 +274,20 @@ export interface DuelRoom {
   xpStake: number;
   updatedAt?: any;
 }
+
+export interface AiLearningPathStep {
+  stepNumber: number;
+  title: string;
+  description: string;
+  keyConcept: string;
+  estimatedMinutes: number;
+  xpReward: number;
+  difficulty: 'Mudah' | 'Menengah' | 'Tantangan' | string;
+}
+
+export interface AiLearningPath {
+  title: string;
+  strategyTip: string;
+  estimatedTotalMinutes: number;
+  steps: AiLearningPathStep[];
+}

@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { Share2, Check } from 'lucide-react';
 
+export const NEW_PUBLIC_APP_URL =
+  'https://ais-pre-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app';
+export const NEW_DEV_APP_URL =
+  'https://ais-dev-uujm7563cz27mgl63kqjrj-141953450050.asia-southeast1.run.app';
+
 interface ShareButtonProps {
   title?: string;
   text?: string;
@@ -13,7 +18,7 @@ interface ShareButtonProps {
 
 export const ShareButton: React.FC<ShareButtonProps> = ({
   title = 'Room Belajar Mimi V15',
-  text = 'Belajar bareng Mimi yuk!',
+  text = 'Belajar bareng Mimi V15 yuk! Akses langsung lewat link publik baru:',
   url,
   className = '',
   label = 'Share Link',
@@ -29,7 +34,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
     setTimeout(() => {
       setCopied(false);
       setToastMessage(null);
-    }, 2600);
+    }, 2800);
   };
 
   const fallbackCopyText = (shareUrl: string) => {
@@ -43,16 +48,16 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      showToast('Link tercopy!');
+      showToast('Link publik baru tercopy!');
       onShareSuccess?.('clipboard');
     } catch {
-      showToast('Link tercopy!');
+      showToast('Link publik baru tercopy!');
     }
   };
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl = url || window.location.href;
+    const shareUrl = url || NEW_PUBLIC_APP_URL;
 
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
@@ -61,19 +66,18 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
           text,
           url: shareUrl,
         });
-        showToast('Link tercopy!');
+        showToast('Link publik baru dibagikan!');
         onShareSuccess?.('native');
         return;
       } catch (err: any) {
         if (err?.name === 'AbortError') return;
-        // Fallback to clipboard when Web Share API is blocked in iframe or desktop
       }
     }
 
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(shareUrl);
-        showToast('Link tercopy!');
+        showToast('Link publik baru tercopy!');
         onShareSuccess?.('clipboard');
         return;
       } catch {
@@ -90,7 +94,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       <button
         type="button"
         onClick={handleShare}
-        title="Bagikan Room Belajar Mimi V15"
+        title={`Bagikan Link Publik Baru: ${NEW_PUBLIC_APP_URL}`}
         className={
           className ||
           `inline-flex items-center gap-1.5 rounded-xl font-bold transition-all active:scale-95 ${
@@ -101,18 +105,18 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
         }
       >
         {copied ? (
-          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
         ) : (
           <Share2 className="w-4 h-4 shrink-0" />
         )}
-        <span>{copied ? 'Link tercopy!' : label}</span>
+        <span>{copied ? 'Link Tercopy!' : label}</span>
       </button>
 
       {toastMessage && (
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 text-white text-xs sm:text-sm font-bold shadow-xl border border-white/15 animate-bounce"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 text-white text-xs sm:text-sm font-bold shadow-xl border border-white/15"
         >
           <Check className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>

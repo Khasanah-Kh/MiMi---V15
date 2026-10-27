@@ -21,6 +21,14 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  Compass,
+  Check,
+  Loader2,
+  Lightbulb,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+  Bot,
 } from 'lucide-react';
 import {
   BottomNavTab,
@@ -29,6 +37,8 @@ import {
   LevelItem,
   MimiUiState,
   StudyProgress,
+  AiLearningPath,
+  AiLearningPathStep,
 } from '../../types/mimi';
 import {
   CLASSES_BY_LEVEL,
@@ -36,8 +46,15 @@ import {
   getFilteredUnitsForSelection,
 } from '../../data/curriculumData';
 import { downloadGeneratedModulePdf } from '../../services/googleDriveService';
-import { ShareButton } from '../ShareButton';
-import { PwaInstallButton } from '../PwaInstallButton';
+import { fetchAiLearningPath } from '../../services/ai';
+import { ShareButton, NEW_PUBLIC_APP_URL } from '../ShareButton';
+import {
+  PwaInstallButton,
+  downloadStandaloneHtmlShortcut,
+  downloadDesktopUrlShortcut,
+  downloadChromeExtensionFiles,
+} from '../PwaInstallButton';
+import { NewCoursesSection } from '../NewCoursesSection';
 
 interface HomeScreenProps {
   uiState: MimiUiState;
@@ -111,6 +128,69 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [tasksSyncToast, setTasksSyncToast] = useState<string | null>(null);
   const [isMapelExpanded, setIsMapelExpanded] = useState<boolean>(false);
 
+  // Saran AI (Personalized Learning Path) States
+  const [aiLearningPath, setAiLearningPath] = useState<AiLearningPath | null>(null);
+  const [isLoadingPath, setIsLoadingPath] = useState<boolean>(false);
+  const [pathLoadError, setPathLoadError] = useState<string | null>(null);
+  const [isPathExpanded, setIsPathExpanded] = useState<boolean>(true);
+  const [addedStepIds, setAddedStepIds] = useState<number[]>([]);
+  const [pathSuccessToast, setPathSuccessToast] = useState<string | null>(null);
+
+  const handleLoadAiLearningPath = React.useCallback(async () => {
+    setIsLoadingPath(true);
+    setPathLoadError(null);
+    try {
+      const pathData = await fetchAiLearningPath({
+        educationLevel: uiState.selectedEducationLevel,
+        selectedClass: uiState.selectedClass,
+        selectedSubject: uiState.selectedSubject,
+        completedModulesCount: studyProgress.completedLevelIds.length,
+        lastStudiedTopic: studyProgress.lastStudiedTopic,
+        studentName: uiState.studentName,
+        isProfesorMode: uiState.isProfesorMode,
+      });
+      setAiLearningPath(pathData);
+    } catch {
+      setPathLoadError('Gagal memuat saran AI saat ini. Silakan coba lagi.');
+    } finally {
+      setIsLoadingPath(false);
+    }
+  }, [
+    uiState.selectedEducationLevel,
+    uiState.selectedClass,
+    uiState.selectedSubject,
+    studyProgress.completedLevelIds.length,
+    studyProgress.lastStudiedTopic,
+    uiState.studentName,
+    uiState.isProfesorMode,
+  ]);
+
+  React.useEffect(() => {
+    handleLoadAiLearningPath();
+  }, [handleLoadAiLearningPath]);
+
+  const handleAddStepToMilestones = (step: AiLearningPathStep) => {
+    if (addedStepIds.includes(step.stepNumber)) return;
+    onAddMilestone(`${step.title} (${uiState.selectedSubject})`, step.xpReward);
+    setAddedStepIds((prev) => [...prev, step.stepNumber]);
+    setPathSuccessToast(`Tahap "${step.title}" ditambahkan ke Target Harian! (+${step.xpReward} XP)`);
+    setTimeout(() => setPathSuccessToast(null), 3500);
+  };
+
+  const handleAddAllStepsToMilestones = () => {
+    if (!aiLearningPath || !Array.isArray(aiLearningPath.steps)) return;
+    let addedCount = 0;
+    aiLearningPath.steps.forEach((step) => {
+      if (!addedStepIds.includes(step.stepNumber)) {
+        onAddMilestone(`${step.title} (${uiState.selectedSubject})`, step.xpReward);
+        addedCount++;
+      }
+    });
+    setAddedStepIds(aiLearningPath.steps.map((s) => s.stepNumber));
+    setPathSuccessToast(`${addedCount} langkah Jalur Belajar dimasukkan ke Target Harianmu! 🎯`);
+    setTimeout(() => setPathSuccessToast(null), 3500);
+  };
+
   const scrollContainer = (elementId: string, amount: number) => {
     const el = document.getElementById(elementId);
     if (el) {
@@ -157,7 +237,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   ).length;
 
   const handleSharePublicWebsiteLink = async () => {
-    const publicUrl = window.location.href || 'https://gen-lang-client-0798249381.web.app';
+    const publicUrl = NEW_PUBLIC_APP_URL;
     try {
       if (navigator.share) {
         await navigator.share({
@@ -315,11 +395,70 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
 
+        {/* Link Publik Baru & Download Shortcut / Ekstensi Chrome Bar */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#080d19] border border-sky-500/30 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="space-y-1 min-w-0">
+            <div className="text-xs font-extrabold text-sky-400 flex items-center gap-2 flex-wrap">
+              <span>🌐 Link Publik Baru Resmi (Bisa Dibuka di Tempat Lain &amp; Semua Perangkat):</span>
+            </div>
+            <a
+              href={NEW_PUBLIC_APP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs sm:text-sm font-mono font-bold text-emerald-300 hover:text-white underline break-all inline-flex items-center gap-1.5"
+            >
+              <span>{NEW_PUBLIC_APP_URL}</span>
+              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+            </a>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                downloadStandaloneHtmlShortcut();
+                setShareToast('Shortcut App Laptop/HP (.html) berhasil di-download!');
+                setTimeout(() => setShareToast(null), 3500);
+              }}
+              className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Shortcut HP/Laptop (.html)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                downloadDesktopUrlShortcut();
+                setShareToast('Shortcut Desktop (.url) berhasil di-download!');
+                setTimeout(() => setShareToast(null), 3500);
+              }}
+              className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Shortcut Desktop (.url)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                downloadChromeExtensionFiles();
+                setShareToast('Paket Ekstensi Chrome (manifest.json & popup.html) di-download!');
+                setTimeout(() => setShareToast(null), 3500);
+              }}
+              className="px-3 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/40 font-extrabold text-xs flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5 text-indigo-300" />
+              <span>Ekstensi Chrome</span>
+            </button>
+          </div>
+        </div>
+
         {shareToast && (
           <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md">
             <span>✅ {shareToast}</span>
             <span className="font-mono text-[11px] text-emerald-300 break-all">
-              https://gen-lang-client-0798249381.web.app
+              {NEW_PUBLIC_APP_URL}
             </span>
           </div>
         )}
@@ -670,6 +809,283 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
       </section>
+
+      {/* 2B. SARAN AI: JALUR BELAJAR PERSONAL (AI Learning Path Advisor via Gemini API) */}
+      <section className="p-4 sm:p-6 rounded-3xl border border-sky-500/30 bg-gradient-to-br from-[#0c1326] via-[#0f172a] to-[#0b101e] shadow-2xl space-y-4 relative overflow-hidden">
+        {/* Ambient neon backdrop glows */}
+        <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-sky-500/15 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
+
+        {/* Success Toast */}
+        <AnimatePresence>
+          {pathSuccessToast && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.95 }}
+              className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center justify-between gap-2 shadow-lg"
+            >
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{pathSuccessToast}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPathSuccessToast(null)}
+                className="text-emerald-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-gradient-to-r from-sky-400 to-indigo-400 text-slate-950 flex items-center gap-1 shadow-sm">
+                <Sparkles className="w-3 h-3 fill-slate-950" />
+                <span>SARAN AI MIMI</span>
+              </span>
+              <span className="text-xs font-bold text-sky-300/80">
+                {uiState.selectedEducationLevel} · {uiState.selectedClass} · {uiState.selectedSubject}
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+              <Compass className="w-5 h-5 text-sky-400 shrink-0" />
+              <span>{aiLearningPath?.title || `Jalur Belajar Personal: ${uiState.selectedSubject}`}</span>
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              disabled={isLoadingPath}
+              onClick={handleLoadAiLearningPath}
+              title="Perbarui rekomendasi jalur belajar dengan AI"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-sky-300 border border-sky-400/30 flex items-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {isLoadingPath ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
+                  <span>Meracik...</span>
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Perbarui Saran AI</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsPathExpanded((prev) => !prev)}
+              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700"
+              aria-label={isPathExpanded ? 'Tutup Jalur Belajar' : 'Buka Jalur Belajar'}
+            >
+              {isPathExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        <AnimatePresence>
+          {isPathExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4 pt-1 relative z-10"
+            >
+              {isLoadingPath && !aiLearningPath ? (
+                <div className="py-8 flex flex-col items-center justify-center space-y-3 text-center">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center animate-pulse">
+                      <Sparkles className="w-6 h-6 text-sky-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-white">Mimi sedang menganalisis profil belajarmu...</p>
+                    <p className="text-[11px] text-slate-400">Menyusun tahapan paling efektif untuk {uiState.selectedSubject} ({uiState.selectedClass})</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Strategy Tip Message Box from Mimi */}
+                  {aiLearningPath?.strategyTip && (
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-sky-950/40 border border-sky-500/30 flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center shrink-0 shadow-md">
+                        <Bot className="w-4 h-4 text-slate-950" />
+                      </div>
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-extrabold text-sky-300">Pesan Strategi Mimi:</span>
+                          <span className="text-[10px] font-mono text-slate-400">
+                            ⏱️ Total ~{aiLearningPath.estimatedTotalMinutes || 60} Menit
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-200 leading-relaxed">
+                          {aiLearningPath.strategyTip}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Steps Roadmap Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {aiLearningPath?.steps?.map((step) => {
+                      const isAdded = addedStepIds.includes(step.stepNumber);
+                      return (
+                        <div
+                          key={`ai-step-${step.stepNumber}`}
+                          className="p-4 rounded-2xl bg-[#080d19] border border-slate-800 hover:border-sky-500/50 transition-all flex flex-col justify-between space-y-3 group"
+                        >
+                          <div className="space-y-2">
+                            {/* Step badge & difficulty */}
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="w-6 h-6 rounded-lg bg-sky-500/20 text-sky-400 font-mono font-black text-xs flex items-center justify-center border border-sky-500/30">
+                                {step.stepNumber}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[10px]">
+                                <span className={`px-2 py-0.5 rounded-full font-bold ${
+                                  step.difficulty === 'Mudah'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    : step.difficulty === 'Tantangan'
+                                    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                }`}>
+                                  {step.difficulty || 'Standar'}
+                                </span>
+                                <span className="text-slate-400 font-mono">
+                                  {step.estimatedMinutes} mnt
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Step title & description */}
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-extrabold text-white group-hover:text-sky-300 transition-colors line-clamp-2">
+                                {step.title}
+                              </h4>
+                              <p className="text-[11px] text-slate-300 leading-relaxed mt-1 line-clamp-3">
+                                {step.description}
+                              </p>
+                            </div>
+
+                            {/* Key Concept Callout */}
+                            {step.keyConcept && (
+                              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-[10px] text-sky-200/90 leading-normal flex items-start gap-1.5">
+                                <Lightbulb className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
+                                <span className="line-clamp-2">{step.keyConcept}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Buttons for this Step */}
+                          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-mono font-extrabold text-emerald-400 flex items-center gap-0.5">
+                              <Zap className="w-3 h-3 fill-emerald-400" />
+                              <span>+{step.xpReward} XP</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onAskMimiTopic(
+                                    `Mimi, tolong jelaskan materi "${step.title}" (${uiState.selectedSubject} · ${uiState.selectedClass}) pakai analogi yang gampang dipahami dong!`
+                                  )
+                                }
+                                title="Bahas materi ini bersama Mimi"
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 hover:text-white transition-colors"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={isAdded}
+                                onClick={() => handleAddStepToMilestones(step)}
+                                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold transition-all flex items-center gap-1 ${
+                                  isAdded
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                                    : 'btn-tactile-sky'
+                                }`}
+                              >
+                                {isAdded ? (
+                                  <>
+                                    <Check className="w-3 h-3" />
+                                    <span>Tersimpan</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="w-3 h-3" />
+                                    <span>Target</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Summary Bar Actions */}
+                  <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-[11px] text-slate-400">
+                      💡 Tip: Masukkan langkah di atas ke <strong className="text-white">Target Harian</strong> untuk tracking progres belajarmu!
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleAddAllStepsToMilestones}
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[11px] border border-slate-700 flex items-center gap-1.5 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Tambah Semua ke Target</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onAskMimiTopic(
+                            `Mimi, tolong buatkan jadwal belajar terstruktur harian berdasarkan Saran AI untuk ${uiState.selectedSubject} (${uiState.selectedClass})!`
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-[11px] flex items-center gap-1.5 shadow"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Konsultasi Roadmap</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+
+      {/* 2C. KURSUS BARU: Modul Pembelajaran Terbaru Berdasarkan Preferensi Mata Pelajaran */}
+      <NewCoursesSection
+        educationLevel={uiState.selectedEducationLevel}
+        selectedClass={uiState.selectedClass}
+        selectedSubject={uiState.selectedSubject}
+        completedLevelIds={studyProgress.completedLevelIds}
+        onStartModule={openModuleModal}
+        onAskMimiTopic={onAskMimiTopic}
+        onAddMilestone={onAddMilestone}
+        onSelectSubjectGlobal={onSelectSubject}
+      />
 
       {/* 3. Aesthetic Unit Banner & Duolingo Stepping Path vs. Compact Cards Switcher */}
       <section className="space-y-6">

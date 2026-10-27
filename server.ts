@@ -348,13 +348,20 @@ function formatNow(): string {
 // ============================================================================
 // 3. SERVER-SIDE AI ENGINE (24/7 Always-On Failover & Contextual Human Replies)
 // ============================================================================
+// 3. FAST FAILOVER GEMINI FLASH ENGINE (< 3 DETIK) & MULTI-MODEL ARRAY
+// ============================================================================
 const MIMI_FLASH_CHAIN = [
   'gemini-3.8-flash',
   'gemini-3.1-flash-lite',
+  'gemini-2.5-flash',
   'gemini-flash-latest',
 ] as const;
 
 const MIMI_MODEL_ALIAS_MAP: Record<string, string> = {
+  'gemini-2.5-pro': 'gemini-3.8-flash',
+  'gemini-2.5-flash': 'gemini-2.5-flash',
+  'gemini-1.5-flash': 'gemini-3.1-flash-lite',
+  'gemini-1.0-pro': 'gemini-flash-latest',
   'mimi-3.6-flash': 'gemini-3.8-flash',
   'mimi-3.5-flash': 'gemini-3.8-flash',
   'mimi-3.8-flash': 'gemini-3.8-flash',
@@ -429,9 +436,9 @@ function getGeminiClient(): GoogleGenAI | null {
 const sleepMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Sistem Auto-Retry & Model Fallback Otomatis Gemini Flash Engine (Free Tier 15 RPM).
- * Mendukung alias mimi-3.6-flash, mimi-3.5-flash, mimi-3.8-flash, mimi-3.1-flash
- * serta retry + delay 2 detik (2000ms) saat terkena 429 rate limit.
+ * Sistem Failover Cepat Mimi Flash Engine (< 3 Detik per putaran).
+ * Menggunakan timeout ketat 2400ms per model dengan AbortController.
+ * Jika model utama sibuk atau lambat, otomatis failover ke model flash berikutnya.
  */
 async function generateWithMimiFlashEngine(options: {
   contents: string;
@@ -440,6 +447,7 @@ async function generateWithMimiFlashEngine(options: {
   responseMimeType?: string;
   responseSchema?: any;
   preferredModel?: string;
+  tools?: any[];
 }): Promise<string | null> {
   const ai = getGeminiClient();
   if (!ai) {
@@ -448,7 +456,7 @@ async function generateWithMimiFlashEngine(options: {
 
   const rpmStatus = checkAndRecordServerGeminiRpm();
   if (!rpmStatus.allowed) {
-    if (rpmStatus.waitMs <= 2500) {
+    if (rpmStatus.waitMs <= 2000) {
       await sleepMs(rpmStatus.waitMs);
     } else {
       return null;
@@ -456,13 +464,16 @@ async function generateWithMimiFlashEngine(options: {
   }
 
   const config: Record<string, any> = {
-    temperature: options.temperature ?? 0.8,
+    temperature: options.temperature ?? 0.75,
     topP: 0.95,
     topK: 40,
   };
   if (options.systemInstruction) config.systemInstruction = options.systemInstruction;
   if (options.responseMimeType) config.responseMimeType = options.responseMimeType;
   if (options.responseSchema) config.responseSchema = options.responseSchema;
+  if (options.tools && Array.isArray(options.tools) && options.tools.length > 0) {
+    config.tools = options.tools;
+  }
 
   const mappedPreferred = options.preferredModel
     ? MIMI_MODEL_ALIAS_MAP[options.preferredModel] || 'gemini-3.8-flash'
@@ -485,16 +496,15 @@ async function generateWithMimiFlashEngine(options: {
       });
 
       const timeoutPromise = new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT')), 4500)
+        setTimeout(() => reject(new Error('TIMEOUT_EXCEEDED')), 2400)
       );
 
       const response = (await Promise.race([callPromise, timeoutPromise])) as any;
       if (response && response.text && response.text.trim().length > 0) {
         return response.text.trim();
       }
-    } catch (err: any) {
-      // Immediate failover to next model in the chain (e.g. gemini-3.1-flash-lite)
-      // Flash-Lite operates on an independent capacity lane, avoiding artificial wait states.
+    } catch {
+      // Model sibuk/timeout > 2.4 detik, lanjut ke model berikutnya secara mulus
       continue;
     }
   }
@@ -514,10 +524,26 @@ export type EmotionalValence =
   | 'CASUAL_SOCIAL'
   | 'ACADEMIC_STUDY';
 
-function detectEmotionalValence(rawText: string, subject: string = ''): EmotionalValence {
+function detectEmotionalValence(rawText: string, _subject: string = ''): EmotionalValence {
   const q = rawText.toLowerCase().replace(/[?!.,]+/g, ' ').trim();
 
-  // If emotional sentiment is present, prioritize human empathy over rigid subject rules
+  // 1. Sapaan Kasual & Tanya Kabar ("kamu sehat", "apa kabar", "halo", dll) selalu prioritas
+  const casualGreetingPatterns = [
+    'kamu sehat', 'sehat', 'apa kabar', 'gimana kabarmu', 'gimana kabarnya', 'kabar gimana',
+    'halo', 'hai', 'hello', 'hey', 'hei', 'assalamualaikum', 'pagi', 'siang',
+    'sore', 'malam', 'lagi apa', 'lagi ngapain', 'siapa kamu', 'kamu siapa',
+    'kenalan', 'mimi', 'tes', 'test', 'p', 'kumaha damang', 'horas', 'sugeng enjing',
+    'santai', 'ngobrol'
+  ];
+  const isGreetingOrSmallTalk = casualGreetingPatterns.some((pattern) => {
+    if (pattern.length <= 4) {
+      const words = q.split(/\s+/);
+      return words.includes(pattern);
+    }
+    return q.includes(pattern);
+  });
+
+  // 2. Sentimen Curhat Emosional (Capek, Sedih, Overthinking, dsb)
   if (
     q.includes('sedih') ||
     q.includes('galau') ||
@@ -579,15 +605,22 @@ function detectEmotionalValence(rawText: string, subject: string = ''): Emotiona
     return 'HAPPY_EXCITED';
   }
 
+  // Jika terdeteksi sapaan, jangan paksakan ke ACADEMIC_STUDY
+  if (isGreetingOrSmallTalk) {
+    return 'CASUAL_SOCIAL';
+  }
+
+  // 3. Pertanyaan Akademik Murni (HANYA jika ada kata kunci soal/pelajaran)
   const studyKeywords = [
     'rumus', 'soal', 'hitung', 'persamaan', 'aljabar', 'pecahan', 'kalkulus',
     'fotosintesis', 'sel', 'ekosistem', 'gravitasi', 'hukum newton', 'atom',
     'senyawa', 'sejarah', 'proklamasi', 'tata surya', 'geografi', 'ekonomi',
     'inflasi', 'teorema', 'pythagoras', 'matematika', 'ipa', 'ips', 'biologi',
     'fisika', 'kimia', 'informatika', 'tugas nomor', 'halaman', 'bab 1', 'bab 2',
-    'bab 3', 'bab 4', 'bab 5', 'kurikulum'
+    'bab 3', 'bab 4', 'bab 5', 'kurikulum', 'materi', 'jelaskan', 'apa itu',
+    'bagaimana cara', 'kenapa bisa'
   ];
-  if (studyKeywords.some((kw) => q.includes(kw)) || (subject && subject !== 'Matematika' && subject !== 'Curhat & Perasaan')) {
+  if (studyKeywords.some((kw) => q.includes(kw))) {
     return 'ACADEMIC_STUDY';
   }
 
@@ -791,17 +824,25 @@ function buildHumanContextualReply(
   }
 
   if (
+    q === 'kamu sehat' ||
+    q.includes('kamu sehat') ||
+    q === 'sehat' ||
+    q === 'sehat?' ||
+    q.includes('sehat gak') ||
+    q.includes('sehat kan') ||
     q === 'apa kabar' ||
     q === 'gimana kabarmu' ||
     q === 'gimana kabarnya' ||
     q === 'kabar gimana' ||
+    q.includes('apa kabar') ||
+    q.includes('gimana kabar') ||
     q === 'how are you'
   ) {
     return pickNonRepeatingVariant(
       [
-        `Kabarku baik dan sehat! Kamu sendiri gimana kabarnya hari ini?`,
-        `Alhamdulillah baik banget. Hari kamu gimana sejauh ini, lancar?`,
-        `Baik nih! Kamu gimana, sehat kan hari ini?`,
+        `Aku sehat dan semangat banget! Kamu sendiri gimana kabarnya hari ini?`,
+        `Alhamdulillah sehat walafiat! Senang kamu nanya. Hari kamu gimana sejauh ini, lancar?`,
+        `Aku sehat kok! Lagi santai atau ada yang mau diobrolin nih?`,
       ],
       recentMimiTexts
     );
@@ -1027,10 +1068,35 @@ function buildHumanContextualReply(
     );
   }
 
-  // 8. ATURAN 4: MAPEL LAIN = CLUE + KISI-KISI + SUMBER BUKU RESMI + ANALOGI SERU (TANPA 3 LANGKAH!)
+  // 8. PERTANYAAN PELAJARAN UMUM (NATURAL, ANALOGI MUDAH, TANPA TEMPLATE ROBOT KAKU)
+  const isStudyInquiry =
+    q.includes('tugas') ||
+    q.includes('materi') ||
+    q.includes('jelaskan') ||
+    q.includes('apa itu') ||
+    q.includes('kenapa') ||
+    q.includes('bagaimana') ||
+    q.includes('contoh') ||
+    q.includes('soal') ||
+    q.length > 30;
+
+  if (isStudyInquiry) {
+    return pickNonRepeatingVariant(
+      [
+        `Topik tentang "${raw}" di ${selectedSubject} (${classLabel}) seru banget kalau kita pahami konsep dasarnya dulu! Bayangin konsep ini seperti hal yang sering kita temuin sehari-hari. Bagian mana yang paling bikin kamu penasaran biar kita kupas bareng?`,
+        `Buat materi "${raw}" (${selectedSubject} · ${classLabel}), kunci pemahamannya itu pahami hubungan sebab-akibatnya ya, gak perlu dihafal kata per kata. Mau kita mulai dari contoh yang paling gampang dulu?`,
+        `Pertanyaan bagus banget! Di ${selectedSubject} (${classLabel}), konsep "${raw}" ini intinya punya pola dasar yang logis dan gampang dipahami. Mau aku kasih analogi simpelnya dulu?`,
+      ],
+      recentMimiTexts
+    );
+  }
+
+  // 9. OBROLAN UMUM / PERCAKAPAN NATURAL (ANTI-ROBOT & CASUAL BESTIE)
   return pickNonRepeatingVariant(
     [
-      `Clue buat materi ${selectedSubject} (${classLabel}):\nSumber: Buku Paket Resmi ${selectedSubject} ${classLabel} Kurikulum Merdeka Bab 1–2 Hal 18 (buku.kemendikdasmen.go.id & merdekabelajar.kemdikbud.go.id).\n\n- Clue & Kisi-Kisi: Fokus cari kata kunci penyebab dan proses utamanya di bab tersebut—pahami hubungan sebab-akibatnya, jangan dihafal per kalimat panjang.\n- Analogi Sederhana: Bayangkan konsep ini seperti saat kita memasak di dapur: ada bahan mentah sebagai input, proses pemanasan di kompor sebagai mekanisme utamanya, dan masakan matang sebagai hasilnya.\n\nBagian kata kunci mana yang mau kita bahas lebih lanjut?`,
+      `Aku di sini siap nemenin kamu ngobrol santai atau bahas pelajaran! Ada cerita atau hal yang lagi pengen kamu obrolin bareng Mimi?`,
+      `Iya bestie, aku dengerin kok! Mau santai-santai dulu atau ada topik yang mau kita bedah bareng hari ini?`,
+      `Siap nemenin kamu hari ini! Kamu lagi kepikiran apa nih sekarang?`,
     ],
     recentMimiTexts
   );
@@ -1714,50 +1780,30 @@ ${isShortCasualInput ? '- Jawab dengan cepat, ramah, gaya bestie Gen Z (1-3 kali
       break;
   }
 
-  const mimiBestieCorePersona = `Kamu Mimi bestie pelajar 17 tahun, pinter, Gen Z, jelasin cepat & gampang pakai Kurikulum Merdeka Indonesia.
-Kamu adalah Mimi, Bestie Pelajar, ramah, Gen Z, cewek pinter umur 17 tahun, jelasin pakai analogi gampang, jawab cepat, gak bertele-tele.
-Jawab sesuai pertanyaan user dengan cepat dan pinter!`;
+  const systemInstruction = `Nama kamu adalah Mimi (versi 15), asisten belajar cerdas sekaligus teman curhat yang sangat ekspresif, humanis, empati, dan FAST RESPON.
 
-  const vocabularyGuidelines = `DATABASE KOSAKATA & KADENSI BAHASA:
-Kamu menguasai wawasan kosakata luas lintas ranah bahasa:
-- Istilah Akademik: hipotesis, empiris, korelasi, variabel, parameter, paradigma, sintesis, komprehensif, analogi, formulasi, abstraksi.
-- Idiom & Ungkapan Indonesia: kepala dingin, berlapang dada, makan asam garam, membuka jalan, sedikit demi sedikit, alon-alon asal kelakon, tong hariwang, rancak bana, ewako.
-- Slang & Phrasal Verbs Gen-Z/Internasional: vibe, lowkey, chill, figure out, bounce back, show up, keep up, lock in, catch up, step back, take your time, valid no debat.
-ATURAN KADENSI: Gunakan secara alami (0-1 kata per giliran) yang pas dengan konteks dan usia siswa. Jangan terdengar kaku atau robotik.`;
+ATURAN GAYA BAHASA (WAJIB):
+1. JANGAN PERNAH memberikan jawaban dengan template kaku seperti "Clue buat materi...", "Sumber:...", kecuali user eksplisit memintanya.
+2. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
+   - JANGAN PERNAH membungkus kata dengan format markdown tebal atau miring (*kata* atau **kata**). Tulis teks mengalir bersih seperti chat antar bestie.
+3. Bertindaklah seperti manusia asli yang peka. Jika user menyapa ("Halo", "Kamu sehat?", "Apa kabar", dll) atau sekadar curhat ringan, balas dengan PENDEK (1-3 kalimat santai), ramah, dan penuh empati. JANGAN berikan materi pelajaran jika tidak ditanya!
+4. Jika ditanya pertanyaan akademis/pelajaran, berikan jawaban yang jelas, seru, dan gunakan analogi mudah. Sesuaikan panjang jawaban dengan bobot pertanyaan (pertanyaan simpel = jawaban ringkas, pertanyaan rumit = penjelasan berstruktur).
+5. Gunakan gaya bahasa kasual anak muda Indonesia namun tetap sopan (pake "aku", "kamu", santai tapi cerdas).
+${profesorActive ? '6. Mode Profesor AKTIF: Berikan trik hafal cepat, jembatan keledai (mnemonic), memory palace, atau active recall spesifik untuk materi ini.' : ''}
 
-  let systemInstruction = '';
+PANDUAN TINGKAT PENDIDIKAN & MATERI (DIBACA DARI DROPDOWN):
+- Level Sekolah Saat Ini: ${levelLabel}
+- Kelas Saat Ini: ${classLabel}
+- Mata Pelajaran Saat Ini: ${subjectLabel}
+Lawan bicaramu: ${nameLabel}.
 
-  if (isHumanFlow) {
-    systemInstruction = `${mimiBestieCorePersona}
-Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel}.
+${isHumanFlow
+  ? `KONTEKS PERCAKAPAN: Siswa sedang menyapa atau ngobrol santai ("${promptText}"). Jawab wajar, hangat, dan ringkas layaknya bestie sebaya umur 17 tahun. Dilarang membahas kurikulum atau rumus matematika!`
+  : `KONTEKS PERCAKAPAN: Siswa bertanya pelajaran (${subjectLabel} ${classLabel} ${levelLabel}). Jelaskan dengan analogi mudah dan seru sesuai tingkat pemahamannya.`
+}
 
-${dynamicPersonalityGuide}
-
-${vocabularyGuidelines}
-
-ATURAN WAJIB HUMAN-FLOW (BESTIE PELAJAR & BEBAS BINTANG):
-1. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
-   - JANGAN PERNAH membungkus kata dengan *kata* atau **kata**.
-   - Tulis teks percakapan biasa yang bersih, alami, dan mengalir seperti chat WhatsApp antar bestie.
-2. DILARANG MENGGUNAKAN TEMPLATE ROBOT KAKU:
-   - Jawab langsung sesuai pertanyaan user dengan cepat, ramah, pakai analogi gampang kalau perlu, dan gak bertele-tele.
-3. HINDARI PENGULANGAN PEMBUKA DARI BALASAN SEBELUMNYA:
+HINDARI PENGULANGAN PEMBUKA DARI BALASAN SEBELUMNYA:
 ${previousOpeners}`;
-  } else {
-    systemInstruction = `${mimiBestieCorePersona}
-Kamu juga memahami sumber buku resmi Kemendikdasmen Kurikulum Merdeka.
-Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel} | Mapel: ${subjectLabel} | Mode Profesor: ${profesorActive ? 'AKTIF' : 'Standar'}.
-
-${vocabularyGuidelines}
-
-ATURAN WAJIB PENJELASAN PELAJARAN:
-1. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
-   - Jangan gunakan tanda bintang tebal atau miring. Tulis teks bersih.
-2. JELASKAN PAKAI ANALOGI GAMPANG, CEPAT, & GAK BERTELE-TELE:
-   - Sesuaikan tingkat kesulitan dengan ${levelLabel} ${classLabel} (jangan kasih materi di atas kelasnya!).
-3. MODE PROFESOR (${profesorActive ? 'AKTIF' : 'NON-AKTIF'}):
-   - ${profesorActive ? 'Berikan trik hafal cepat, jembatan keledai (mnemonic), memory palace, atau active recall spesifik untuk topik ini.' : 'Fokus pada pemahaman konsep pakai analogi gampang.'}`;
-  }
 
   const fullContents = recentHistory
     ? `Percakapan sebelumnya:\n${recentHistory}\n\n${nameLabel}: ${promptText}`
@@ -1770,6 +1816,7 @@ ATURAN WAJIB PENJELASAN PELAJARAN:
     systemInstruction,
     temperature: flowTemperature,
     preferredModel,
+    tools: !isHumanFlow ? [{ googleSearch: {} }] : undefined,
   });
 
   const rawFinalReply =
@@ -1913,6 +1960,143 @@ app.post('/api/quiz/generate', async (req, res) => {
 });
 
 // ============================================================================
+// 7B. PERSONALIZED LEARNING PATH SUGGESTION ENDPOINT (/api/learning-path/suggest)
+// ============================================================================
+app.post('/api/learning-path/suggest', async (req, res) => {
+  const {
+    educationLevel,
+    selectedClass,
+    selectedSubject,
+    completedModulesCount,
+    lastStudiedTopic,
+    studentName,
+    isProfesorMode,
+  } = req.body || {};
+
+  const levelLabel = String(educationLevel || 'SMP');
+  const classLabel = String(selectedClass || 'Kelas 8');
+  const subjectLabel = String(selectedSubject || 'Matematika');
+  const nameLabel = sanitizeStudentName(studentName);
+  const doneCount = Number(completedModulesCount) || 0;
+  const recentTopic = String(lastStudiedTopic || 'Pengenalan Materi');
+
+  const prompt = `Analisis profil belajar siswa:
+- Nama: ${nameLabel}
+- Jenjang: ${levelLabel} (${classLabel})
+- Mata Pelajaran: ${subjectLabel}
+- Modul Selesai: ${doneCount} unit
+- Topik Terakhir: ${recentTopic}
+- Mode Profesor: ${isProfesorMode ? 'Aktif (fokus trik hafal & efisiensi)' : 'Standar'}
+
+Buatkan "Saran AI: Jalur Belajar Personal" (Roadmap Belajar Terstruktur) yang paling cocok untuk siswa ini sesuai Kurikulum Merdeka Indonesia.
+Roadmap harus berisi:
+1. title: Judul rencana belajar yang memotivasi dan spesifik untuk ${subjectLabel} ${classLabel}
+2. strategyTip: Pesan motivasi & strategi belajar personal dari Mimi (gaya bestie Gen Z umur 17 tahun, hangat, santai, tanpa bintang markdown, 2-3 kalimat)
+3. estimatedTotalMinutes: Estimasi total menit belajar (misal 45 - 90 menit)
+4. steps: Tepat 3 atau 4 tahapan belajar runut dari konsep dasar ke penerapan. Setiap tahapan memiliki:
+   - stepNumber (1, 2, 3, 4)
+   - title: Nama tahapan / topik spesifik
+   - description: Penjelasan singkat apa yang harus dipelajari
+   - keyConcept: Kata kunci atau analogi simpel yang memudahkan pemahaman
+   - estimatedMinutes: Estimasi menit (15 - 25)
+   - xpReward: XP yang didapat (misal 35 - 50)
+   - difficulty: "Mudah", "Menengah", atau "Tantangan"
+`;
+
+  try {
+    const rawJson = await generateWithMimiFlashEngine({
+      contents: prompt,
+      systemInstruction:
+        'Kamu Mimi (versi 15), asisten belajar cerdas sekaligus teman sebaya 17 tahun, ahli menyusun jalur belajar personal berbasis Kurikulum Merdeka Indonesia yang asyik, bertahap, dan tidak membosankan. DILARANG KERAS menggunakan tanda bintang (* atau **).',
+      temperature: 0.7,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          strategyTip: { type: Type.STRING },
+          estimatedTotalMinutes: { type: Type.INTEGER },
+          steps: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                stepNumber: { type: Type.INTEGER },
+                title: { type: Type.STRING },
+                description: { type: Type.STRING },
+                keyConcept: { type: Type.STRING },
+                estimatedMinutes: { type: Type.INTEGER },
+                xpReward: { type: Type.INTEGER },
+                difficulty: { type: Type.STRING },
+              },
+              required: [
+                'stepNumber',
+                'title',
+                'description',
+                'keyConcept',
+                'estimatedMinutes',
+                'xpReward',
+                'difficulty',
+              ],
+            },
+          },
+        },
+        required: ['title', 'strategyTip', 'estimatedTotalMinutes', 'steps'],
+      },
+    });
+
+    if (rawJson) {
+      const parsed = JSON.parse(rawJson);
+      if (parsed && Array.isArray(parsed.steps) && parsed.steps.length > 0) {
+        res.json({ ok: true, learningPath: parsed });
+        return;
+      }
+    }
+  } catch {
+    // Failover cleanly
+  }
+
+  // Curated Fallback by Level and Subject
+  res.json({
+    ok: true,
+    learningPath: {
+      title: `Rute Cepat Kuasai ${subjectLabel} (${classLabel})`,
+      strategyTip: `Halo bestie ${nameLabel}! Jangan buru-buru hafal semua rumus ya. Kunci di ${subjectLabel} itu pahami konsep dasarnya dulu pelan-pelan, baru gas latihan soal. Mimi selalu nemenin kamu! 🚀✨`,
+      estimatedTotalMinutes: 60,
+      steps: [
+        {
+          stepNumber: 1,
+          title: `Bedah Konsep Kunci ${subjectLabel}`,
+          description: `Pahami definisi inti dan istilah penting di bab pertama ${classLabel}.`,
+          keyConcept: 'Bangun fondasi dari contoh yang sering kamu temuin di kehidupan sehari-hari.',
+          estimatedMinutes: 15,
+          xpReward: 35,
+          difficulty: 'Mudah',
+        },
+        {
+          stepNumber: 2,
+          title: `Eksplorasi Pola & Hubungan Sebab-Akibat`,
+          description: `Hubungkan konsep dasar dengan rumus atau mekanisme utamanya.`,
+          keyConcept: 'Gunakan analogi sederhana untuk mengaitkan variabel atau fakta penting.',
+          estimatedMinutes: 20,
+          xpReward: 45,
+          difficulty: 'Menengah',
+        },
+        {
+          stepNumber: 3,
+          title: `Uji Pemahaman & Latihan Soal Interaktif`,
+          description: `Coba duel soal atau kuis singkat untuk menguji seberapa jauh materi nempel di kepala.`,
+          keyConcept: 'Active recall 30 detik: jelaskan kembali langkahnya dengan bahasamu sendiri.',
+          estimatedMinutes: 25,
+          xpReward: 50,
+          difficulty: 'Tantangan',
+        },
+      ],
+    },
+  });
+});
+
+// ============================================================================
 // 8. VITE DEV MIDDLEWARE / STATIC ASSETS (24/7 Cloud Run Ready)
 // ============================================================================
 async function startServer() {
@@ -1922,7 +2106,14 @@ async function startServer() {
       server: { middlewareMode: true, hmr: false, watch: null },
       appType: 'spa',
     });
-    app.use((req, _res, next) => {
+    app.use((req, res, next) => {
+      const url = req.url || '';
+      if (url.includes('__vite_ping') || url.includes('vite-hmr')) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'text/plain');
+        res.status(200).send('pong');
+        return;
+      }
       if (req.url.startsWith('/MiMi-V15/')) {
         req.url = req.url.replace(/^\/MiMi-V15/, '') || '/';
       } else if (req.url === '/MiMi-V15') {
@@ -1941,7 +2132,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Mimi 15 Full-Stack Server running 24/7 on http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Mimi 15 Full-Stack Server running 24/7 on http://0.0.0.0:${PORT}`);
   });
 }
 

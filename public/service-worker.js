@@ -1,9 +1,12 @@
-const CACHE_NAME = 'room-belajar-mimi-v15-cache-v2';
+const CACHE_NAME = 'room-belajar-mimi-v15-cache-v3';
 const OFFLINE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/mimi-icon.svg'
+  '/mimi-icon.svg',
+  '/pwa-192x192.png',
+  '/pwa-512x512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
