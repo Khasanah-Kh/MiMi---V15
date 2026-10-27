@@ -371,71 +371,89 @@ const PKN_CURATED_QUESTIONS: PknTopicQuestion[] = [
  */
 export function generatePknQuestionBank(): AdaptiveQuestion[] {
   const results: AdaptiveQuestion[] = [];
-  const classes = ['sd', 'kelas7', 'kelas8', 'kelas9', 'sma', 'umum'];
+  const sdClasses = ['sd1', 'sd2', 'sd3', 'sd4', 'sd5', 'sd6', 'sd'];
+  const upperClasses = [
+    'kelas7',
+    'kelas8',
+    'kelas9',
+    'sma10',
+    'sma11',
+    'sma12',
+    'smk10',
+    'smk11',
+    'smk12',
+    'sma',
+    'umum',
+  ];
+  const allClasses = [...sdClasses, ...upperClasses];
   const levels: ('pemula' | 'menengah' | 'mahir' | 'ahli')[] = ['pemula', 'menengah', 'mahir', 'ahli'];
 
-  // 1. Auto-generate rich variations from the 5 Sila of Pancasila
+  // 1. Auto-generate rich variations from the 5 Sila of Pancasila (suitable for all grades)
   PANCASILA_DATA.forEach((sila) => {
     const otherSilas = PANCASILA_DATA.filter((s) => s.nomor !== sila.nomor);
 
-    classes.forEach((cls) => {
-      // Variation A: Bunyi Sila (Pemula)
-      results.push({
-        id: `${cls}-pkn-sila-bunyi-${sila.nomor}`,
-        q: `Bunyi Sila ke-${sila.nomor} Pancasila yang tepat adalah...`,
-        options: [
-          sila.bunyi,
-          otherSilas[0].bunyi,
-          otherSilas[1].bunyi,
-          otherSilas[2].bunyi,
-        ],
-        answer: 0,
-        type: 'pancasila',
-        level: 'pemula',
-        subject: 'pkn',
-        classKey: cls,
-        explanation: `Sila ke-${sila.nomor} Pancasila berbunyi "${sila.bunyi}" dengan lambang ${sila.lambang}.`,
-      });
-
-      // Variation B: Lambang Sila (Pemula)
-      results.push({
-        id: `${cls}-pkn-sila-lambang-${sila.nomor}`,
-        q: `Lambang dari Sila ke-${sila.nomor} Pancasila ("${sila.bunyi}") pada perisai Garuda Pancasila adalah...`,
-        options: [
-          sila.lambang,
-          otherSilas[0].lambang,
-          otherSilas[1].lambang,
-          otherSilas[2].lambang,
-        ],
-        answer: 0,
-        type: 'pancasila',
-        level: 'pemula',
-        subject: 'pkn',
-        classKey: cls,
-        explanation: `Lambang Sila ke-${sila.nomor} adalah ${sila.lambang}.`,
-      });
-
-      // Variation C: Contoh Penerapan di Sekolah (Pemula & Menengah)
-      sila.contohSekolah.forEach((contoh, cIdx) => {
+    allClasses.forEach((cls) => {
+      levels.forEach((lvl) => {
+        // Variation A: Bunyi Sila
         results.push({
-          id: `${cls}-pkn-sila-sek-${sila.nomor}-${cIdx}`,
-          q: `Perilaku "${contoh}" merupakan contoh nyata pengamalan Pancasila di lingkungan sekolah, khususnya Sila ke-...`,
+          id: `${cls}-pkn-sila-bunyi-${sila.nomor}-${lvl}`,
+          q: `Bunyi Sila ke-${sila.nomor} Pancasila yang tepat adalah...`,
           options: [
-            `Sila ke-${sila.nomor} (${sila.bunyi})`,
-            `Sila ke-${otherSilas[0].nomor} (${otherSilas[0].bunyi})`,
-            `Sila ke-${otherSilas[1].nomor} (${otherSilas[1].bunyi})`,
-            `Sila ke-${otherSilas[2].nomor} (${otherSilas[2].bunyi})`,
+            sila.bunyi,
+            otherSilas[0].bunyi,
+            otherSilas[1].bunyi,
+            otherSilas[2].bunyi,
           ],
           answer: 0,
-          type: 'penerapan',
-          level: cIdx === 0 ? 'pemula' : 'menengah',
+          type: 'pancasila',
+          level: lvl,
           subject: 'pkn',
           classKey: cls,
-          explanation: `Tindakan tersebut mencerminkan ${sila.nilaiUtama} pada Sila ke-${sila.nomor}.`,
+          explanation: `Sila ke-${sila.nomor} Pancasila berbunyi "${sila.bunyi}" dengan lambang ${sila.lambang}.`,
+        });
+
+        // Variation B: Lambang Sila
+        results.push({
+          id: `${cls}-pkn-sila-lambang-${sila.nomor}-${lvl}`,
+          q: `Lambang dari Sila ke-${sila.nomor} Pancasila ("${sila.bunyi}") pada perisai Garuda Pancasila adalah...`,
+          options: [
+            sila.lambang,
+            otherSilas[0].lambang,
+            otherSilas[1].lambang,
+            otherSilas[2].lambang,
+          ],
+          answer: 0,
+          type: 'pancasila',
+          level: lvl,
+          subject: 'pkn',
+          classKey: cls,
+          explanation: `Lambang Sila ke-${sila.nomor} adalah ${sila.lambang}.`,
         });
       });
 
-      // Variation D: Kasus Penerapan Kontekstual (Menengah, Mahir, Ahli)
+      // Variation C: Contoh Penerapan di Sekolah
+      sila.contohSekolah.forEach((contoh, cIdx) => {
+        levels.forEach((lvl) => {
+          results.push({
+            id: `${cls}-pkn-sila-sek-${sila.nomor}-${cIdx}-${lvl}`,
+            q: `Perilaku "${contoh}" merupakan contoh nyata pengamalan Pancasila di lingkungan sekolah, khususnya Sila ke-...`,
+            options: [
+              `Sila ke-${sila.nomor} (${sila.bunyi})`,
+              `Sila ke-${otherSilas[0].nomor} (${otherSilas[0].bunyi})`,
+              `Sila ke-${otherSilas[1].nomor} (${otherSilas[1].bunyi})`,
+              `Sila ke-${otherSilas[2].nomor} (${otherSilas[2].bunyi})`,
+            ],
+            answer: 0,
+            type: 'penerapan',
+            level: lvl,
+            subject: 'pkn',
+            classKey: cls,
+            explanation: `Tindakan tersebut mencerminkan ${sila.nilaiUtama} pada Sila ke-${sila.nomor}.`,
+          });
+        });
+      });
+
+      // Variation D: Kasus Penerapan Kontekstual
       sila.kasusPenerapan.forEach((kasusObj, kIdx) => {
         levels.forEach((lvl) => {
           results.push({
@@ -454,19 +472,23 @@ export function generatePknQuestionBank(): AdaptiveQuestion[] {
     });
   });
 
-  // 2. Add Curated PKN Questions (UUD, Norma, Demokrasi, HAM, Otonomi, Globalisasi)
+  // 2. Add Curated PKN Questions (UUD, Norma, Demokrasi, HAM, Otonomi, Globalisasi -> SMP/SMA/SMK/Umum; basic Norma/Bhinneka -> SD 4-6)
   PKN_CURATED_QUESTIONS.forEach((item, idx) => {
-    classes.forEach((cls) => {
-      results.push({
-        id: `${cls}-pkn-cur-${idx}`,
-        q: item.q,
-        options: [...item.options],
-        answer: item.answer,
-        type: item.type,
-        level: item.level,
-        subject: 'pkn',
-        classKey: cls,
-        explanation: item.explanation,
+    const targetClasses =
+      item.level === 'pemula' ? ['sd4', 'sd5', 'sd6', 'sd', ...upperClasses] : upperClasses;
+    targetClasses.forEach((cls) => {
+      levels.forEach((lvl) => {
+        results.push({
+          id: `${cls}-pkn-cur-${idx}-${lvl}`,
+          q: item.q,
+          options: [...item.options],
+          answer: item.answer,
+          type: item.type,
+          level: lvl,
+          subject: 'pkn',
+          classKey: cls,
+          explanation: item.explanation,
+        });
       });
     });
   });
@@ -475,3 +497,4 @@ export function generatePknQuestionBank(): AdaptiveQuestion[] {
 }
 
 export const QUESTION_BANK_PKN: AdaptiveQuestion[] = generatePknQuestionBank();
+

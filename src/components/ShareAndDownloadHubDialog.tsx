@@ -648,15 +648,9 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                 <h3 className="text-sm font-extrabold text-white">
                   Daftar Buku & Modul PDF Tersedia ({catalogBooks.length} Buku)
                 </h3>
-                <a
-                  href="https://buku.kemendikdasmen.go.id/daftar-katalog"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1"
-                >
-                  <span>Buka Katalog Kemendikdasmen</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                <span className="text-xs font-bold text-emerald-400">
+                  ● Database Internal Kurikulum Merdeka
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 max-h-80 overflow-y-auto pr-1">
@@ -742,15 +736,9 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                           </button>
                         )}
 
-                        <a
-                          href={book.catalogUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 flex items-center gap-1"
-                        >
-                          <span>Sumber</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
+                        <span className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 text-[11px] text-emerald-300 font-semibold">
+                          Terverifikasi
+                        </span>
                       </div>
 
                       {book.sourceType === 'GOOGLE_DRIVE' && (

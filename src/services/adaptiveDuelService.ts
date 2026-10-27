@@ -6,10 +6,41 @@
 import { DuelQuestion } from '../types/mimi';
 import { FULL_QUESTION_BANK } from '../data/questionBankKelas';
 import { AdaptiveQuestion } from '../data/questionBankInggris';
+import curriculumLevelMap from '../data/curriculumLevel.json';
 
-export type DuelClassKey = 'sd' | 'kelas7' | 'kelas8' | 'kelas9' | 'sma' | 'umum';
+export type DuelClassKey =
+  | 'sd1'
+  | 'sd2'
+  | 'sd3'
+  | 'sd4'
+  | 'sd5'
+  | 'sd6'
+  | 'sd'
+  | 'kelas7'
+  | 'kelas8'
+  | 'kelas9'
+  | 'sma10'
+  | 'sma11'
+  | 'sma12'
+  | 'smk10'
+  | 'smk11'
+  | 'smk12'
+  | 'sma'
+  | 'umum';
+
 export type DuelDifficultyLevel = 'pemula' | 'menengah' | 'mahir' | 'ahli';
-export type DuelSubjectFilter = 'semua' | 'mtk' | 'inggris' | 'pkn' | 'ipa' | 'ips' | 'indo' | 'umum';
+
+export type DuelSubjectFilter =
+  | 'semua'
+  | 'mtk'
+  | 'inggris'
+  | 'pkn'
+  | 'ipa'
+  | 'ips'
+  | 'indo'
+  | 'umum'
+  | 'cerdas_cermat'
+  | 'tantang_kakak';
 
 export interface AdaptiveArenaConfig {
   id: string;
@@ -53,11 +84,166 @@ export const DUEL_LEVEL_BADGES: Record<
   },
 };
 
+export type DuelKategori = 'SD' | 'SMP' | 'SMA' | 'SMK' | 'Umum';
+export type DuelKelas = number | 'Umum';
+
+export const DUEL_KATEGORI_LIST: DuelKategori[] = ['SD', 'SMP', 'SMA', 'SMK', 'Umum'];
+
+export function getKelasChipsByKategori(selectedKategori: DuelKategori): number[] {
+  if (selectedKategori === 'SD') return [1, 2, 3, 4, 5, 6];
+  if (selectedKategori === 'SMP') return [7, 8, 9];
+  if (selectedKategori === 'SMA') return [10, 11, 12];
+  if (selectedKategori === 'SMK') return [10, 11, 12];
+  return [];
+}
+
+export function getDefaultKelasForKategori(kategori: DuelKategori): DuelKelas {
+  if (kategori === 'SD') return 1;
+  if (kategori === 'SMP') return 7;
+  if (kategori === 'SMA') return 10;
+  if (kategori === 'SMK') return 10;
+  return 'Umum';
+}
+
+export function getDuelTargetText(
+  selectedKategori: DuelKategori,
+  selectedKelas: DuelKelas
+): string {
+  if (selectedKategori === 'Umum' || selectedKelas === 'Umum') {
+    return 'TARGET: UMUM';
+  }
+  return `TARGET: ${selectedKategori} KELAS ${selectedKelas}`;
+}
+
+export function mapKategoriKelasToDuelClassKey(
+  selectedKategori: DuelKategori,
+  selectedKelas: DuelKelas
+): DuelClassKey {
+  if (selectedKategori === 'Umum' || selectedKelas === 'Umum') return 'umum';
+  if (selectedKategori === 'SD') {
+    if (selectedKelas === 1) return 'sd1';
+    if (selectedKelas === 2) return 'sd2';
+    if (selectedKelas === 3) return 'sd3';
+    if (selectedKelas === 4) return 'sd4';
+    if (selectedKelas === 5) return 'sd5';
+    return 'sd6';
+  }
+  if (selectedKategori === 'SMP') {
+    if (selectedKelas === 7) return 'kelas7';
+    if (selectedKelas === 8) return 'kelas8';
+    return 'kelas9';
+  }
+  if (selectedKategori === 'SMA') {
+    if (selectedKelas === 10) return 'sma10';
+    if (selectedKelas === 11) return 'sma11';
+    return 'sma12';
+  }
+  if (selectedKategori === 'SMK') {
+    if (selectedKelas === 10) return 'smk10';
+    if (selectedKelas === 11) return 'smk11';
+    return 'smk12';
+  }
+  return 'sd1';
+}
+
+/**
+ * Builds the strict Kurikulum Merdeka prompt instruction using curriculumLevel.json
+ */
+export function buildStrictCurriculumPrompt(
+  kategori: string,
+  kelas: string | number,
+  mapel: string,
+  level: string = 'Menengah'
+): string {
+  const katUpper = String(kategori || 'SD').toUpperCase();
+  const rawKelasNum = String(kelas || '1').replace(/[^0-9]/g, '') || 'Umum';
+  const katKey = katUpper.includes('UMUM') ? 'Umum' : katUpper;
+  const kelasKey = katKey === 'Umum' ? 'Umum' : rawKelasNum;
+
+  const baseHeader = `Buatkan soal untuk ${katKey} KELAS ${kelasKey} mapel ${mapel} level ${level} - SESUAI KURIKULUM MERDEKA KELAS TERSEBUT, jangan kasih materi di atas kelasnya.`;
+
+  const katObj = (curriculumLevelMap as any)[katKey];
+  const kelasObj = katObj?.[kelasKey];
+  if (!kelasObj) {
+    return baseHeader;
+  }
+
+  const mLower = mapel.toLowerCase();
+  let subjKey = 'mtk';
+  if (mLower.includes('inggris') || mLower.includes('english')) subjKey = 'inggris';
+  else if (mLower.includes('indo')) subjKey = 'indo';
+  else if (mLower.includes('ipa') || mLower.includes('fisika') || mLower.includes('biologi') || mLower.includes('kimia') || mLower.includes('sains')) subjKey = 'ipa';
+  else if (mLower.includes('ips') || mLower.includes('sejarah') || mLower.includes('ekonomi') || mLower.includes('geografi')) subjKey = 'ips';
+  else if (mLower.includes('pkn') || mLower.includes('ppkn') || mLower.includes('pancasila')) subjKey = 'pkn';
+
+  const rules = kelasObj[subjKey] || kelasObj.mtk;
+  const allowed = Array.isArray(rules?.allowedTopics) ? rules.allowedTopics.join('; ') : '';
+  const forbidden = Array.isArray(rules?.forbiddenTopics) ? rules.forbiddenTopics.join('; ') : '';
+
+  return `${baseHeader}\nATURAN KETAT MATERI YANG BOLEH: ${allowed || 'Sesuai kelas tersebut'}.\nLARANGAN KERAS (JANGAN PERNAH MUNCUL): ${forbidden || 'Jangan berikan materi kelas di atasnya atau di bawahnya'}.`;
+}
+
+export function getDynamicDuelMeta(
+  selectedKategori: DuelKategori,
+  selectedKelas: DuelKelas
+): {
+  key: DuelClassKey;
+  label: string;
+  shortLabel: string;
+  nextClassLabel: string;
+  targetText: string;
+} {
+  const key = mapKategoriKelasToDuelClassKey(selectedKategori, selectedKelas);
+  const targetText = getDuelTargetText(selectedKategori, selectedKelas);
+
+  if (selectedKategori === 'Umum' || selectedKelas === 'Umum') {
+    return {
+      key: 'umum',
+      label: 'Umum (Random Pengetahuan Umum HAGO)',
+      shortLabel: 'Umum HAGO',
+      nextClassLabel: 'Master Umum HAGO',
+      targetText,
+    };
+  }
+
+  const numKelas = typeof selectedKelas === 'number' ? selectedKelas : 1;
+  let nextClassLabel = `Kakak Kelas ${numKelas + 1}`;
+  if (selectedKategori === 'SD' && numKelas === 6) {
+    nextClassLabel = 'SMP Kelas 7';
+  } else if (selectedKategori === 'SMP' && numKelas === 9) {
+    nextClassLabel = 'SMA Kelas 10';
+  } else if ((selectedKategori === 'SMA' || selectedKategori === 'SMK') && numKelas === 12) {
+    nextClassLabel = 'Level Universitas';
+  } else {
+    nextClassLabel = `${selectedKategori} Kelas ${numKelas + 1}`;
+  }
+
+  return {
+    key,
+    label: `${selectedKategori} Kelas ${numKelas}`,
+    shortLabel: `${selectedKategori} Kls ${numKelas}`,
+    nextClassLabel,
+    targetText,
+  };
+}
+
 export const DUEL_CLASS_OPTIONS: { key: DuelClassKey; label: string; shortLabel: string; nextClassLabel: string }[] = [
+  { key: 'sd1', label: 'SD Kelas 1', shortLabel: 'SD Kls 1', nextClassLabel: 'SD Kelas 2' },
+  { key: 'sd2', label: 'SD Kelas 2', shortLabel: 'SD Kls 2', nextClassLabel: 'SD Kelas 3' },
+  { key: 'sd3', label: 'SD Kelas 3', shortLabel: 'SD Kls 3', nextClassLabel: 'SD Kelas 4' },
+  { key: 'sd4', label: 'SD Kelas 4', shortLabel: 'SD Kls 4', nextClassLabel: 'SD Kelas 5' },
+  { key: 'sd5', label: 'SD Kelas 5', shortLabel: 'SD Kls 5', nextClassLabel: 'SD Kelas 6' },
+  { key: 'sd6', label: 'SD Kelas 6', shortLabel: 'SD Kls 6', nextClassLabel: 'SMP Kelas 7' },
   { key: 'sd', label: 'SD (Kelas 1–6)', shortLabel: 'SD', nextClassLabel: 'SMP Kelas 7' },
   { key: 'kelas7', label: 'Kelas 7 SMP', shortLabel: 'Kls 7', nextClassLabel: 'Kakak Kelas 8' },
   { key: 'kelas8', label: 'Kelas 8 SMP', shortLabel: 'Kls 8', nextClassLabel: 'Kakak Kelas 9' },
   { key: 'kelas9', label: 'Kelas 9 SMP', shortLabel: 'Kls 9', nextClassLabel: 'Kakak Kelas 10 SMA' },
+  { key: 'sma10', label: 'SMA Kelas 10', shortLabel: 'SMA Kls 10', nextClassLabel: 'SMA Kelas 11' },
+  { key: 'sma11', label: 'SMA Kelas 11', shortLabel: 'SMA Kls 11', nextClassLabel: 'SMA Kelas 12' },
+  { key: 'sma12', label: 'SMA Kelas 12', shortLabel: 'SMA Kls 12', nextClassLabel: 'Level Universitas' },
+  { key: 'smk10', label: 'SMK Kelas 10', shortLabel: 'SMK Kls 10', nextClassLabel: 'SMK Kelas 11' },
+  { key: 'smk11', label: 'SMK Kelas 11', shortLabel: 'SMK Kls 11', nextClassLabel: 'SMK Kelas 12' },
+  { key: 'smk12', label: 'SMK Kelas 12', shortLabel: 'SMK Kls 12', nextClassLabel: 'Level Universitas' },
   { key: 'sma', label: 'SMA / SMK (Kls 10–12)', shortLabel: 'SMA/SMK', nextClassLabel: 'Level Universitas' },
   { key: 'umum', label: 'Kelas Umum (Dewasa/Alumni)', shortLabel: 'Umum', nextClassLabel: 'Master Umum Pro' },
 ];
@@ -66,16 +252,20 @@ export function mapUiClassToDuelClassKey(selectedClass: string, educationLevel: 
   const lower = (selectedClass || '').toLowerCase();
   const eduLower = (educationLevel || '').toLowerCase();
   if (lower.includes('umum') || eduLower.includes('umum')) return 'umum';
+  if (lower.includes('10')) return eduLower.includes('smk') ? 'smk10' : 'sma10';
+  if (lower.includes('11')) return eduLower.includes('smk') ? 'smk11' : 'sma11';
+  if (lower.includes('12')) return eduLower.includes('smk') ? 'smk12' : 'sma12';
   if (lower.includes('7')) return 'kelas7';
   if (lower.includes('8')) return 'kelas8';
   if (lower.includes('9')) return 'kelas9';
-  if (lower.includes('10') || lower.includes('11') || lower.includes('12') || eduLower.includes('sma') || eduLower.includes('smk')) {
-    return 'sma';
-  }
-  if (eduLower.includes('sd') || lower.includes('1') || lower.includes('2') || lower.includes('3') || lower.includes('4') || lower.includes('5') || lower.includes('6')) {
-    return 'sd';
-  }
-  return 'kelas7';
+  if (lower.includes('1')) return 'sd1';
+  if (lower.includes('2')) return 'sd2';
+  if (lower.includes('3')) return 'sd3';
+  if (lower.includes('4')) return 'sd4';
+  if (lower.includes('5')) return 'sd5';
+  if (lower.includes('6')) return 'sd6';
+  if (eduLower.includes('sma') || eduLower.includes('smk')) return 'sma10';
+  return 'sd1';
 }
 
 /**
@@ -83,103 +273,56 @@ export function mapUiClassToDuelClassKey(selectedClass: string, educationLevel: 
  */
 export function getAdaptiveArenasForClass(
   classKey: DuelClassKey,
-  level: DuelDifficultyLevel
+  level: DuelDifficultyLevel,
+  customShortLabel?: string,
+  customNextClassLabel?: string
 ): AdaptiveArenaConfig[] {
-  const clsInfo = DUEL_CLASS_OPTIONS.find((c) => c.key === classKey) || DUEL_CLASS_OPTIONS[1];
-  const short = clsInfo.shortLabel;
+  const clsInfo = DUEL_CLASS_OPTIONS.find((c) => c.key === classKey) || DUEL_CLASS_OPTIONS[0];
+  const short = customShortLabel || clsInfo.shortLabel;
+  const nextLabel = customNextClassLabel || clsInfo.nextClassLabel;
   const lvlInfo = DUEL_LEVEL_BADGES[level];
 
   if (classKey === 'umum') {
     return [
       {
-        id: `arena-umum-logika-${level}`,
-        title: `🔢 Logika & Numerik Umum`,
-        subtitle: 'Deret Angka, Aritmetika & Penalaran Kerja',
-        icon: '🔢',
+        id: `arena-umum-pengetahuan-umum-${level}`,
+        title: `🎲 Pengetahuan Umum (HAGO & Millionaire)`,
+        subtitle: 'Cerdas Cermat Pengetahuan Umum: Sains, Sejarah Nusantara, Dunia & Logika',
+        icon: '🎲',
         subjectKey: 'umum',
         questionCount: 10,
-        xpReward: 180,
-        badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
+        xpReward: 200,
+        badgeText: `🔥 Kategori 1 • ${lvlInfo.label}`,
       },
       {
-        id: `arena-umum-inggris-${level}`,
-        title: `🇬🇧 English Daily & Work`,
-        subtitle: 'Vocabulary, Grammar & Reading Comprehension',
+        id: `arena-umum-bahasa-inggris-${level}`,
+        title: `🇬🇧 Bahasa Inggris Umum (HAGO & Millionaire)`,
+        subtitle: 'Cerdas Cermat Bahasa Inggris: Idioms, Phrasal Verbs, Vocab & Daily English',
         icon: '🇬🇧',
         subjectKey: 'inggris',
         questionCount: 10,
-        xpReward: 180,
-        badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
-      },
-      {
-        id: `arena-umum-pkn-${level}`,
-        title: `🏛️ Wawasan Kebangsaan & PKN`,
-        subtitle: 'Pancasila, UUD 1945, Konstitusi & Etika Warga',
-        icon: '🏛️',
-        subjectKey: 'pkn',
-        questionCount: 10,
-        xpReward: 180,
-        badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
-      },
-      {
-        id: `arena-umum-ipa-${level}`,
-        title: `🧬 Sains & Teknologi Umum`,
-        subtitle: 'Fenomena Alam, Kesehatan & Literasi Sains',
-        icon: '🧬',
-        subjectKey: 'ipa',
-        questionCount: 10,
-        xpReward: 180,
-        badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
-      },
-      {
-        id: `arena-umum-ips-${level}`,
-        title: `📜 Ekonomi & Sosial Umum`,
-        subtitle: 'Literasi Finansial, Sejarah & Pengetahuan Global',
-        icon: '📜',
-        subjectKey: 'ips',
-        questionCount: 10,
-        xpReward: 180,
-        badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
-      },
-      {
-        id: `arena-umum-indo-${level}`,
-        title: `📝 Bahasa & Komunikasi`,
-        subtitle: 'Kalimat Efektif, EYD & Pemahaman Bacaan',
-        icon: '📝',
-        subjectKey: 'indo',
-        questionCount: 10,
-        xpReward: 180,
-        badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
-      },
-      {
-        id: `arena-umum-cerdas-cermat-${level}`,
-        title: `🏆 Cerdas Cermat Umum`,
-        subtitle: 'Campur 6 Bidang: Logika, Inggris, PKN, Sains, Ekonomi, Bahasa',
-        icon: '🏆',
-        subjectKey: 'cerdas_cermat',
-        questionCount: 10,
-        xpReward: 220,
-        badgeText: `${lvlInfo.emoji} Campur 6 Mapel`,
-      },
-      {
-        id: `arena-umum-tantang-master-${level}`,
-        title: `⚔️ Tantang Master Umum`,
-        subtitle: 'Uji Kemampuan Level Tinggi • Reward XP x2 Lipat!',
-        icon: '⚔️',
-        subjectKey: 'tantang_kakak',
-        questionCount: 10,
-        xpReward: 360,
-        isDoubleXp: true,
-        badgeText: `🔥 XP x2 • Naik Level`,
+        xpReward: 200,
+        badgeText: `🔥 Kategori 2 • ${lvlInfo.label}`,
       },
     ];
   }
 
   return [
     {
-      id: `arena-${classKey}-mtk-${level}`,
+      id: `arena-${classKey}-${short}-mtk-${level}`,
       title: `🔢 MTK ${short}`,
-      subtitle: 'Matematika, Bilangan Bulat & Aljabar',
+      subtitle:
+        classKey === 'sd1'
+          ? 'Penjumlahan & Pengurangan 1–20, Mengenal Angka (Tanpa Aljabar)'
+          : classKey === 'sd2'
+          ? 'Penjumlahan 1–100 & Perkalian Dasar 1–5'
+          : classKey === 'sd3'
+          ? 'Perkalian, Pembagian Dasar & Pecahan Sederhana'
+          : classKey.startsWith('sd')
+          ? 'Pecahan Campuran, Desimal, FPB & KPK'
+          : classKey.startsWith('kelas')
+          ? 'Aljabar, PLSV & Teorema Pythagoras'
+          : 'Logaritma, Trigonometri & Kalkulus Dasar',
       icon: '🔢',
       subjectKey: 'mtk',
       questionCount: 10,
@@ -187,9 +330,14 @@ export function getAdaptiveArenasForClass(
       badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
     },
     {
-      id: `arena-${classKey}-inggris-${level}`,
+      id: `arena-${classKey}-${short}-inggris-${level}`,
       title: `🇬🇧 Inggris ${short}`,
-      subtitle: 'Vocabulary, Grammar & Reading Text',
+      subtitle:
+        classKey === 'kelas8'
+          ? 'Past Continuous, Comparative Degree, Simple Past & Present Perfect'
+          : classKey === 'sd4' || classKey === 'sd5' || classKey === 'sd6'
+          ? 'This is / That is, Vocab Hewan & Benda Sekitar'
+          : 'Vocabulary, Grammar & Reading Text Sesuai Kelas',
       icon: '🇬🇧',
       subjectKey: 'inggris',
       questionCount: 10,
@@ -197,7 +345,7 @@ export function getAdaptiveArenasForClass(
       badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
     },
     {
-      id: `arena-${classKey}-pkn-${level}`,
+      id: `arena-${classKey}-${short}-pkn-${level}`,
       title: `🏛️ PKN ${short}`,
       subtitle: 'Pancasila, UUD 1945 & Penerapan Norma',
       icon: '🏛️',
@@ -207,9 +355,9 @@ export function getAdaptiveArenasForClass(
       badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
     },
     {
-      id: `arena-${classKey}-ipa-${level}`,
+      id: `arena-${classKey}-${short}-ipa-${level}`,
       title: `🧬 IPA ${short}`,
-      subtitle: 'Fisika, Biologi & Sains Terapan',
+      subtitle: 'Sains Alam, Fisika & Biologi Terapan',
       icon: '🧬',
       subjectKey: 'ipa',
       questionCount: 10,
@@ -217,7 +365,7 @@ export function getAdaptiveArenasForClass(
       badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
     },
     {
-      id: `arena-${classKey}-ips-${level}`,
+      id: `arena-${classKey}-${short}-ips-${level}`,
       title: `📜 IPS ${short}`,
       subtitle: 'Geografi, Sejarah & Ekonomi Sosial',
       icon: '📜',
@@ -227,7 +375,7 @@ export function getAdaptiveArenasForClass(
       badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
     },
     {
-      id: `arena-${classKey}-indo-${level}`,
+      id: `arena-${classKey}-${short}-indo-${level}`,
       title: `📝 Indo ${short}`,
       subtitle: 'Teks Bacaan, EYD & Kalimat Efektif',
       icon: '📝',
@@ -237,7 +385,7 @@ export function getAdaptiveArenasForClass(
       badgeText: `${lvlInfo.emoji} ${lvlInfo.label}`,
     },
     {
-      id: `arena-${classKey}-cerdas-cermat-${level}`,
+      id: `arena-${classKey}-${short}-cerdas-cermat-${level}`,
       title: `🏆 Cerdas Cermat ${short}`,
       subtitle: 'Campur 6 Mapel: 2 MTK, 2 Inggris, 2 PKN, 2 IPA, 2 IPS/Indo',
       icon: '🏆',
@@ -247,8 +395,8 @@ export function getAdaptiveArenasForClass(
       badgeText: `${lvlInfo.emoji} Campur 6 Mapel`,
     },
     {
-      id: `arena-${classKey}-tantang-kakak-${level}`,
-      title: `⚔️ Tantang ${clsInfo.nextClassLabel}`,
+      id: `arena-${classKey}-${short}-tantang-kakak-${level}`,
+      title: `⚔️ Tantang ${nextLabel}`,
       subtitle: 'Naik Level Tantangan • Reward XP x2 Lipat!',
       icon: '⚔️',
       subjectKey: 'tantang_kakak',
@@ -296,10 +444,6 @@ function toShuffledDuelQuestion(item: AdaptiveQuestion, customCategoryLabel?: st
   };
 }
 
-/**
- * Anti-boredom history manager: keeps up to 150 recent question IDs (15 games x 10 questions)
- * separated per class, subject, and difficulty level
- */
 function getRecentHistoryIds(historyKey: string): string[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -316,7 +460,7 @@ function saveRecentHistoryIds(historyKey: string, newIds: string[]): void {
   if (typeof window === 'undefined') return;
   try {
     const existing = getRecentHistoryIds(historyKey);
-    const combined = [...newIds, ...existing].slice(0, 150); // 15 games * 10 questions
+    const combined = [...newIds, ...existing].slice(0, 150);
     localStorage.setItem(historyKey, JSON.stringify(combined));
   } catch {}
 }
@@ -329,7 +473,6 @@ function pickFreshQuestionsFromPool(
   const recentIds = new Set(getRecentHistoryIds(historyKey));
   let unseen = pool.filter((q) => !recentIds.has(q.id));
 
-  // If user has exhausted almost all unseen questions in this specific bucket, reset history gracefully
   if (unseen.length < count) {
     unseen = [...pool];
   }
@@ -344,7 +487,8 @@ function pickFreshQuestionsFromPool(
 }
 
 /**
- * Selects 10 non-repeating adaptive questions for the chosen arena, class, and difficulty level
+ * Selects 10 non-repeating adaptive questions strictly matching the chosen classKey, subject, and difficulty level.
+ * NEVER mixes SD Kelas 1 with algebra or SMP Kelas 8 with SD material.
  */
 export function getAdaptiveQuestionsForArena(
   classKey: DuelClassKey,
@@ -352,7 +496,8 @@ export function getAdaptiveQuestionsForArena(
   arenaSubject: DuelSubjectFilter | 'cerdas_cermat' | 'tantang_kakak',
   count = 10
 ): DuelQuestion[] {
-  const historyKey = `duel_history_${classKey}_${arenaSubject}_${level}`;
+  const historyKey = `duel_history_v15_${classKey}_${arenaSubject}_${level}`;
+  const strictClassPool = FULL_QUESTION_BANK.filter((q) => q.classKey === classKey);
 
   // Case 1: Cerdas Cermat Campur (2 MTK + 2 Inggris + 2 PKN + 2 IPA + 2 IPS/Indo = 10 soal)
   if (arenaSubject === 'cerdas_cermat') {
@@ -366,10 +511,11 @@ export function getAdaptiveQuestionsForArena(
     const mixedPicked: AdaptiveQuestion[] = [];
 
     subjectsOrder.forEach((subj) => {
-      const subPool = FULL_QUESTION_BANK.filter(
-        (q) => q.classKey === classKey && q.subject === subj && (q.level === level || q.level === 'menengah')
+      const subPool = strictClassPool.filter(
+        (q) => q.subject === subj && (q.level === level || q.level === 'menengah')
       );
-      const fallbackPool = subPool.length >= 2 ? subPool : FULL_QUESTION_BANK.filter((q) => q.subject === subj);
+      const fallbackPool =
+        subPool.length >= 2 ? subPool : strictClassPool.filter((q) => q.subject === subj);
       const pair = pickFreshQuestionsFromPool(fallbackPool, 2, `${historyKey}_${subj}`);
       mixedPicked.push(...pair);
     });
@@ -380,37 +526,46 @@ export function getAdaptiveQuestionsForArena(
       .map((item) => toShuffledDuelQuestion(item));
   }
 
-  // Case 2: Tantang Kakak Kelas / Naik Level (Higher difficulty level, XP x2)
+  // Case 2: Tantang Kakak Kelas / Naik Level (Still strictly within appropriate grade progression, never jumping from SD 1 to Algebra)
   if (arenaSubject === 'tantang_kakak') {
-    const nextLevelMap: Record<DuelDifficultyLevel, DuelDifficultyLevel> = {
-      pemula: 'menengah',
-      menengah: 'mahir',
-      mahir: 'ahli',
-      ahli: 'ahli',
+    const nextClassKeyMap: Record<string, DuelClassKey> = {
+      sd1: 'sd2',
+      sd2: 'sd3',
+      sd3: 'sd4',
+      sd4: 'sd5',
+      sd5: 'sd6',
+      sd6: 'kelas7',
+      kelas7: 'kelas8',
+      kelas8: 'kelas9',
+      kelas9: 'sma10',
+      sma10: 'sma11',
+      sma11: 'sma12',
+      sma12: 'sma12',
+      smk10: 'smk11',
+      smk11: 'smk12',
+      smk12: 'smk12',
+      umum: 'umum',
     };
-    const targetLevel = nextLevelMap[level];
-    const pool = FULL_QUESTION_BANK.filter(
-      (q) => q.classKey === classKey && (q.level === targetLevel || q.level === 'mahir' || q.level === 'ahli')
-    );
+    const nextCls = nextClassKeyMap[classKey] || classKey;
+    const nextPool = FULL_QUESTION_BANK.filter((q) => q.classKey === nextCls);
     const picked = pickFreshQuestionsFromPool(
-      pool.length >= count ? pool : FULL_QUESTION_BANK,
+      nextPool.length >= count ? nextPool : strictClassPool,
       count,
       historyKey
     );
-    return picked.map((item) => toShuffledDuelQuestion(item, `⚔️ Tantangan Naik Level • ${DUEL_LEVEL_BADGES[targetLevel].label}`));
+    return picked.map((item) =>
+      toShuffledDuelQuestion(item, `⚔️ Tantangan Naik Kelas • ${DUEL_LEVEL_BADGES[level].label}`)
+    );
   }
 
   // Case 3: Specific Subject Arena (MTK, Inggris, PKN, IPA, IPS, Indo, Umum)
-  const targetSubject = arenaSubject === 'semua' ? 'inggris' : arenaSubject;
-  let pool = FULL_QUESTION_BANK.filter(
-    (q) => q.classKey === classKey && q.subject === targetSubject && q.level === level
+  const targetSubject = arenaSubject === 'semua' ? 'mtk' : arenaSubject;
+  let pool = strictClassPool.filter(
+    (q) => q.subject === targetSubject && q.level === level
   );
 
-  // Expand to adjacent levels if specific level has fewer than count
   if (pool.length < count) {
-    const broaderPool = FULL_QUESTION_BANK.filter(
-      (q) => q.classKey === classKey && q.subject === targetSubject
-    );
+    const broaderPool = strictClassPool.filter((q) => q.subject === targetSubject);
     pool = [...pool, ...broaderPool.filter((b) => !pool.some((p) => p.id === b.id))];
   }
 

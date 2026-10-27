@@ -3,9 +3,60 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mimi 15 — Cyber Learning & AI Tutor</title>
+    <script>
+      (function () {
+        var isViteWsNoise = function (msg) {
+          var s = String(msg || '');
+          return (
+            s.indexOf('WebSocket closed without opened') !== -1 ||
+            s.indexOf('[vite] failed to connect to websocket') !== -1 ||
+            s.indexOf('failed to connect to websocket') !== -1
+          );
+        };
+        window.addEventListener(
+          'unhandledrejection',
+          function (event) {
+            var reason = event && event.reason;
+            var msg = (reason && (reason.message || reason.stack)) || reason || '';
+            if (isViteWsNoise(msg)) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          },
+          true
+        );
+        window.addEventListener(
+          'error',
+          function (event) {
+            var msg = (event && (event.message || (event.error && event.error.message))) || '';
+            if (isViteWsNoise(msg)) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          },
+          true
+        );
+        var origConsoleError = console.error;
+        console.error = function () {
+          var firstArg = arguments.length > 0 ? arguments[0] : '';
+          var combined = Array.prototype.map
+            .call(arguments, function (a) {
+              return a && a.message ? a.message : String(a);
+            })
+            .join(' ');
+          if (isViteWsNoise(firstArg) || isViteWsNoise(combined)) {
+            return;
+          }
+          return origConsoleError.apply(console, arguments);
+        };
+      })();
+    </script>
+    <title>Room Belajar Mimi V15 — Cyber Learning & AI Tutor</title>
     <meta name="description" content="Platform pembelajaran interaktif bertema cyber untuk siswa SD, SMP, dan SMA dengan tutor pintar Mimi, kuis adaptif, tantangan arena, lencana, dan sistem login pengguna yang aman." />
-    <meta property="og:title" content="Mimi 15 — Cyber Learning & AI Tutor" />
+    <meta name="theme-color" content="#4f46e5" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/mimi-icon.svg" />
+    <meta property="og:title" content="Room Belajar Mimi V15 — Cyber Learning & AI Tutor" />
     <meta property="og:description" content="Platform pembelajaran interaktif bertema cyber untuk siswa SD, SMP, dan SMA dengan tutor pintar Mimi, kuis adaptif, tantangan arena, lencana, dan sistem login pengguna yang aman." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />

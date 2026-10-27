@@ -366,7 +366,7 @@ const ChatCoreContent: React.FC<MimiChatProps & { showDockToggle: boolean }> = (
               type="button"
               disabled={isTyping}
               onClick={() => onSendMessage(prompt)}
-              className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors whitespace-nowrap shrink-0 disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
             >
               {prompt.length > 46 ? prompt.slice(0, 46) + '...' : prompt}
             </button>
@@ -419,10 +419,10 @@ const ChatCoreContent: React.FC<MimiChatProps & { showDockToggle: boolean }> = (
         <button
           type="submit"
           disabled={!inputText.trim() || isTyping}
-          className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl btn-tactile-sky font-extrabold text-xs flex items-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-40"
+          className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl btn-tactile-sky font-extrabold text-xs flex items-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
         >
-          <span>Kirim</span>
-          <Send className="w-3.5 h-3.5" />
+          <span>{isTyping ? 'Mikir...' : 'Kirim'}</span>
+          <Send className={`w-3.5 h-3.5 ${isTyping ? 'animate-pulse' : ''}`} />
         </button>
       </form>
     </div>

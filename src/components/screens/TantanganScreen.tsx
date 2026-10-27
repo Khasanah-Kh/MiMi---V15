@@ -35,14 +35,18 @@ import {
 import { soundService } from '../../services/soundService';
 import {
   AdaptiveArenaConfig,
-  DUEL_CLASS_OPTIONS,
+  DUEL_KATEGORI_LIST,
   DUEL_LEVEL_BADGES,
   DuelClassKey,
   DuelDifficultyLevel,
+  DuelKategori,
+  DuelKelas,
   DuelSubjectFilter,
   getAdaptiveArenasForClass,
   getAdaptiveQuestionsForArena,
-  mapUiClassToDuelClassKey,
+  getDefaultKelasForKategori,
+  getDynamicDuelMeta,
+  getKelasChipsByKategori,
 } from '../../services/adaptiveDuelService';
 
 interface TantanganScreenProps {
@@ -90,20 +94,29 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
   const [roomErrorMessage, setRoomErrorMessage] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Adaptive Class, Level & Subject Filter states
-  const [selectedDuelClass, setSelectedDuelClass] = useState<DuelClassKey>(() =>
-    mapUiClassToDuelClassKey(uiState.selectedClass, uiState.selectedEducationLevel)
-  );
+  // Adaptive Kategori, Kelas, Level & Subject Filter states (Default: Kategori = SD, Kelas = 1)
+  const [selectedKategori, setSelectedKategori] = useState<DuelKategori>('SD');
+  const [selectedKelas, setSelectedKelas] = useState<DuelKelas>(1);
   const [selectedDuelLevel, setSelectedDuelLevel] = useState<DuelDifficultyLevel>('pemula');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<DuelSubjectFilter>('semua');
   const [lastPlayedArena, setLastPlayedArena] = useState<AdaptiveArenaConfig | null>(null);
 
-  // Sync adaptive class when top-bar class/jenjang changes
-  useEffect(() => {
-    setSelectedDuelClass(
-      mapUiClassToDuelClassKey(uiState.selectedClass, uiState.selectedEducationLevel)
-    );
-  }, [uiState.selectedClass, uiState.selectedEducationLevel]);
+  const handleSelectKategori = (kategori: DuelKategori) => {
+    setSelectedKategori(kategori);
+    if (kategori === 'Umum') {
+      setSelectedKelas('Umum');
+      setSelectedSubjectFilter('umum');
+    } else {
+      setSelectedKelas(getDefaultKelasForKategori(kategori));
+      if (selectedSubjectFilter === 'umum') {
+        setSelectedSubjectFilter('semua');
+      }
+    }
+  };
+
+  const activeClassMeta = getDynamicDuelMeta(selectedKategori, selectedKelas);
+  const selectedDuelClass: DuelClassKey = activeClassMeta.key;
+  const availableKelasChips = getKelasChipsByKategori(selectedKategori);
 
   // Active Duel State
   const [activeDuelRoom, setActiveDuelRoom] = useState<DuelRoom | null>(null);
@@ -526,9 +539,16 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
       startAdaptiveArenaDuel(lastPlayedArena);
       return;
     }
-    const arenas = getAdaptiveArenasForClass(selectedDuelClass, selectedDuelLevel);
+    const arenas = getAdaptiveArenasForClass(
+      selectedDuelClass,
+      selectedDuelLevel,
+      activeClassMeta.shortLabel,
+      activeClassMeta.nextClassLabel
+    );
     const defaultArena =
-      selectedSubjectFilter !== 'semua'
+      selectedKategori === 'Umum'
+        ? arenas[0]
+        : selectedSubjectFilter !== 'semua'
         ? arenas.find((a) => a.subjectKey === selectedSubjectFilter) || arenas[0]
         : arenas.find((a) => a.subjectKey === 'cerdas_cermat') || arenas[0];
     startAdaptiveArenaDuel(defaultArena);
@@ -670,19 +690,21 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
     setActiveDuelRoom(null);
   };
 
-  const activeClassMeta =
-    DUEL_CLASS_OPTIONS.find((c) => c.key === selectedDuelClass) || DUEL_CLASS_OPTIONS[1];
   const activeLevelMeta = DUEL_LEVEL_BADGES[selectedDuelLevel];
-  const allArenas = getAdaptiveArenasForClass(selectedDuelClass, selectedDuelLevel);
+  const allArenas = getAdaptiveArenasForClass(
+    selectedDuelClass,
+    selectedDuelLevel,
+    activeClassMeta.shortLabel,
+    activeClassMeta.nextClassLabel
+  );
   const filteredArenas =
-    selectedSubjectFilter === 'semua'
+    selectedKategori === 'Umum'
+      ? selectedSubjectFilter === 'semua'
+        ? allArenas
+        : allArenas.filter((a) => a.subjectKey === selectedSubjectFilter)
+      : selectedSubjectFilter === 'semua' || selectedSubjectFilter === 'umum'
       ? allArenas
-      : allArenas.filter(
-          (a) =>
-            a.subjectKey === selectedSubjectFilter ||
-            a.subjectKey === 'cerdas_cermat' ||
-            a.subjectKey === 'tantang_kakak'
-        );
+      : allArenas.filter((a) => a.subjectKey === selectedSubjectFilter);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER: 1. COUNTDOWN VIEW (3.. 2.. 1.. GO!)
@@ -1107,9 +1129,12 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
             <span>ARENA DUEL ADAPTIF · 5.000+ BANK SOAL</span>
           </div>
           <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight flex flex-wrap items-center gap-2">
-            <span>Duel Arena — {activeClassMeta.label}</span>
+            <span>Duel Arena</span>
+            <span className="px-2.5 py-0.5 rounded-lg bg-amber-400/15 border border-amber-400/40 text-amber-300 font-mono text-xs sm:text-sm font-black tracking-wide">
+              {activeClassMeta.targetText}
+            </span>
             <span className="text-sky-400">•</span>
-            <span className="inline-flex items-center gap-1 text-amber-300">
+            <span className="inline-flex items-center gap-1 text-sky-300 text-xs sm:text-sm font-semibold">
               <span>{activeLevelMeta.emoji} Level {activeLevelMeta.label}</span>
               <span>🏆</span>
             </span>
@@ -1157,34 +1182,63 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
         </div>
       </section>
 
-      {/* ── Adaptive Class & Level Selector Bar ── */}
+      {/* ── Adaptive Kategori, Kelas & Level Selector Bar ── */}
       <section className="p-4 sm:p-5 rounded-2xl bg-[#0F172A] border border-sky-500/30 shadow-md space-y-3.5">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
-          {/* 1. Pilih Kelas Siswa */}
-          <div className="space-y-1.5">
+          {/* 1. Pilih Kategori & Kelas Peserta */}
+          <div className="space-y-2">
             <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-sky-300 flex items-center justify-between">
               <span>1. Pilih Kelas / Kategori Peserta:</span>
-              <span className="text-slate-400 font-normal">Target: {activeClassMeta.nextClassLabel}</span>
+              <span className="text-amber-300 font-extrabold">{activeClassMeta.targetText}</span>
             </label>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-              {DUEL_CLASS_OPTIONS.map((cls) => {
-                const active = selectedDuelClass === cls.key;
+
+            {/* Row A: Kategori Chips ('SD' | 'SMP' | 'SMA' | 'SMK' | 'Umum') */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {DUEL_KATEGORI_LIST.map((kat) => {
+                const active = selectedKategori === kat;
                 return (
                   <button
-                    key={cls.key}
+                    key={kat}
                     type="button"
-                    onClick={() => setSelectedDuelClass(cls.key)}
+                    onClick={() => handleSelectKategori(kat)}
                     className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 text-center ${
                       active
                         ? 'bg-sky-400 text-slate-950 border-sky-300 shadow-[0_0_15px_rgba(56,189,248,0.3)]'
                         : 'bg-[#0B1120] text-slate-300 border-slate-800 hover:border-sky-500/40'
                     }`}
                   >
-                    <div className="truncate">{cls.shortLabel}</div>
+                    <div className="truncate">{kat}</div>
                   </button>
                 );
               })}
             </div>
+
+            {/* Row B: Dynamic Kelas Chips based on selectedKategori (Not rendered when 'Umum') */}
+            {selectedKategori !== 'Umum' && availableKelasChips.length > 0 && (
+              <div
+                className={`grid gap-1.5 pt-0.5 ${
+                  availableKelasChips.length === 6 ? 'grid-cols-6' : 'grid-cols-3'
+                }`}
+              >
+                {availableKelasChips.map((klsNum) => {
+                  const active = selectedKelas === klsNum;
+                  return (
+                    <button
+                      key={`kls-${selectedKategori}-${klsNum}`}
+                      type="button"
+                      onClick={() => setSelectedKelas(klsNum)}
+                      className={`py-1.5 px-1 sm:px-2 rounded-lg border text-[11px] sm:text-xs font-bold transition-all cursor-pointer active:scale-95 text-center ${
+                        active
+                          ? 'bg-emerald-400 text-slate-950 border-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.3)] font-black'
+                          : 'bg-[#0B1120] text-slate-300 border-slate-800 hover:border-emerald-400/40'
+                      }`}
+                    >
+                      <div className="truncate">Kls {klsNum}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* 2. Pilih Level Kesulitan */}
@@ -1221,31 +1275,57 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
         <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] font-mono text-slate-400 mr-1">Filter Mapel:</span>
-            {[
-              { key: 'semua', label: 'Semua Arena (8)' },
-              { key: 'mtk', label: '🔢 MTK' },
-              { key: 'inggris', label: '🇬🇧 Inggris' },
-              { key: 'pkn', label: '🏛️ PKN' },
-              { key: 'ipa', label: '🧬 IPA' },
-              { key: 'ips', label: '📜 IPS' },
-              { key: 'indo', label: '📝 Indo' },
-            ].map((item) => {
-              const active = selectedSubjectFilter === item.key;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setSelectedSubjectFilter(item.key as DuelSubjectFilter)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                    active
-                      ? 'bg-sky-400/20 text-sky-300 border border-sky-400/50'
-                      : 'bg-[#0B1120] text-slate-400 border border-slate-800 hover:text-slate-200'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+            {selectedKategori === 'Umum' ? (
+              [
+                { key: 'semua', label: 'Semua Kategori Umum (2)' },
+                { key: 'umum', label: '🎲 Pengetahuan Umum' },
+                { key: 'inggris', label: '🇬🇧 Bahasa Inggris Umum' },
+              ].map((item) => {
+                const active = selectedSubjectFilter === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setSelectedSubjectFilter(item.key as DuelSubjectFilter)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                      active
+                        ? 'bg-amber-400/20 text-amber-300 border border-amber-400/50 shadow-sm'
+                        : 'bg-[#0B1120] text-slate-400 border border-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })
+            ) : (
+              [
+                { key: 'semua', label: 'Semua Arena (8)' },
+                { key: 'mtk', label: '🔢 MTK' },
+                { key: 'inggris', label: '🇬🇧 Inggris' },
+                { key: 'pkn', label: '🏛️ PKN' },
+                { key: 'ipa', label: '🧬 IPA' },
+                { key: 'ips', label: '📜 IPS' },
+                { key: 'indo', label: '📝 Indo' },
+                { key: 'cerdas_cermat', label: '🏆 Cerdas Cermat' },
+                { key: 'tantang_kakak', label: '⚔️ Tantang Kakak' },
+              ].map((item) => {
+                const active = selectedSubjectFilter === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setSelectedSubjectFilter(item.key as DuelSubjectFilter)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      active
+                        ? 'bg-sky-400/20 text-sky-300 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.25)]'
+                        : 'bg-[#0B1120] text-slate-400 border border-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })
+            )}
           </div>
 
           {/* Volume Slider Bar */}
@@ -1316,8 +1396,8 @@ export const TantanganScreen: React.FC<TantanganScreenProps> = ({
         <section className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
             <div>
-              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wide flex items-center gap-2">
-                <span>PILIH ARENA SESUAI KELASMU ({activeClassMeta.label})</span>
+              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wide flex flex-wrap items-center gap-2">
+                <span>PILIH ARENA ({activeClassMeta.targetText})</span>
                 <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-400/30">
                   {activeLevelMeta.emoji} {activeLevelMeta.label}
                 </span>

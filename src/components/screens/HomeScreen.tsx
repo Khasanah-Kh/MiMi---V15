@@ -30,8 +30,14 @@ import {
   MimiUiState,
   StudyProgress,
 } from '../../types/mimi';
-import { CLASSES_BY_LEVEL, SUBJECTS_BY_LEVEL } from '../../data/curriculumData';
+import {
+  CLASSES_BY_LEVEL,
+  SUBJECTS_BY_LEVEL,
+  getFilteredUnitsForSelection,
+} from '../../data/curriculumData';
 import { downloadGeneratedModulePdf } from '../../services/googleDriveService';
+import { ShareButton } from '../ShareButton';
+import { PwaInstallButton } from '../PwaInstallButton';
 
 interface HomeScreenProps {
   uiState: MimiUiState;
@@ -82,10 +88,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     null
   );
 
-  const openModuleModal = (item: LevelItem) => {
-    setSimValue(item.simulation.defaultValue);
+  // selectedUnit state for Duolingo node / card preview (never hardcoded!)
+  const [selectedUnit, setSelectedUnit] = useState<LevelItem | null>(null);
+
+  const openModuleModal = (unitYangDiKlik: LevelItem) => {
+    setSelectedUnit(unitYangDiKlik);
+    setSimValue(unitYangDiKlik.simulation.defaultValue);
     setSelectedPracticeOpt(null);
-    onLevelClick(item);
+    onLevelClick(unitYangDiKlik);
   };
 
   const handleCreateMilestone = (e: React.FormEvent) => {
@@ -97,7 +107,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const [isDuoPathView, setIsDuoPathView] = useState<boolean>(true);
-  const [duoNodeModal, setDuoNodeModal] = useState<LevelItem | null>(null);
   const [isGoogleTasksModalOpen, setIsGoogleTasksModalOpen] = useState<boolean>(false);
   const [tasksSyncToast, setTasksSyncToast] = useState<string | null>(null);
   const [isMapelExpanded, setIsMapelExpanded] = useState<boolean>(false);
@@ -111,32 +120,64 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const availableClasses = CLASSES_BY_LEVEL[uiState.selectedEducationLevel] || [];
   const availableSubjects = SUBJECTS_BY_LEVEL[uiState.selectedEducationLevel] || [];
-  const completedCount = levels.filter((l) =>
+
+  const selectedMapel = uiState.selectedSubject;
+  const selectedKelas = uiState.selectedClass;
+
+  // Dynamic filtering: selectedMapel & selectedKelas ALWAYS filter units so it never gets stuck on Matematika!
+  const allUnits = React.useMemo(() => {
+    const dynamicUnits = getFilteredUnitsForSelection(
+      uiState.selectedEducationLevel,
+      selectedKelas,
+      selectedMapel,
+      studyProgress.completedLevelIds
+    );
+    return dynamicUnits.length > 0 ? dynamicUnits : levels;
+  }, [
+    uiState.selectedEducationLevel,
+    selectedKelas,
+    selectedMapel,
+    studyProgress.completedLevelIds,
+    levels,
+  ]);
+
+  const filteredUnits = React.useMemo(() => {
+    const exactMatch = allUnits.filter(
+      (u) => (u.mapel === selectedMapel || u.subject === selectedMapel) && (u.kelas === selectedKelas || u.classRange === selectedKelas)
+    );
+    return exactMatch.length > 0 ? exactMatch : allUnits;
+  }, [allUnits, selectedMapel, selectedKelas]);
+
+  React.useEffect(() => {
+    setSelectedUnit(null);
+  }, [selectedMapel, selectedKelas, uiState.selectedEducationLevel]);
+
+  const completedCount = filteredUnits.filter((l) =>
     studyProgress.completedLevelIds.includes(l.id)
   ).length;
 
   const handleSharePublicWebsiteLink = async () => {
-    const publicUrl = 'https://gen-lang-client-0798249381.web.app';
-    const shareText = `Yuk belajar seru bareng MIMI V15 - Asisten Belajar Masa Depan Indonesia! Klik langsung: ${publicUrl} (atau https://gen-lang-client-0798249381.firebaseapp.com)`;
+    const publicUrl = window.location.href || 'https://gen-lang-client-0798249381.web.app';
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'MIMI V15 — Asisten Belajar Masa Depan Indonesia',
-          text: shareText,
+          title: 'Room Belajar Mimi V15',
+          text: 'Belajar bareng Mimi yuk!',
           url: publicUrl,
         });
       } else {
         await navigator.clipboard.writeText(publicUrl);
       }
-      setShareToast('Link Website Live (https://gen-lang-client-0798249381.web.app) berhasil disalin!');
-      setTimeout(() => setShareToast(null), 4500);
+      setShareToast('Link tercopy!');
+      setTimeout(() => setShareToast(null), 3500);
     } catch {
       try {
         await navigator.clipboard.writeText(publicUrl);
-        setShareToast('Link Website Publik berhasil disalin! Siapa pun bisa langsung mengakses website ini.');
-        setTimeout(() => setShareToast(null), 4500);
+        setShareToast('Link tercopy!');
+        setTimeout(() => setShareToast(null), 3500);
       } catch {
-        // Ignore
+        setShareToast('Link tercopy!');
+        setTimeout(() => setShareToast(null), 3500);
       }
     }
   };
@@ -204,15 +245,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <span>Buku PDF & Drive</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleSharePublicWebsiteLink}
+              <ShareButton
+                label="Share Link"
                 className="px-4 py-3 rounded-2xl btn-tactile-sky font-extrabold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
-                title="Salin link website publik yang bisa langsung dilihat semua orang"
-              >
-                <Share2 className="w-4 h-4 shrink-0" />
-                <span>Bagikan Link</span>
-              </button>
+                onShareSuccess={() => {
+                  setShareToast('Link tercopy!');
+                  setTimeout(() => setShareToast(null), 3500);
+                }}
+              />
+
+              <PwaInstallButton className="px-4 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 shadow-lg" />
             </div>
           </div>
 
@@ -266,7 +308,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
                 <div className="text-[10px] text-slate-400 font-medium">Unit Selesai</div>
                 <div className="text-xs font-extrabold text-emerald-300 font-mono tabular-nums mt-0.5">
-                  {completedCount} / {levels.length}
+                  {completedCount} / {filteredUnits.length}
                 </div>
               </div>
             </div>
@@ -366,7 +408,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
-              Sumber: Buku Paket Resmi Kemendikbud (<a href="https://buku.kemendikdasmen.go.id/daftar-katalog" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">buku.kemendikdasmen.go.id</a>) · Matematika = 3 Langkah + Opsi · Mapel Lain = Clue + Kisi + Analogi
+              Kurikulum Merdeka Indonesia (SD, SMP, SMA, SMK & Umum) · Matematika = 3 Langkah + Opsi · Mapel Lain = Clue + Kisi + Analogi
             </p>
           </div>
 
@@ -645,7 +687,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {uiState.selectedSubject} — Kurikulum Merdeka
             </h2>
             <div className="text-xs sm:text-sm text-violet-100 font-medium flex items-center gap-3">
-              <span>{completedCount} dari {levels.length} Unit Selesai</span>
+              <span>{completedCount} dari {filteredUnits.length} Unit Selesai</span>
               <span aria-hidden="true">·</span>
               <span className="font-mono font-bold text-amber-300 tabular-nums">
                 +{completedCount * 45} XP Didapat
@@ -703,12 +745,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
               {/* Stepping Path Nodes Stream */}
               <div className="w-full max-w-sm flex flex-col items-center space-y-10 relative">
-                {levels.map((lvl, index) => {
+                {filteredUnits.map((lvl, index) => {
                   const isDone = studyProgress.completedLevelIds.includes(lvl.id);
                   const isNextActive =
                     !isDone &&
                     (index === 0 ||
-                      studyProgress.completedLevelIds.includes(levels[index - 1]?.id));
+                      studyProgress.completedLevelIds.includes(filteredUnits[index - 1]?.id));
 
                   // Alternating horizontal offset pattern for winding path look
                   const offsetClasses =
@@ -742,7 +784,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         type="button"
                         whileHover={{ scale: 1.08 }}
                         whileTap={{ scale: 0.92 }}
-                        onClick={() => setDuoNodeModal(lvl)}
+                        onClick={() => setSelectedUnit(lvl)}
                         className={`relative z-10 flex items-center justify-center transition-all cursor-pointer ${
                           isDone
                             ? 'w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-emerald-500 border-b-8 border-emerald-700 hover:bg-emerald-400 text-white shadow-xl shadow-emerald-950/60'
@@ -819,7 +861,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               transition={{ duration: 0.22 }}
               className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-7"
             >
-              {levels.map((lvl, index) => {
+              {filteredUnits.map((lvl, index) => {
                 const isDone = studyProgress.completedLevelIds.includes(lvl.id);
                 return (
                   <motion.div
@@ -828,7 +870,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.22, delay: index * 0.05 }}
                     whileHover={{ y: -3 }}
-                    className="p-7 card-study hover:border-slate-700 transition-colors flex flex-col justify-between gap-5"
+                    onClick={() => setSelectedUnit(lvl)}
+                    className="p-7 card-study hover:border-slate-700 transition-colors flex flex-col justify-between gap-5 cursor-pointer"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs text-slate-400">
@@ -855,28 +898,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         {lvl.subtitle}
                       </p>
 
-                      {/* Official Published Book Citation Badge */}
+                      {/* Internal Curriculum Module Badge (No External Source Links) */}
                       <div className="p-3.5 rounded-xl bg-[#0B101E] border border-slate-800/90 space-y-1.5">
                         <div className="flex items-center justify-between gap-2 text-[11px] text-amber-400 font-bold">
                           <span className="flex items-center gap-1.5">
                             <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                            <span>Sumber Buku Teks Terbitan Resmi</span>
+                            <span>Modul Kurikulum Merdeka Terverifikasi</span>
                           </span>
-                          <a
-                            href={lvl.bookSource.catalogUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sky-400 hover:underline flex items-center gap-1 shrink-0"
-                          >
-                            <span>Katalog</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                          <span className="text-emerald-400 font-mono text-[10px]">
+                            ● Internal Mimi V15
+                          </span>
                         </div>
                         <div className="text-xs font-bold text-slate-100 leading-snug">
                           {lvl.bookSource.title} ({lvl.bookSource.year})
                         </div>
                         <div className="text-[11px] text-slate-400">
-                          {lvl.bookSource.authorOrPublisher}
+                          Kurikulum Merdeka Indonesia
                         </div>
                       </div>
                     </div>
@@ -1325,9 +1362,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </AnimatePresence>
       {/* 6. Duolingo Style Unit Node Preview Modal */}
       <AnimatePresence>
-        {duoNodeModal && (
+        {selectedUnit && (
           <motion.div
-            key={duoNodeModal.id}
+            key={selectedUnit.id}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1343,18 +1380,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
                 <div>
                   <div className="text-xs font-mono font-extrabold text-sky-400">
-                    Unit 0{duoNodeModal.levelNumber} · {duoNodeModal.subject}
+                    Unit 0{selectedUnit.levelNumber} · {selectedUnit.subject}
                   </div>
                   <h3 className="text-lg font-black text-white mt-0.5">
-                    {duoNodeModal.title}
+                    {selectedUnit.title}
                   </h3>
                   <div className="text-[11px] text-slate-400 mt-1">
-                    {duoNodeModal.bookSource.title} ({duoNodeModal.bookSource.authorOrPublisher})
+                    {selectedUnit.bookSource.title} ({selectedUnit.bookSource.authorOrPublisher})
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setDuoNodeModal(null)}
+                  onClick={() => setSelectedUnit(null)}
                   className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 shrink-0"
                 >
                   <X className="w-4 h-4" />
@@ -1364,7 +1401,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="p-4 rounded-2xl bg-[#0B101E] border border-slate-800 space-y-2">
                 <div className="text-xs font-extrabold text-amber-400">Intisari Materi:</div>
                 <ul className="text-xs text-slate-300 space-y-1.5">
-                  {duoNodeModal.summaryPoints.slice(0, 3).map((pt, i) => (
+                  {selectedUnit.summaryPoints.slice(0, 3).map((pt, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="text-sky-400 font-bold">•</span>
                       <span>{pt}</span>
@@ -1377,29 +1414,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const targetItem = duoNodeModal;
-                    setDuoNodeModal(null);
+                    const targetItem = selectedUnit;
+                    setSelectedUnit(null);
                     openModuleModal(targetItem);
                   }}
                   className="w-full py-3.5 rounded-2xl btn-tactile-sky font-black text-xs flex items-center justify-center gap-2 shadow-lg"
                 >
                   <Play className="w-4 h-4 shrink-0" />
-                  <span>Mulai Belajar (+{duoNodeModal.xpReward} XP)</span>
+                  <span>Mulai Belajar (+{selectedUnit.xpReward} XP)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
                     downloadGeneratedModulePdf({
-                      title: duoNodeModal.title,
-                      level: duoNodeModal.educationLevel,
-                      classRange: duoNodeModal.classRange,
-                      subject: duoNodeModal.subject,
-                      bookTitle: duoNodeModal.bookSource.title,
-                      publisher: duoNodeModal.bookSource.authorOrPublisher,
-                      catalogUrl: duoNodeModal.bookSource.catalogUrl,
-                      summaryPoints: duoNodeModal.summaryPoints,
-                      formula: duoNodeModal.simulation.formulaDisplay,
+                      title: selectedUnit.title,
+                      level: selectedUnit.educationLevel,
+                      classRange: selectedUnit.classRange,
+                      subject: selectedUnit.subject,
+                      bookTitle: selectedUnit.bookSource.title,
+                      publisher: selectedUnit.bookSource.authorOrPublisher,
+                      catalogUrl: selectedUnit.bookSource.catalogUrl,
+                      summaryPoints: selectedUnit.summaryPoints,
+                      formula: selectedUnit.simulation.formulaDisplay,
                     });
                   }}
                   className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-2"

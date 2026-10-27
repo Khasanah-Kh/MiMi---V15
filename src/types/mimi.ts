@@ -67,6 +67,8 @@ export interface LevelItem {
   title: string;
   subtitle: string;
   subject: string;
+  mapel?: string;
+  kelas?: string;
   educationLevel: EducationLevel;
   classRange: string;
   xpReward: number;

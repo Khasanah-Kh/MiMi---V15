@@ -155,26 +155,6 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {onOpenErrorReport && (
-            <button
-              type="button"
-              onClick={onOpenErrorReport}
-              className="px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 hover:text-amber-100 font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-sm cursor-pointer"
-            >
-              <span>⚠️ Lapor Error / Masukan</span>
-            </button>
-          )}
-
-          {onOpenAdminDashboard && (
-            <button
-              type="button"
-              onClick={onOpenAdminDashboard}
-              className="px-4 py-2.5 rounded-xl border border-sky-500/40 bg-sky-950/30 hover:bg-sky-900/40 text-sky-300 hover:text-sky-100 font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-sm cursor-pointer"
-            >
-              <span>📊 Dashboard Owner</span>
-            </button>
-          )}
-
           {onOpenDonation && (
             <button
               type="button"

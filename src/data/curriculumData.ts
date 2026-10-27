@@ -25,9 +25,7 @@ export const CLASSES_BY_LEVEL: Record<EducationLevel, string[]> = {
   [EducationLevel.SMA]: ['Kelas 10', 'Kelas 11', 'Kelas 12'],
   [EducationLevel.SMK]: ['Kelas 10 SMK', 'Kelas 11 SMK', 'Kelas 12 SMK'],
   [EducationLevel.UMUM]: [
-    'Eksplorasi Umum',
-    'Bahasa Inggris & Slang',
-    'Curhat & Kehidupan',
+    'Umum',
   ],
 };
 
@@ -68,10 +66,8 @@ export const SUBJECTS_BY_LEVEL: Record<EducationLevel, string[]> = {
     'Bahasa Inggris Vokasi',
   ],
   [EducationLevel.UMUM]: [
-    'Pengetahuan Umum & Sains Populer',
-    'Bahasa Inggris (Slang, Idiom & Academic)',
-    'Belajar Coding & Web Modern',
-    'Curhat, Motivasi & Produktivitas',
+    'Pengetahuan Umum',
+    'Bahasa Inggris Umum',
   ],
 };
 
@@ -1629,3 +1625,1168 @@ export function getSuggestedPromptsForLevel(
     `Spill English academic vocabulary, idiom, & peribahasa buat esai SMA dong!`,
   ];
 }
+
+interface SubjectUnitBlueprint {
+  title: string;
+  subtitle: string;
+  bookTitle: string;
+  bookAuthor: string;
+  summaryPoints: string[];
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  simTitle: string;
+  simParam: string;
+  simUnit: string;
+  simMin: number;
+  simMax: number;
+  simStep: number;
+  simDefault: number;
+  simTarget: number;
+  simFormula: string;
+  simExplanation: string;
+}
+
+function getSubjectUnitBlueprints(
+  educationLevel: EducationLevel,
+  selectedClass: string,
+  selectedSubject: string
+): SubjectUnitBlueprint[] {
+  const subjLower = selectedSubject.toLowerCase();
+  const classNumMatch = selectedClass.match(/\d+/);
+  const classNum = classNumMatch ? Number(classNumMatch[0]) : 1;
+
+  // 0. LEVEL UMUM / RANDOM (HANYA 2 KATEGORI: Pengetahuan Umum & Bahasa Inggris Umum)
+  if (educationLevel === EducationLevel.UMUM || subjLower.includes('pengetahuan umum')) {
+    if (subjLower.includes('inggris') || subjLower.includes('english')) {
+      return [
+        {
+          title: 'Cerdas Cermat Bahasa Inggris Umum: Idioms & Phrasal Verbs (HAGO Style)',
+          subtitle: 'Menguasai ungkapan populer sehari-hari (Break a leg, Piece of cake, Figure out)',
+          bookTitle: 'Database Cerdas Cermat Bahasa Inggris Umum Mimi V15',
+          bookAuthor: 'Kurikulum & Kuis Interaktif Mimi V15',
+          summaryPoints: [
+            '"A piece of cake" berarti sesuatu yang sangat mudah dikerjakan.',
+            '"Break a leg!" digunakan untuk mendoakan semoga sukses saat tampil atau ujian.',
+            '"Figure out" berarti berhasil memahami atau menemukan solusi dari suatu teka-teki.',
+          ],
+          question: 'Jika sahabatmu berkata "This English challenge is a piece of cake!", apa arti ungkapan tersebut?',
+          options: [
+            'Tantangan tersebut sangat mudah diselesaikan',
+            'Tantangan tersebut berhadiah kue ulang tahun',
+            'Tantangan tersebut sangat rumit',
+            'Tantangan tersebut ditunda besok',
+          ],
+          correctIndex: 0,
+          explanation: 'Idiom "a piece of cake" berarti pekerjaan atau soal yang sangat mudah.',
+          simTitle: 'Simulator Mastery Idiom & Phrasal Verbs HAGO',
+          simParam: 'Skor Penguasaan Idiom',
+          simUnit: 'poin',
+          simMin: 20,
+          simMax: 100,
+          simStep: 20,
+          simDefault: 60,
+          simTarget: 100,
+          simFormula: 'Idiom Mastery = 100 Poin (Natural Speaker)',
+          simExplanation: 'Geser skor ke 100 poin untuk menuntaskan latihan idiom Bahasa Inggris Umum.',
+        },
+        {
+          title: 'English Vocabulary, Synonyms & Antonyms (Millionaire Style)',
+          subtitle: 'Lawan kata, persamaan kata, dan kosakata komunikasi global sehari-hari',
+          bookTitle: 'Database Cerdas Cermat Bahasa Inggris Umum Mimi V15',
+          bookAuthor: 'Kurikulum & Kuis Interaktif Mimi V15',
+          summaryPoints: [
+            'Antonim (lawan kata) populer: Ancient (kuno) >< Modern; Generous (dermawan) >< Stingy (pelit).',
+            'Sinonim (persamaan kata) populer: Huge = Enormous (sangat besar); Smart = Intelligent / Clever.',
+            'Seseorang yang fasih berbicara dua bahasa disebut "Bilingual".',
+          ],
+          question: 'Manakah antonim (lawan kata) yang paling tepat dari kata "Ancient" (Kuno)?',
+          options: ['Modern', 'Antique', 'Old', 'Traditional'],
+          correctIndex: 0,
+          explanation: '"Ancient" berarti sangat kuno, sehingga lawan katanya adalah "Modern".',
+          simTitle: 'Simulator Kosakata & Sinonim-Antonim Inggris',
+          simParam: 'Level Kosakata Aktif',
+          simUnit: 'tier',
+          simMin: 1,
+          simMax: 10,
+          simStep: 1,
+          simDefault: 5,
+          simTarget: 9,
+          simFormula: 'Vocab Tier 9 = Ready for Millionaire English Quiz',
+          simExplanation: 'Atur ke Tier 9 untuk menguasai sinonim dan antonim Bahasa Inggris Umum.',
+        },
+      ];
+    }
+
+    return [
+      {
+        title: 'Cerdas Cermat Pengetahuan Umum: Sains, Hukum Newton & Fotosintesis (HAGO Style)',
+        subtitle: 'Fakta sains populer, astronomi, tubuh manusia, dan fenomena alam sehari-hari',
+        bookTitle: 'Ensiklopedia Cerdas Cermat Pengetahuan Umum Mimi V15',
+        bookAuthor: 'Database Pengetahuan Internal Mimi V15',
+        summaryPoints: [
+          'Fotosintesis pada tumbuhan hijau menyerap Karbon Dioksida (CO₂) dan air dengan bantuan cahaya matahari untuk menghasilkan Glukosa dan Oksigen (O₂).',
+          'Hukum I Newton (Inersia/Kelembaman) menjelaskan mengapa tubuh terdorong ke depan saat kendaraan direm mendadak.',
+          'Jupiter adalah planet terbesar di Tata Surya, sedangkan Venus adalah planet terpanas karena efek rumah kaca atmosfernya.',
+        ],
+        question: 'Gas apakah yang dilepaskan oleh tumbuhan hijau saat proses fotosintesis dan sangat dibutuhkan manusia untuk bernapas?',
+        options: ['Oksigen (O₂)', 'Karbon Dioksida (CO₂)', 'Helium (He)', 'Argon (Ar)'],
+        correctIndex: 0,
+        explanation: 'Fotosintesis menghasilkan glukosa dan melepaskan gas oksigen (O₂) ke udara.',
+        simTitle: 'Simulator Cerdas Cermat Sains & Alam HAGO',
+        simParam: 'Skor Wawasan Sains',
+        simUnit: 'poin',
+        simMin: 20,
+        simMax: 100,
+        simStep: 20,
+        simDefault: 60,
+        simTarget: 100,
+        simFormula: 'Sains Populer = 100 Poin (Cerdas Cermat Master)',
+        simExplanation: 'Geser skor ke 100 poin untuk menyelesaikan tantangan Sains Pengetahuan Umum.',
+      },
+      {
+        title: 'Sejarah Nusantara, Perang Diponegoro & Geografi Dunia (Millionaire Style)',
+        subtitle: 'Wawasan sejarah perjuangan bangsa Indonesia, sungai terpanjang, dan rekor dunia',
+        bookTitle: 'Ensiklopedia Cerdas Cermat Pengetahuan Umum Mimi V15',
+        bookAuthor: 'Database Pengetahuan Internal Mimi V15',
+        summaryPoints: [
+          'Perang Diponegoro (Perang Jawa 1825–1830) dipimpin oleh Pangeran Diponegoro (Raden Mas Ontowiryo) melawan pemerintah kolonial.',
+          'Sungai Kapuas di Kalimantan Barat (1.143 km) adalah sungai terpanjang di Indonesia, dan Danau Toba di Sumatera Utara adalah danau vulkanik terbesar di dunia.',
+          'Samudra Pasifik merupakan samudra terluas di permukaan Bumi.',
+        ],
+        question: 'Perang besar di Pulau Jawa pada tahun 1825–1830 yang dipimpin oleh Pangeran Ontowiryo dikenal sebagai...',
+        options: ['Perang Diponegoro', 'Perang Padri', 'Perang Banjar', 'Perang Jagaraga'],
+        correctIndex: 0,
+        explanation: 'Pangeran Ontowiryo adalah nama kecil Pangeran Diponegoro yang memimpin Perang Jawa (1825–1830).',
+        simTitle: 'Simulator Wawasan Nusantara & Dunia (Millionaire)',
+        simParam: 'Tingkat Tantangan Kuis',
+        simUnit: 'level',
+        simMin: 1,
+        simMax: 10,
+        simStep: 1,
+        simDefault: 5,
+        simTarget: 10,
+        simFormula: 'Level 10 = Grandmaster Pengetahuan Umum',
+        simExplanation: 'Atur ke Level 10 untuk menuntaskan ekspedisi wawasan Nusantara dan dunia.',
+      },
+    ];
+  }
+
+  // 1. BAHASA INDONESIA (SD, SMP, SMA)
+  if (subjLower.includes('indonesia')) {
+    return [
+      {
+        title: `Ide Pokok, Kalimat Utama & Gagasan Pendukung (${selectedClass})`,
+        subtitle: `Menemukan pikiran utama pada paragraf deduktif dan induktif ${selectedClass}`,
+        bookTitle: `Bahasa Indonesia Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Kurikulum Merdeka Indonesia — Edisi Terverifikasi Mimi V15',
+        summaryPoints: [
+          'Ide pokok adalah gagasan utama yang menjadi inti pembahasan dalam sebuah paragraf.',
+          'Paragraf deduktif meletakkan kalimat utama di awal paragraf, sedangkan induktif di akhir paragraf.',
+          'Kalimat penjelas berfungsi menguraikan rincian, bukti, atau contoh dari kalimat utama.',
+        ],
+        question:
+          'Kalimat yang memuat gagasan utama dan menjadi dasar pengembangan seluruh paragraf disebut...',
+        options: ['Kalimat Utama', 'Kalimat Sampingan', 'Kata Hubung', 'Kalimat Tanya'],
+        correctIndex: 0,
+        explanation:
+          'Kalimat utama berisi ide pokok paragraf yang kemudian dijelaskan oleh kalimat-kalimat penjelas.',
+        simTitle: 'Laboratorium Analisis Kepaduan Paragraf',
+        simParam: 'Kepaduan Kalimat Penjelas',
+        simUnit: 'poin',
+        simMin: 1,
+        simMax: 10,
+        simStep: 1,
+        simDefault: 5,
+        simTarget: 9,
+        simFormula: 'Paragraf Padu = 1 Ide Pokok + Kalimat Penjelas Koheren (Skor 9)',
+        simExplanation:
+          'Geser parameter kepaduan ke angka 9 untuk menyusun paragraf Bahasa Indonesia yang kohesif dan koheren.',
+      },
+      {
+        title:
+          educationLevel === EducationLevel.SMA || educationLevel === EducationLevel.SMK
+            ? `Teks Argumentasi, Penalaran Kritis & Eksposisi (${selectedClass})`
+            : `Struktur Teks Narasi, Deskripsi & Eksposisi (${selectedClass})`,
+        subtitle:
+          educationLevel === EducationLevel.SMA || educationLevel === EducationLevel.SMK
+            ? `Menyusun tesis, tubuh argumen berbasis data faktual, serta membedakan fakta dan opini`
+            : `Membedakan orientasi, komplikasi, resolusi, serta tesis dan argumentasi`,
+        bookTitle: `Bahasa Indonesia Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Kurikulum Merdeka Indonesia — Edisi Terverifikasi Mimi V15',
+        summaryPoints:
+          educationLevel === EducationLevel.SMA || educationLevel === EducationLevel.SMK
+            ? [
+                'Teks argumentasi bertujuan meyakinkan pembaca melalui Tesis (pendapat awal), Tubuh Argumen (data & fakta valid), dan Simpulan.',
+                'Kalimat fakta memuat data objektif terukur, sedangkan opini berisi pandangan atau penilaian subjektif.',
+                'Kohesi dan koherensi menjaga kepaduan antar-kalimat dalam esai argumentatif.',
+              ]
+            : [
+                'Teks deskripsi menggambarkan objek secara rinci seolah pembaca melihat dan merasakan langsung.',
+                'Teks narasi memiliki alur cerita: Orientasi (pengenalan), Komplikasi (puncak masalah), dan Resolusi (penyelesaian).',
+                'Teks eksposisi memaparkan informasi ilmiah melalui Tesis, Argumentasi faktual, dan Penegasan Ulang.',
+              ],
+        question:
+          educationLevel === EducationLevel.SMA || educationLevel === EducationLevel.SMK
+            ? 'Bagian dalam struktur teks argumentasi yang memaparkan data, bukti ilmiah, dan fakta pendukung tesis disebut...'
+            : 'Bagian dalam struktur teks narasi yang berisi munculnya permasalahan atau konflik antar tokoh disebut...',
+        options:
+          educationLevel === EducationLevel.SMA || educationLevel === EducationLevel.SMK
+            ? ['Orientasi Fiksi', 'Tubuh Argumen', 'Koda Cerita', 'Abstrak']
+            : ['Orientasi', 'Komplikasi', 'Resolusi', 'Koda'],
+        correctIndex: 1,
+        explanation:
+          educationLevel === EducationLevel.SMA || educationLevel === EducationLevel.SMK
+            ? 'Tubuh argumen berisi rangkaian alasan logis dan data faktual yang membuktikan kebenaran tesis.'
+            : 'Komplikasi adalah bagian munculnya hingga memuncaknya masalah/konflik dalam cerita narasi.',
+        simTitle: 'Simulator Struktur Alur & Argumen Teks Bahasa Indonesia',
+        simParam: 'Kelengkapan Struktur Teks',
+        simUnit: 'tahap',
+        simMin: 1,
+        simMax: 4,
+        simStep: 1,
+        simDefault: 2,
+        simTarget: 4,
+        simFormula: 'Struktur Utuh = Tesis/Orientasi + Argumen + Simpulan (4 Tahap)',
+        simExplanation:
+          'Atur kelengkapan struktur teks ke 4 tahap agar alur dan argumen tersusun utuh.',
+      },
+      {
+        title: `Kaidah Kebahasaan, Kata Baku & EYD Edisi V (${selectedClass})`,
+        subtitle: `Penggunaan huruf kapital, tanda baca, kata baku KBBI, dan kalimat efektif`,
+        bookTitle: `Pedoman EYD V & Buku Bahasa Indonesia ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Badan Bahasa & Pusat Perbukuan Kemendikdasmen RI',
+        summaryPoints: [
+          'Kalimat efektif memiliki subjek dan predikat yang jelas, hemat kata, serta sesuai kaidah EYD V.',
+          'Contoh kata baku KBBI yang sering keliru: apotek (bukan apotik), praktik (bukan praktek), risiko (bukan resiko).',
+          'Imbuhan di- ditulis serangkai untuk kata kerja pasif (dibaca), dan dipisah untuk kata depan penunjuk tempat (di sekolah).',
+        ],
+        question: 'Manakah penulisan kata baku yang tepat sesuai Kamus Besar Bahasa Indonesia (KBBI)?',
+        options: [
+          'Apotek, praktik, dan jadwal',
+          'Apotik, praktek, dan jadual',
+          'Apotek, praktek, dan jadual',
+          'Apotik, praktik, dan jadwal',
+        ],
+        correctIndex: 0,
+        explanation:
+          'Sesuai KBBI dan EYD V, penulisan kata baku yang benar adalah apotek, praktik, dan jadwal.',
+        simTitle: 'Uji Akurasi Kata Baku & Kalimat Efektif EYD V',
+        simParam: 'Akurasi Ejaan Baku',
+        simUnit: '%',
+        simMin: 20,
+        simMax: 100,
+        simStep: 10,
+        simDefault: 60,
+        simTarget: 100,
+        simFormula: 'EYD V Valid = 100% Kata Baku KBBI & Tanda Baca Tepat',
+        simExplanation:
+          'Naikkan akurasi ejaan ke 100% untuk memastikan seluruh kalimat memenuhi standar EYD Edisi V.',
+      },
+      {
+        title: `Apresiasi Sastra: Puisi, Majas & Pesan Moral Cerita (${selectedClass})`,
+        subtitle: `Mengenal majas metafora, personifikasi, hiperbola, serta amanat karya sastra`,
+        bookTitle: `Bahasa Indonesia Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Majas personifikasi memberikan sifat manusia pada benda mati (contoh: angin malam berbisik lembut).',
+          'Majas metafora menggunakan perbandingan langsung (contoh: perpustakaan adalah gudang ilmu).',
+          'Amanat adalah pesan moral atau pelajaran hidup yang ingin disampaikan penulis kepada pembaca.',
+        ],
+        question:
+          'Kalimat "Daun-daun kelapa melambai-lambai menyambut pagi di tepi pantai" menggunakan gaya bahasa (majas)...',
+        options: ['Personifikasi', 'Litotes', 'Ironi', 'Alegori'],
+        correctIndex: 0,
+        explanation:
+          'Majas personifikasi mengumpamakan benda tak bernyawa (daun kelapa) seolah-olah bertingkah seperti manusia (melambai-lambai).',
+        simTitle: 'Eksplorasi Diksi & Gaya Bahasa Sastra Nusantara',
+        simParam: 'Kekuatan Imaji Puisi',
+        simUnit: 'level',
+        simMin: 1,
+        simMax: 5,
+        simStep: 1,
+        simDefault: 3,
+        simTarget: 5,
+        simFormula: 'Puisi Indah = Diksi Tepat + Rima Selaras + Majas (Level 5)',
+        simExplanation:
+          'Geser kekuatan imaji ke Level 5 untuk memadukan diksi, rima, dan majas sastra Indonesia.',
+      },
+    ];
+  }
+
+  // 2. IPAS (SD) / IPA (SMP)
+  if (subjLower.includes('ipas') || subjLower.includes('ipa')) {
+    return [
+      {
+        title: `Siklus Air, Perubahan Wujud Zat & Energi (${selectedClass})`,
+        subtitle: `Memahami evaporasi, kondensasi, presipitasi, dan konservasi energi di bumi`,
+        bookTitle: `Ilmu Pengetahuan Alam dan Sosial (IPAS) ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Amalia Fitri dkk. — Pusat Perbukuan Kemendikdasmen RI',
+        summaryPoints: [
+          'Evaporasi adalah proses penguapan air laut dan sungai akibat panas matahari.',
+          'Kondensasi mengubah uap air di atmosfer menjadi titik-titik air pembentuk awan.',
+          'Presipitasi (hujan) mengembalikan air ke permukaan bumi dan diserap tanah melalui infiltrasi.',
+        ],
+        question:
+          'Proses berubahnya uap air di udara menjadi titik-titik air yang membentuk awan pada siklus hidrologi disebut...',
+        options: ['Kondensasi', 'Evaporasi', 'Infiltrasi', 'Sublimasi'],
+        correctIndex: 0,
+        explanation:
+          'Kondensasi adalah proses pengembunan uap air menjadi titik-titik air di atmosfer.',
+        simTitle: 'Laboratorium Laju Siklus Hidrologi & Suhu Atmosfer',
+        simParam: 'Suhu Penyinaran Matahari',
+        simUnit: '°C',
+        simMin: 20,
+        simMax: 40,
+        simStep: 2,
+        simDefault: 26,
+        simTarget: 32,
+        simFormula: 'Laju Evaporasi Optimal = 32 °C (Keseimbangan Siklus Air)',
+        simExplanation:
+          'Atur suhu penyinaran matahari ke 32 °C untuk mengamati keseimbangan evaporasi dan kondensasi awan.',
+      },
+      {
+        title: `Fotosintesis, Ekosistem & Rantai Makanan (${selectedClass})`,
+        subtitle: `Hubungan produsen, konsumen, dekomposer, dan proses pembentukan glukosa tumbuhan`,
+        bookTitle: `IPAS / IPA Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Tumbuhan hijau berperan sebagai produsen karena mampu membuat makanan sendiri melalui fotosintesis.',
+          'Fotosintesis membutuhkan cahaya matahari, klorofil, air (H2O), dan karbon dioksida (CO2) untuk menghasilkan glukosa dan oksigen (O2).',
+          'Dekomposer (pengurai seperti jamur dan bakteri) menguraikan sisa makhluk hidup menjadi unsur hara tanah.',
+        ],
+        question: 'Gas utama yang dihasilkan tumbuhan saat fotosintesis dan sangat dibutuhkan manusia untuk bernapas adalah...',
+        options: ['Oksigen (O2)', 'Karbon Dioksida (CO2)', 'Nitrogen (N2)', 'Metana'],
+        correctIndex: 0,
+        explanation:
+          'Fotosintesis menghasilkan glukosa sebagai cadangan makanan dan melepaskan gas Oksigen (O2) ke udara.',
+        simTitle: 'Simulator Intensitas Cahaya & Laju Fotosintesis',
+        simParam: 'Intensitas Cahaya',
+        simUnit: 'lux',
+        simMin: 100,
+        simMax: 1000,
+        simStep: 100,
+        simDefault: 400,
+        simTarget: 800,
+        simFormula: '6CO2 + 6H2O + Cahaya (800 lux) -> C6H12O6 + 6O2',
+        simExplanation:
+          'Geser intensitas cahaya ke 800 lux untuk mencapai laju produksi oksigen fotosintesis yang optimal.',
+      },
+      {
+        title: `Gaya, Gerak, Pesawat Sederhana & Magnet (${selectedClass})`,
+        subtitle: `Pengaruh gaya terhadap gerak benda, gaya gesek, gravitasi, dan sifat kutub magnet`,
+        bookTitle: `IPAS / IPA Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Gaya adalah tarikan atau dorongan yang dapat mengubah bentuk, arah, dan kecepatan gerak benda.',
+          'Kutub magnet yang senama (Utara–Utara) akan tolak-menolak, sedangkan kutub tidak senama (Utara–Selatan) tarik-menarik.',
+          'Pesawat sederhana (tuas, bidang miring, katrol) memudahkan pekerjaan manusia dengan melipatgandakan gaya.',
+        ],
+        question: 'Apa yang terjadi apabila kutub Utara magnet didekatkan dengan kutub Selatan magnet lainnya?',
+        options: [
+          'Saling tarik-menarik',
+          'Saling tolak-menolak',
+          'Kehilangan sifat magnet',
+          'Meleleh seketika',
+        ],
+        correctIndex: 0,
+        explanation:
+          'Dua kutub magnet yang berbeda jenis (Utara dan Selatan) akan saling tarik-menarik.',
+        simTitle: 'Simulator Resultan Gaya & Percepatan Benda',
+        simParam: 'Gaya Dorong (F)',
+        simUnit: 'N',
+        simMin: 10,
+        simMax: 100,
+        simStep: 10,
+        simDefault: 30,
+        simTarget: 60,
+        simFormula: 'F = 60 N pada m = 15 kg -> a = 4 m/s²',
+        simExplanation:
+          'Atur gaya dorong ke 60 N agar benda bermassa 15 kg bergerak dengan percepatan 4 m/s².',
+      },
+      {
+        title: `Sistem Organ Tubuh & Penjelajahan Tata Surya (${selectedClass})`,
+        subtitle: `Organ pernapasan, pencernaan manusia, serta rotasi dan revolusi planet`,
+        bookTitle: `IPAS / IPA Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Pertukaran gas oksigen (O2) dan karbon dioksida (CO2) di dalam paru-paru terjadi pada gelembung alveolus.',
+          'Rotasi bumi pada porosnya menyebabkan terjadinya siang dan malam serta gerak semu harian matahari.',
+          'Revolusi bumi mengelilingi matahari bersama kemiringan poros bumi menyebabkan pergantian musim.',
+        ],
+        question: 'Bagian di dalam paru-paru manusia yang berfungsi sebagai tempat pertukaran gas oksigen dan karbon dioksida adalah...',
+        options: ['Alveolus', 'Trakea', 'Kerongkongan', 'Diafragma'],
+        correctIndex: 0,
+        explanation:
+          'Alveolus dikelilingi pembuluh kapiler tipis sehingga memungkinkan difusi O2 dan CO2 secara efisien.',
+        simTitle: 'Simulator Kapasitas Vital Paru-Paru & Frekuensi Napas',
+        simParam: 'Volume Udara Pernapasan',
+        simUnit: 'mL',
+        simMin: 500,
+        simMax: 3500,
+        simStep: 500,
+        simDefault: 1500,
+        simTarget: 3000,
+        simFormula: 'Kapasitas Inspirasi Maksimal = 3000 mL Oksigen Segar',
+        simExplanation:
+          'Geser volume udara ke 3000 mL untuk mensimulasikan kapasitas inspirasi penuh saat olahraga.',
+      },
+    ];
+  }
+
+  // 3. BAHASA INGGRIS (Strict grade separation: SD vs SMP vs SMA/SMK)
+  if (subjLower.includes('inggris') || subjLower.includes('english')) {
+    if (educationLevel === EducationLevel.SD) {
+      return [
+        {
+          title:
+            classNum <= 3
+              ? `Greetings, Numbers 1–20 & Colors (${selectedClass})`
+              : `Demonstratives: This is, That is & Things Around Us (${selectedClass})`,
+          subtitle:
+            classNum <= 3
+              ? 'Sapaan bahasa Inggris sehari-hari, warna, dan angka dasar SD'
+              : 'Menunjuk benda dekat dan jauh (This is / That is / These are / Those are)',
+          bookTitle: `My Next Words Grade ${classNum} — Bahasa Inggris SD Kurikulum Merdeka`,
+          bookAuthor: 'EYLC Team — Pusat Perbukuan Kemendikdasmen RI',
+          summaryPoints:
+            classNum <= 3
+              ? [
+                  '"Good morning" diucapkan saat pagi hari, "Good afternoon" siang/sore, dan "Good evening" malam hari.',
+                  'Kosakata warna dasar: Red (merah), Blue (biru), Yellow (kuning), Green (hijau).',
+                  'Menanyakan kabar teman: "How are you?" dijawab "I am fine, thank you."',
+                ]
+              : [
+                  '"This is" digunakan untuk menunjuk 1 benda yang dekat (contoh: This is a cat).',
+                  '"That is" digunakan untuk menunjuk 1 benda yang jauh (contoh: That is a giraffe).',
+                  '"These are" (dekat) dan "Those are" (jauh) digunakan untuk benda jamak (lebih dari satu).',
+                ],
+          question:
+            classNum <= 3
+              ? 'Jika kamu bertemu gurumu pada pagi hari pukul 07.00, sapaan Bahasa Inggris yang tepat adalah...'
+              : 'Kita ingin menunjuk seekor gajah yang berada JAUH di seberang kandang. Kalimat yang tepat adalah...',
+          options:
+            classNum <= 3
+              ? ['Good morning, Teacher!', 'Good night, Teacher!', 'Goodbye!', 'See you tomorrow!']
+              : ['That is an elephant.', 'This is an elephant.', 'These are elephants.', 'I am an elephant.'],
+          correctIndex: 0,
+          explanation:
+            classNum <= 3
+              ? '"Good morning" adalah sapaan yang digunakan pada pagi hari.'
+              : '"That is" dipakai untuk menunjuk satu benda/hewan yang jaraknya jauh dari pembicara.',
+          simTitle: 'English Vocabulary Mastery Lab SD',
+          simParam: 'Kosakata Dikuasai',
+          simUnit: 'kata',
+          simMin: 5,
+          simMax: 30,
+          simStep: 5,
+          simDefault: 10,
+          simTarget: 25,
+          simFormula: 'SD English Mastery = 25 Active Daily Words',
+          simExplanation: 'Geser target kosakata ke 25 kata untuk menguasai percakapan dasar Bahasa Inggris SD.',
+        },
+        {
+          title: `Animal World, Family Members & My Classroom (${selectedClass})`,
+          subtitle: 'Mengenal nama hewan (Animals), anggota keluarga, dan benda di ruang kelas',
+          bookTitle: `My Next Words Grade ${classNum} — Bahasa Inggris SD Kurikulum Merdeka`,
+          bookAuthor: 'EYLC Team — Pusat Perbukuan Kemendikdasmen RI',
+          summaryPoints: [
+            'Kosakata hewan populer: Elephant (gajah), Lion (singa), Rabbit (kelinci), Bird (burung), Butterfly (kupu-kupu).',
+            'Anggota keluarga inti: Father (ayah), Mother (ibu), Brother (saudara laki-laki), Sister (saudara perempuan).',
+            'Artikel "an" dipakai sebelum bunyi huruf vokal (an apple, an elephant), sedangkan "a" sebelum bunyi konsonan (a book, a cat).',
+          ],
+          question: 'Hewan yang memiliki belalai panjang dalam Bahasa Inggris disebut...',
+          options: ['An elephant', 'A rabbit', 'A monkey', 'Achicken'],
+          correctIndex: 0,
+          explanation: '"Elephant" berarti gajah dan menggunakan artikel "an" karena diawali bunyi vokal.',
+          simTitle: 'Animal & Classroom Vocabulary Builder',
+          simParam: 'Skor Pengucapan',
+          simUnit: 'poin',
+          simMin: 20,
+          simMax: 100,
+          simStep: 20,
+          simDefault: 60,
+          simTarget: 100,
+          simFormula: 'Pronunciation Score = 100 Poin (Fluent Kids)',
+          simExplanation: 'Atur skor pengucapan ke 100 poin untuk menyelesaikan latihan kosakata hewan & kelas.',
+        },
+      ];
+    }
+
+    if (educationLevel === EducationLevel.SMP) {
+      return [
+        {
+          title: `Past Continuous, Simple Past & Recount Text (${selectedClass})`,
+          subtitle: 'Menceritakan kejadian yang sedang berlangsung di masa lampau (was/were + V-ing) serta Verb 2 pada Recount Text',
+          bookTitle: `English for Nusantara untuk SMP/MTs ${selectedClass}`,
+          bookAuthor: 'Kurikulum Merdeka Indonesia — Edisi Terverifikasi Mimi V15',
+          summaryPoints: [
+            'Past Continuous Tense (was/were + Verb-ing) menyatakan kegiatan yang sedang berlangsung di masa lampau saat kejadian lain terjadi.',
+            'Simple Past Tense (Verb 2) digunakan untuk kejadian yang sudah selesai di masa lampau (yesterday, last week, two days ago).',
+            'Contoh gabungan: "While I was studying English last night, my best friend called me."',
+          ],
+          question:
+            'Complete the sentence: "While Rani and her classmates ___ the science exhibition yesterday, the principal arrived."',
+          options: ['were visiting', 'was visiting', 'visit', 'visits'],
+          correctIndex: 0,
+          explanation:
+            'Subjek jamak "Rani and her classmates" setelah "While ... yesterday" menggunakan Past Continuous Tense: "were + Verb-ing" (were visiting).',
+          simTitle: 'Past Continuous & Simple Past Timeline Lab',
+          simParam: 'Ketepatan Konjugasi Tense SMP',
+          simUnit: '%',
+          simMin: 20,
+          simMax: 100,
+          simStep: 20,
+          simDefault: 60,
+          simTarget: 100,
+          simFormula: 'Past Continuous = S + was/were + V-ing | Simple Past = S + V2',
+          simExplanation: 'Geser akurasi ke 100% untuk menguasai perbedaan Past Continuous dan Simple Past Tense SMP.',
+        },
+        {
+          title: `Comparative Degree, Present Perfect & Passive Voice (${selectedClass})`,
+          subtitle: 'Perbandingan sifat (Comparative & Superlative), have/has + Verb 3, serta kalimat pasif (be + Verb 3)',
+          bookTitle: `English for Nusantara untuk SMP/MTs ${selectedClass}`,
+          bookAuthor: 'Kurikulum Merdeka Indonesia — Edisi Terverifikasi Mimi V15',
+          summaryPoints: [
+            'Comparative Degree membandingkan dua hal: tambahkan "-er than" untuk kata sifat pendek (taller than, faster than) atau "more ... than" untuk kata sifat panjang (more diligent than).',
+            'Present Perfect Tense (have/has + Verb 3) menyatakan kegiatan yang sudah dilakukan dan hasilnya masih terasa sekarang.',
+            'Passive Voice fokus pada objek yang dikenai tindakan dengan pola: Subject + to be (is/am/are/was/were) + Verb 3.',
+          ],
+          question:
+            'Complete the Comparative Degree sentence: "A high-speed train is ___ than a regular city bus."',
+          options: ['faster', 'fastest', 'more fast', 'as fast'],
+          correctIndex: 0,
+          explanation:
+            'Kata sifat 1 suku kata "fast" saat membandingkan dua benda ("than") menjadi "faster".',
+          simTitle: 'Comparative, Present Perfect & Passive Voice Lab',
+          simParam: 'Level Penguasaan Grammar SMP',
+          simUnit: 'level',
+          simMin: 1,
+          simMax: 5,
+          simStep: 1,
+          simDefault: 3,
+          simTarget: 5,
+          simFormula: 'Comparative = Adj-er / more Adj + than | Passive = be + V3',
+          simExplanation: 'Naikkan level ke 5 untuk menguasai Comparative Degree, Present Perfect, dan Passive Voice SMP.',
+        },
+      ];
+    }
+
+    return [
+      {
+        title: `Conditional Sentences (Type 1, 2, 3) & Subjunctive (${selectedClass})`,
+        subtitle: 'Kalimat pengandaian masa depan, masa kini tak nyata, dan penyesalan masa lampau',
+        bookTitle: `Bahasa Inggris: Work in Progress untuk SMA/SMK ${selectedClass}`,
+        bookAuthor: 'Budi Hermawan dkk. — Pusat Perbukuan Kemendikdasmen RI',
+        summaryPoints: [
+          'Conditional Type 1 (Real Present/Future): If + Simple Present, Will + Verb 1.',
+          'Conditional Type 2 (Unreal Present): If + Simple Past (were/V2), Would + Verb 1.',
+          'Conditional Type 3 (Unreal Past): If + Past Perfect (had + V3), Would have + Verb 3.',
+        ],
+        question:
+          'Complete the Conditional Type 3 sentence: "If he had studied harder last semester, he ___ the scholarship exam."',
+        options: ['would have passed', 'will pass', 'would pass', 'passed'],
+        correctIndex: 0,
+        explanation:
+          'If-clause menggunakan Past Perfect ("had studied"), sehingga klausa utama wajib menggunakan "would have + Verb 3" ("would have passed").',
+        simTitle: 'Conditional Logic & Probability Matrix',
+        simParam: 'Tipe Pengandaian',
+        simUnit: 'tipe',
+        simMin: 1,
+        simMax: 3,
+        simStep: 1,
+        simDefault: 1,
+        simTarget: 3,
+        simFormula: 'Type 3: If + S + had V3, S + would have V3',
+        simExplanation: 'Geser ke Tipe 3 untuk menganalisis struktur pengandaian masa lampau (Conditional Type 3).',
+      },
+      {
+        title: `Analytical Exposition & Academic Reading Comprehension (${selectedClass})`,
+        subtitle: 'Menyusun argumen logis (Thesis, Arguments, Reiteration) dan kosakata akademik',
+        bookTitle: `Bahasa Inggris: Life Today untuk SMA/SMK ${selectedClass}`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Analytical Exposition bertujuan meyakinkan pembaca bahwa suatu topik penting dibahas melalui argumen logis.',
+          'Struktur teks: Thesis (pengenalan isu), Arguments (poin pendapat + bukti fakta), Reiteration (kesimpulan ulang).',
+          'Menggunakan Simple Present Tense, causal conjunctions (therefore, consequently), dan mental verbs.',
+        ],
+        question:
+          ' Bagian penutup pada teks Analytical Exposition yang menegaskan kembali pendapat penulis di bagian Thesis disebut...',
+        options: ['Reiteration', 'Complication', 'Orientation', 'Description'],
+        correctIndex: 0,
+        explanation:
+          'Reiteration berfungsi merangkum dan menegaskan kembali posisi penulis yang telah disampaikan pada Thesis.',
+        simTitle: 'Academic Essay Argumentation Builder',
+        simParam: 'Kekuatan Bukti Argumen',
+        simUnit: 'poin',
+        simMin: 20,
+        simMax: 100,
+        simStep: 20,
+        simDefault: 60,
+        simTarget: 100,
+        simFormula: 'Strong Essay = Thesis + Data Arguments + Reiteration (100)',
+        simExplanation: 'Atur kekuatan bukti argumen ke 100 poin untuk menghasilkan esai akademik yang persuasif.',
+      },
+    ];
+  }
+
+  // 4. PPKn (Pancasila & Kewarganegaraan)
+  if (subjLower.includes('ppkn') || subjLower.includes('pkn') || subjLower.includes('pancasila')) {
+    return [
+      {
+        title: `Nilai-Nilai Luhur Pancasila & Lambang Garuda (${selectedClass})`,
+        subtitle: `Pengamalan sila ke-1 sampai sila ke-5 dalam kehidupan sehari-hari dan sekolah`,
+        bookTitle: `Pendidikan Pancasila untuk ${educationLevel} ${selectedClass} Kurikulum Merdeka`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Lima lambang sila Pancasila: Bintang (Sila 1), Rantai Emas (Sila 2), Pohon Beringin (Sila 3), Kepala Banteng (Sila 4), Padi dan Kapas (Sila 5).',
+          'Musyawarah untuk mencapai mufakat merupakan pengamalan nyata Sila ke-4 Pancasila.',
+          'Gotong royong dan menjaga persatuan di tengah keberagaman mencerminkan Sila ke-3 Pancasila.',
+        ],
+        question:
+          'Menyelesaikan perbedaan pendapat saat pemilihan ketua kelas dengan cara musyawarah mufakat merupakan pengamalan Pancasila sila ke-...',
+        options: ['Sila ke-4 (Kepala Banteng)', 'Sila ke-1 (Bintang)', 'Sila ke-2 (Rantai)', 'Sila ke-5 (Padi & Kapas)'],
+        correctIndex: 0,
+        explanation:
+          'Sila ke-4 berbunyi "Kerakyatan yang dipimpin oleh hikmat kebijaksanaan dalam permusyawaratan/perwakilan" yang dilambangkan Kepala Banteng.',
+        simTitle: 'Indeks Harmoni & Pengamalan Nilai Pancasila',
+        simParam: 'Skor Gotong Royong & Musyawarah',
+        simUnit: 'poin',
+        simMin: 20,
+        simMax: 100,
+        simStep: 20,
+        simDefault: 60,
+        simTarget: 100,
+        simFormula: 'Profil Pelajar Pancasila = 100% Harmoni & Toleransi',
+        simExplanation: 'Naikkan skor gotong royong dan musyawarah ke 100 poin untuk menuntaskan simulasi PPKn.',
+      },
+      {
+        title: `Norma, Hak, Kewajiban & Bhinneka Tunggal Ika (${selectedClass})`,
+        subtitle: `Keseimbangan antara pelaksanaan kewajiban dan pemenuhan hak warga negara`,
+        bookTitle: `Pendidikan Pancasila untuk ${educationLevel} ${selectedClass} Kurikulum Merdeka`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Empat macam norma di masyarakat: Norma Agama, Norma Kesusilaan, Norma Kesopanan, dan Norma Hukum.',
+          'Hak adalah sesuatu yang patut kita terima, sedangkan kewajiban adalah sesuatu yang harus kita laksanakan dengan tanggung jawab.',
+          'Semboyan Bhinneka Tunggal Ika berasal dari kitab Sutasoma karya Mpu Tantular yang berarti "Berbeda-beda tetapi tetap satu jua".',
+        ],
+        question: 'Norma yang memiliki sanksi tegas dan memaksa berupa denda atau pidana dari aparat negara adalah...',
+        options: ['Norma Hukum', 'Norma Kesopanan', 'Norma Kebiasaan', 'Norma Kesusilaan'],
+        correctIndex: 0,
+        explanation:
+          'Norma hukum dibuat oleh lembaga negara yang berwenang dan memiliki sanksi tegas serta mengikat.',
+        simTitle: 'Simulator Keseimbangan Hak & Kewajiban Warga',
+        simParam: 'Kepatuhan Norma & Kewajiban',
+        simUnit: '%',
+        simMin: 20,
+        simMax: 100,
+        simStep: 20,
+        simDefault: 60,
+        simTarget: 100,
+        simFormula: 'Kewajiban Terlaksana (100%) <=> Hak Terpenuhi Adil',
+        simExplanation: 'Geser kepatuhan kewajiban ke 100% untuk mencapai keseimbangan hak dan ketertiban bersama.',
+      },
+    ];
+  }
+
+  // 5. IPS / EKONOMI & SOSIOLOGI / PROJEK KEWIRAUSAHAAN
+  if (
+    subjLower.includes('ips') ||
+    subjLower.includes('ekonomi') ||
+    subjLower.includes('sosiologi') ||
+    subjLower.includes('kewirausahaan')
+  ) {
+    return [
+      {
+        title: `Kegiatan Ekonomi, Permintaan, Penawaran & Pasar (${selectedClass})`,
+        subtitle: `Memahami produksi, distribusi, konsumsi, serta hukum permintaan dan penawaran`,
+        bookTitle: `Ilmu Pengetahuan Sosial / Ekonomi untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Tiga kegiatan ekonomi utama: Produksi (menghasilkan nilai guna), Distribusi (menyalurkan barang), dan Konsumsi (menggunakan barang/jasa).',
+          'Hukum Permintaan (Demand): Jika harga barang naik maka jumlah barang yang diminta cenderung turun (ceteris paribus).',
+          'Harga Keseimbangan (Equilibrium) terbentuk pada titik potong kurva permintaan dan kurva penawaran.',
+        ],
+        question:
+          'Sesuai hukum permintaan (ceteris paribus), apabila harga suatu barang mengalami kenaikan, maka jumlah permintaan barang tersebut akan...',
+        options: ['Menurun', 'Meningkat tajam', 'Tetap tidak berubah', 'Menjadi tak terhingga'],
+        correctIndex: 0,
+        explanation:
+          'Dalam hukum permintaan, harga barang berbanding terbalik dengan jumlah barang yang diminta konsumen.',
+        simTitle: 'Simulator Titik Keseimbangan Pasar (Market Equilibrium)',
+        simParam: 'Harga Pasar per Unit',
+        simUnit: 'ribu Rp',
+        simMin: 10,
+        simMax: 50,
+        simStep: 5,
+        simDefault: 15,
+        simTarget: 25,
+        simFormula: 'Qd = Qs pada Harga Equilibrium Rp25.000',
+        simExplanation: 'Geser harga pasar ke 25 (Rp25.000) untuk mencapai titik keseimbangan antara permintaan dan penawaran.',
+      },
+      {
+        title: `Interaksi Sosial, Kondusivitas Masyarakat & Geografi Nusantara (${selectedClass})`,
+        subtitle: `Syarat interaksi sosial (kontak & komunikasi), proses asosiatif, dan letak Indonesia`,
+        bookTitle: `IPS / Sosiologi Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Interaksi sosial hanya dapat terjadi apabila memenuhi dua syarat mutlak: Kontak Sosial dan Komunikasi.',
+          'Proses sosial asosiatif mengarah pada persatuan (kerja sama, akomodasi, asimilasi, akulturasi).',
+          'Letak geografis Indonesia berada di antara dua benua (Asia dan Australia) serta dua samudra (Hindia dan Pasifik).',
+        ],
+        question: 'Dua syarat utama terjadinya interaksi sosial di dalam masyarakat adalah...',
+        options: [
+          'Kontak sosial dan komunikasi',
+          'Kekayaan dan jabatan',
+          'Persaingan dan pertentangan',
+          'Jarak dekat dan usia sama',
+        ],
+        correctIndex: 0,
+        explanation:
+          'Menurut sosiologi, interaksi sosial terjadi ketika ada kontak sosial (primer/sekunder) dan komunikasi.',
+        simTitle: 'Peta Interaksi Sosial & Konektivitas Antarwilayah',
+        simParam: 'Indeks Konektivitas Wilayah',
+        simUnit: 'poin',
+        simMin: 20,
+        simMax: 100,
+        simStep: 20,
+        simDefault: 60,
+        simTarget: 100,
+        simFormula: 'Konektivitas Nusantara = 100 Poin (Asosiatif & Produktif)',
+        simExplanation: 'Atur indeks konektivitas ke 100 poin untuk mengoptimalkan kerja sama ekonomi dan sosial.',
+      },
+    ];
+  }
+
+  // 6. FISIKA / KIMIA / BIOLOGI / TEKNIK ELEKTRONIKA
+  if (
+    subjLower.includes('fisika') ||
+    subjLower.includes('kimia') ||
+    subjLower.includes('biologi') ||
+    subjLower.includes('elektronika')
+  ) {
+    if (subjLower.includes('kimia')) {
+      return [
+        {
+          title: `Struktur Atom, Sistem Periodik Unsur & Ikatan Kimia (${selectedClass})`,
+          subtitle: `Partikel subatomik (proton, elektron, neutron), konfigurasi elektron, dan ikatan ion/kovalen`,
+          bookTitle: `Kimia untuk SMA/MA ${selectedClass} Kurikulum Merdeka`,
+          bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+          summaryPoints: [
+            'Nomor atom (Z) menunjukkan jumlah proton sekaligus jumlah elektron pada atom netral.',
+            'Nomor massa (A) adalah penjumlahan jumlah proton dan neutron di dalam inti atom (A = p + n).',
+            'Ikatan ion terbentuk akibat serah terima elektron antara unsur logam dan non-logam, sedangkan ikatan kovalen melalui pemakaian pasangan elektron bersama.',
+          ],
+          question:
+            'Suatu atom netral memiliki nomor atom 11 dan nomor massa 23. Berapakah jumlah neutron di dalam inti atom tersebut?',
+          options: ['12 neutron', '11 neutron', '23 neutron', '34 neutron'],
+          correctIndex: 0,
+          explanation: 'Jumlah neutron = Nomor Massa (A) - Nomor Atom (Z) = 23 - 11 = 12 neutron.',
+          simTitle: 'Laboratorium Keseimbangan pH & Stoikiometri Larutan',
+          simParam: 'Derajat Keasaman (pH)',
+          simUnit: 'pH',
+          simMin: 1,
+          simMax: 14,
+          simStep: 1,
+          simDefault: 3,
+          simTarget: 7,
+          simFormula: 'Titik Netralisasi Asam-Basa = pH 7.0 (Netral)',
+          simExplanation: 'Geser pH larutan ke angka 7 untuk mencapai titik ekuivalen netralisasi asam dan basa.',
+        },
+      ];
+    }
+    if (subjLower.includes('biologi')) {
+      return [
+        {
+          title: `Biologi Sel, Enzim, Genetika & Bioteknologi (${selectedClass})`,
+          subtitle: `Struktur organel sel eukariotik, sintesis protein, dan hukum pewarisan sifat Mendel`,
+          bookTitle: `Biologi untuk SMA/MA ${selectedClass} Kurikulum Merdeka`,
+          bookAuthor: 'Pusat Perbukuan BSKAP Kemendikdasmen RI',
+          summaryPoints: [
+            'Mitokondria berfungsi sebagai tempat respirasi seluler untuk menghasilkan energi dalam bentuk ATP (The Powerhouse of Cell).',
+            'Ribosom berperan penting dalam proses sintesis (pembentukan) protein.',
+            'Enzim bekerja sebagai biokatalisator spesifik (model Lock and Key) yang mempercepat reaksi metabolisme dengan menurunkan energi aktivasi.',
+          ],
+          question:
+            'Organel sel yang berfungsi menghasilkan energi ATP melalui proses respirasi aerob disebut...',
+          options: ['Mitokondria', 'Lisosom', 'Badan Golgi', 'Vakuola'],
+          correctIndex: 0,
+          explanation: 'Mitokondria adalah organel penghasil energi utama (ATP) di dalam sel eukariotik.',
+          simTitle: 'Simulator Aktivitas Enzim terhadap Suhu Optimum',
+          simParam: 'Suhu Reaksi Enzim',
+          simUnit: '°C',
+          simMin: 15,
+          simMax: 50,
+          simStep: 5,
+          simDefault: 25,
+          simTarget: 37,
+          simFormula: 'Laju Enzim Maksimum Manusia = 37 °C (Suhu Tubuh)',
+          simExplanation: 'Atur suhu ke 37 °C untuk mengamati kerja optimum enzim metabolisme tubuh manusia.',
+        },
+      ];
+    }
+    return [
+      {
+        title: `Kinematika, Hukum Newton, Usaha & Energi (${selectedClass})`,
+        subtitle: `Analisis gerak lurus berubah beraturan (GLBB), dinamika partikel, dan kekekalan energi`,
+        bookTitle: `Fisika untuk SMA/SMK ${selectedClass} Kurikulum Merdeka`,
+        bookAuthor: 'Ayuk Ratna Puspaningsih dkk. — Pusat Perbukuan Kemendikdasmen RI',
+        summaryPoints: [
+          'Hukum II Newton menyatakan percepatan benda sebanding dengan resultan gaya dan berbanding terbalik dengan massanya (a = ΣF / m).',
+          'Energi Kinetik (Ek = 1/2 m·v²) bergantung pada massa dan kuadrat kecepatan benda.',
+          'Hukum Ohm pada rangkaian listrik menyatakan tegangan sebanding dengan kuat arus dikali hambatan (V = I × R).',
+        ],
+        question:
+          'Sebuah benda bermassa 4 kg bergerak dengan kecepatan 5 m/s. Berapakah energi kinetik benda tersebut?',
+        options: ['50 Joule', '20 Joule', '10 Joule', '100 Joule'],
+        correctIndex: 0,
+        explanation: 'Ek = 1/2 × m × v² = 1/2 × 4 × (5)² = 2 × 25 = 50 Joule.',
+        simTitle: 'Laboratorium Dinamika Hukum II Newton & Energi',
+        simParam: 'Kecepatan Benda (v)',
+        simUnit: 'm/s',
+        simMin: 2,
+        simMax: 10,
+        simStep: 2,
+        simDefault: 4,
+        simTarget: 6,
+        simFormula: 'Ek = 1/2 × 4 kg × (6 m/s)² = 72 Joule',
+        simExplanation: 'Atur kecepatan benda ke 6 m/s untuk menghasilkan energi kinetik sebesar 72 Joule.',
+      },
+    ];
+  }
+
+  // 7. INFORMATIKA / CODING / PPLG / TJKT
+  if (
+    subjLower.includes('informatika') ||
+    subjLower.includes('coding') ||
+    subjLower.includes('pplg') ||
+    subjLower.includes('tjkt')
+  ) {
+    return [
+      {
+        title: `Berpikir Komputasional, Algoritma & Struktur Data (${selectedClass})`,
+        subtitle: `Dekomposisi masalah, pengenalan pola, abstraksi, serta logika percabangan dan perulangan`,
+        bookTitle: `Informatika Kurikulum Merdeka untuk ${educationLevel} ${selectedClass}`,
+        bookAuthor: 'Mushthofa dkk. — Pusat Perbukuan BSKAP Kemendikdasmen RI',
+        summaryPoints: [
+          'Empat pilar Berpikir Komputasional: Dekomposisi (memecah masalah besar), Pengenalan Pola, Abstraksi, dan penyusunan Algoritma.',
+          'Percabangan (if-else) mengeksekusi blok kode berdasarkan kondisi boolean (true/false).',
+          'Perulangan (for / while loop) menjalankan instruksi berulang secara efisien tanpa duplikasi kode manual.',
+        ],
+        question:
+          'Langkah memecah suatu persoalan kompleks menjadi bagian-bagian kecil yang lebih mudah diselesaikan dalam berpikir komputasional disebut...',
+        options: ['Dekomposisi', 'Enkripsi', 'Kompilasi', 'instalasi'],
+        correctIndex: 0,
+        explanation: 'Dekomposisi adalah teknik menguraikan masalah besar menjadi sub-masalah yang lebih sederhana.',
+        simTitle: 'Simulator Efisiensi Algoritma & Kompleksitas Loop',
+        simParam: 'Jumlah Iterasi Loop',
+        simUnit: 'iterasi',
+        simMin: 2,
+        simMax: 12,
+        simStep: 2,
+        simDefault: 4,
+        simTarget: 8,
+        simFormula: 'Output Loop = 8 Iterasi Terstruktur (0 Error)',
+        simExplanation: 'Geser jumlah iterasi ke 8 untuk memverifikasi jalannya algoritma perulangan otomatis.',
+      },
+    ];
+  }
+
+  // 8. MATEMATIKA (Strictly separated by grade: SD 1, SD 2, SD 3, SD 4-6, SMP 7-9, SMA/SMK 10-12)
+  if (educationLevel === EducationLevel.SD) {
+    if (classNum === 1) {
+      return [
+        {
+          title: 'Mengenal Angka & Penjumlahan 1 sampai 20 (SD Kelas 1)',
+          subtitle: 'Membilang benda, mengenal nilai satuan & puluhan sederhana, serta penjumlahan 1–20',
+          bookTitle: 'Belajar Bersama Temanmu Matematika untuk SD Kelas I',
+          bookAuthor: 'Tim Gakko Tosho — Pusat Perbukuan Kemendikdasmen RI',
+          summaryPoints: [
+            'Bilangan 1 sampai 20 digunakan untuk menghitung jumlah benda di sekitar kita (pensil, apel, buku).',
+            'Bilangan 14 terdiri dari 1 puluhan (10) dan 4 satuan (4).',
+            'Strategi menggenapkan ke 10: untuk menghitung 8 + 5, ambil 2 dari 5 agar 8 menjadi 10, lalu 10 + 3 = 13.',
+          ],
+          question: 'Ibu memberi Budi 7 permen, lalu Ayah memberi lagi 5 permen. Berapa jumlah permen Budi sekarang?',
+          options: ['12 permen', '11 permen', '13 permen', '10 permen'],
+          correctIndex: 0,
+          explanation: '7 ditambah 3 menjadi 10, lalu ditambah sisa 2 menjadi 12 permen.',
+          simTitle: 'Simulator Menghitung Benda 1 sampai 20 (SD Kelas 1)',
+          simParam: 'Jumlah Apel di Keranjang',
+          simUnit: 'apel',
+          simMin: 1,
+          simMax: 20,
+          simStep: 1,
+          simDefault: 8,
+          simTarget: 15,
+          simFormula: '8 Apel Merah + 7 Apel Hijau = 15 Apel',
+          simExplanation: 'Geser jumlah apel ke 15 untuk menyelesaikan penjumlahan bilangan 1 sampai 20.',
+        },
+        {
+          title: 'Pengurangan Sederhana 1 sampai 20 (SD Kelas 1)',
+          subtitle: 'Menghitung sisa benda yang diambil atau diberikan dengan angka 1–20',
+          bookTitle: 'Belajar Bersama Temanmu Matematika untuk SD Kelas I',
+          bookAuthor: 'Tim Gakko Tosho — Pusat Perbukuan Kemendikdasmen RI',
+          summaryPoints: [
+            'Pengurangan artinya jumlah benda berkurang karena dimakan, diberikan, atau terbang.',
+            'Contoh: Ada 10 burung di pohon, terbang 4 burung, maka sisanya adalah 10 - 4 = 6 burung.',
+            'Kita bisa menghitung mundur menggunakan jari tangan atau garis bilangan 1 sampai 20.',
+          ],
+          question: 'Di piring ada 15 kue donat. Adik memakan 5 kue donat. Berapa sisa kue donat di piring?',
+          options: ['10 kue donat', '9 kue donat', '11 kue donat', '12 kue donat'],
+          correctIndex: 0,
+          explanation: '15 dikurangi 5 sama dengan 10 kue donat.',
+          simTitle: 'Laboratorium Pengurangan Benda 1–20',
+          simParam: 'Sisa Balon Setelah Diberikan',
+          simUnit: 'balon',
+          simMin: 1,
+          simMax: 20,
+          simStep: 1,
+          simDefault: 6,
+          simTarget: 10,
+          simFormula: '16 Balon - 6 Balon = 10 Balon',
+          simExplanation: 'Atur jumlah balon ke 10 untuk membuktikan hasil 16 dikurangi 6.',
+        },
+      ];
+    }
+
+    if (classNum === 2) {
+      return [
+        {
+          title: 'Penjumlahan & Pengurangan 1 sampai 100 serta Perkalian 1–5 (SD Kelas 2)',
+          subtitle: 'Menjumlahkan bilangan puluhan dan mengenal perkalian dasar sebagai penjumlahan berulang',
+          bookTitle: 'Belajar Bersama Temanmu Matematika untuk SD Kelas II',
+          bookAuthor: 'Tim Gakko Tosho — Pusat Perbukuan Kemendikdasmen RI',
+          summaryPoints: [
+            'Pada penjumlahan bersusun 1–100, jumlahkan angka satuan dengan satuan, dan puluhan dengan puluhan.',
+            'Perkalian adalah penjumlahan berulang: 3 × 4 artinya 4 + 4 + 4 = 12.',
+            'Perkalian dengan angka 1 menghasilkan bilangan itu sendiri, sedangkan perkalian dengan 2 sama dengan menggandakan angka.',
+          ],
+          question: 'Di atas meja ada 4 piring. Setiap piring berisi 5 buah jeruk. Berapa jumlah seluruh jeruk (4 × 5)?',
+          options: ['20 jeruk', '15 jeruk', '25 jeruk', '9 jeruk'],
+          correctIndex: 0,
+          explanation: '4 × 5 = 5 + 5 + 5 + 5 = 20 buah jeruk.',
+          simTitle: 'Simulator Perkalian Dasar 1–5 (SD Kelas 2)',
+          simParam: 'Hasil Perkalian 4 × n',
+          simUnit: 'buah',
+          simMin: 4,
+          simMax: 20,
+          simStep: 4,
+          simDefault: 8,
+          simTarget: 20,
+          simFormula: '4 Kotak × 5 Bintang = 20 Bintang',
+          simExplanation: 'Geser nilai ke 20 untuk melihat hasil perkalian 4 × 5.',
+        },
+      ];
+    }
+
+    if (classNum === 3) {
+      return [
+        {
+          title: 'Perkalian, Pembagian Dasar & Pecahan Sederhana (SD Kelas 3)',
+          subtitle: 'Menguasai pembagian sebagai kebalikan perkalian serta pecahan 1/2, 1/3, dan 1/4',
+          bookTitle: 'Belajar Bersama Temanmu Matematika untuk SD Kelas III',
+          bookAuthor: 'Tim Gakko Tosho — Pusat Perbukuan Kemendikdasmen RI',
+          summaryPoints: [
+            'Pembagian adalah pengurangan berulang atau kebalikan dari perkalian: karena 6 × 4 = 24, maka 24 ÷ 6 = 4.',
+            'Pecahan 1/4 berarti 1 bagian utuh dibagi menjadi 4 bagian yang sama besar.',
+            'Pada pecahan a/b, angka di atas (a) disebut pembilang dan angka di bawah (b) disebut penyebut.',
+          ],
+          question: 'Ibu memotong sebuah pizza menjadi 4 bagian sama besar. Jika Rina mengambil 1 potong, berapa bagian pizza yang diambil Rina?',
+          options: ['1/4 bagian', '1/2 bagian', '3/4 bagian', '4/1 bagian'],
+          correctIndex: 0,
+          explanation: 'Satu bagian dari empat potongan yang sama besar ditulis sebagai pecahan 1/4.',
+          simTitle: 'Simulator Pembagian & Pecahan Sederhana SD Kelas 3',
+          simParam: 'Jumlah Potongan Sama Besar',
+          simUnit: 'bagian',
+          simMin: 2,
+          simMax: 8,
+          simStep: 1,
+          simDefault: 2,
+          simTarget: 4,
+          simFormula: '1 Kue Utuh ÷ 4 = 1/4 Bagian per Anak',
+          simExplanation: 'Geser ke 4 bagian untuk membagi kue menjadi pecahan 1/4 yang sama besar.',
+        },
+      ];
+    }
+
+    return [
+      {
+        title: `Pecahan Campuran, Desimal, FPB & KPK (${selectedClass})`,
+        subtitle: `Operasi hitung pecahan, konversi desimal-persen, serta Faktor Persekutuan Terbesar dan KPK`,
+        bookTitle: `Belajar Bersama Temanmu Matematika untuk SD ${selectedClass}`,
+        bookAuthor: 'Tim Gakko Tosho — Pusat Perbukuan Kemendikdasmen RI',
+        summaryPoints: [
+          'Untuk menjumlahkan pecahan berbeda penyebut, samakan penyebutnya terlebih dahulu menggunakan KPK.',
+          'Pecahan campuran 2 1/2 dapat diubah menjadi pecahan biasa (2×2 + 1)/2 = 5/2 atau desimal 2,5.',
+          'FPB digunakan untuk membagi benda ke dalam kelompok sama banyak, sedangkan KPK untuk mencari waktu kejadian bersama.',
+        ],
+        question: 'Berapakah hasil penjumlahan pecahan 1/2 + 1/4?',
+        options: ['3/4', '2/6', '1/6', '4/4'],
+        correctIndex: 0,
+        explanation: 'Samakan penyebut menjadi 4: 1/2 = 2/4, sehingga 2/4 + 1/4 = 3/4.',
+        simTitle: 'Laboratorium Pecahan, Desimal & KPK SD Kelas 4–6',
+        simParam: 'Nilai Pembilang (Per 4)',
+        simUnit: 'perempat',
+        simMin: 1,
+        simMax: 4,
+        simStep: 1,
+        simDefault: 2,
+        simTarget: 3,
+        simFormula: '2/4 + 1/4 = 3/4 (0,75 atau 75%)',
+        simExplanation: 'Geser pembilang ke 3 untuk memvisualisasikan pecahan 3/4 (setara desimal 0,75).',
+      },
+    ];
+  }
+
+  if (educationLevel === EducationLevel.SMP) {
+    return [
+      {
+        title: `Aljabar, Persamaan Linear & Teorema Pythagoras (${selectedClass})`,
+        subtitle: `Menyelesaikan persamaan linear satu/dua variabel (SPLDV) dan segitiga siku-siku`,
+        bookTitle: `Matematika untuk SMP/MTs ${selectedClass} Kurikulum Merdeka`,
+        bookAuthor: 'Mohammad Tohir dkk. — Pusat Perbukuan Kemendikdasmen RI',
+        summaryPoints: [
+          'Pada persamaan linear 3x + 5 = 20, kurangi kedua ruas dengan 5 menjadi 3x = 15, sehingga x = 5.',
+          'Teorema Pythagoras pada segitiga siku-siku menyatakan kuadrat sisi miring sama dengan jumlah kuadrat sisi siku-sikunya (c² = a² + b²).',
+          'Tripel Pythagoras populer yang sering keluar di ujian SMP: (3, 4, 5), (5, 12, 13), (8, 15, 17), dan (7, 24, 25).',
+        ],
+        question: 'Sebuah segitiga siku-siku memiliki panjang sisi tegak 6 cm dan alas 8 cm. Berapakah panjang sisi miringnya (hipotenusa)?',
+        options: ['10 cm', '12 cm', '14 cm', '9 cm'],
+        correctIndex: 0,
+        explanation: 'c = √(6² + 8²) = √(36 + 64) = √100 = 10 cm.',
+        simTitle: 'Laboratorium Persamaan Linear & Pythagoras SMP',
+        simParam: 'Nilai Variabel x',
+        simUnit: 'satuan',
+        simMin: 1,
+        simMax: 10,
+        simStep: 1,
+        simDefault: 3,
+        simTarget: 5,
+        simFormula: '3x + 5 = 20 -> Saat x = 5, maka 3(5) + 5 = 20 (SEIMBANG)',
+        simExplanation: 'Geser variabel x ke angka 5 agar kedua ruas persamaan linear seimbang bernilai 20.',
+      },
+    ];
+  }
+
+  return [
+    {
+      title: `Logaritma, Trigonometri & Kalkulus Dasar (${selectedClass})`,
+      subtitle: `Sifat eksponen-logaritma, perbandingan trigonometri sudut istimewa, serta limit dan turunan fungsi`,
+      bookTitle: `Matematika untuk SMA/SMK ${selectedClass} Kurikulum Merdeka`,
+      bookAuthor: 'Dicky Susanto dkk. — Pusat Perbukuan Kemendikdasmen RI',
+      summaryPoints: [
+        'Definisi logaritma: ᵃlog b = c jika dan hanya jika aᶜ = b (contoh: ²log 8 = 3 karena 2³ = 8).',
+        'Perbandingan trigonometri siku-siku: sin θ = depan/miring (Demi), cos θ = samping/miring (Sami), tan θ = depan/samping (Desa).',
+        'Aturan turunan pertama fungsi aljabar f(x) = a·xⁿ adalah f\'(x) = n·a·xⁿ⁻¹.',
+      ],
+      question: 'Jika diketahui fungsi f(x) = 3x² - 12x + 7, maka turunan pertama f\'(x) adalah...',
+      options: ['6x - 12', '3x - 12', '6x² - 12', '6x + 7'],
+      correctIndex: 0,
+      explanation: 'Menggunakan rumus turunan d/dx (axⁿ) = n·axⁿ⁻¹, maka turunan 3x² adalah 6x dan turunan -12x adalah -12.',
+      simTitle: 'Simulator Gradien Garis Singgung & Titik Stasioner Kalkulus',
+      simParam: 'Absis Titik Singgung (x)',
+      simUnit: 'satuan',
+      simMin: 0,
+      simMax: 5,
+      simStep: 1,
+      simDefault: 0,
+      simTarget: 2,
+      simFormula: 'f\'(x) = 6x - 12 = 0 -> Titik Stasioner pada x = 2',
+      simExplanation: 'Geser nilai x ke angka 2 untuk mencapai titik stasioner saat gradien garis singgung f\'(x) = 0.',
+    },
+  ];
+}
+
+/**
+ * Filter & build subject-specific and class-specific units so selecting Bahasa Indonesia, IPAS,
+ * Bahasa Inggris, PPKn, IPA, IPS, Fisika, Kimia, Biologi, Informatika, or Matematika
+ * ALWAYS displays units matching `selectedSubject` (`selectedMapel`) and `selectedClass` (`selectedKelas`).
+ */
+export function getFilteredUnitsForSelection(
+  educationLevel: EducationLevel,
+  selectedClass: string,
+  selectedSubject: string,
+  completedLevelIds: string[] = []
+): LevelItem[] {
+  const blueprints = getSubjectUnitBlueprints(
+    educationLevel,
+    selectedClass,
+    selectedSubject
+  );
+
+  const safeSlug = `${educationLevel}-${selectedClass}-${selectedSubject}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-');
+
+  const generatedUnits: LevelItem[] = blueprints.map((bp, idx) => {
+    const id = `unit-${safeSlug}-${idx + 1}`;
+    return {
+      id,
+      levelNumber: idx + 1,
+      title: bp.title,
+      subtitle: bp.subtitle,
+      subject: selectedSubject,
+      mapel: selectedSubject,
+      kelas: selectedClass,
+      educationLevel,
+      classRange: selectedClass,
+      xpReward: 55 + idx * 15,
+      estimatedMinutes: 12 + idx * 3,
+      isUnlocked: true,
+      isCompleted: completedLevelIds.includes(id),
+      bookSource: {
+        title: bp.bookTitle,
+        authorOrPublisher: bp.bookAuthor,
+        year: '2022',
+        catalogUrl: KEMENDIKDASMEN_CATALOG_URL,
+        companionBookTitle: `${selectedSubject} ${selectedClass} Kurikulum Merdeka (SIBI Kemendikdasmen)`,
+        companionBookUrl: KEMENDIKDASMEN_CATALOG_URL,
+      },
+      summaryPoints: bp.summaryPoints,
+      practiceQuestion: {
+        question: bp.question,
+        options: bp.options,
+        correctIndex: bp.correctIndex,
+        explanation: bp.explanation,
+      },
+      simulation: {
+        type: 'ALGEBRA_BALANCE',
+        title: bp.simTitle,
+        parameterLabel: bp.simParam,
+        unit: bp.simUnit,
+        min: bp.simMin,
+        max: bp.simMax,
+        step: bp.simStep,
+        defaultValue: bp.simDefault,
+        targetValue: bp.simTarget,
+        formulaDisplay: bp.simFormula,
+        explanation: bp.simExplanation,
+      },
+    };
+  });
+
+  // Ensure 4 units on the Duolingo path for every subject & class combination
+  while (generatedUnits.length < 4) {
+    const base = generatedUnits[generatedUnits.length % blueprints.length];
+    const nextNum = generatedUnits.length + 1;
+    const id = `unit-${safeSlug}-${nextNum}`;
+    const unitTitles = [
+      `Konsep Dasar & Eksplorasi ${selectedSubject} (${selectedClass})`,
+      `Latihan Terpadu & Analogi ${selectedSubject} (${selectedClass})`,
+      `Studi Kasus & Penerapan ${selectedSubject} (${selectedClass})`,
+      `Evaluasi & Tantangan Master ${selectedSubject} (${selectedClass})`,
+    ];
+    generatedUnits.push({
+      ...base,
+      id,
+      levelNumber: nextNum,
+      title: unitTitles[nextNum - 1] || `${base.title} — Bagian ${nextNum}`,
+      xpReward: 55 + (nextNum - 1) * 15,
+      isCompleted: completedLevelIds.includes(id),
+    });
+  }
+
+  return generatedUnits;
+}
+

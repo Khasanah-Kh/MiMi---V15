@@ -8,8 +8,31 @@ import { GoogleGenAI, Type } from '@google/genai';
 
 dotenv.config();
 
+// Synchronize all Gemini API keys to Key 3 (VITE_GEMINI_API_KEY3 / GEMINI_API_KEY3 - AQ... Free Tier)
+const resolvedKey3 = String(
+  process.env.VITE_GEMINI_API_KEY3 || process.env.GEMINI_API_KEY3 || ''
+).trim();
+if (resolvedKey3) {
+  process.env.VITE_GEMINI_API_KEY3 = resolvedKey3;
+  process.env.GEMINI_API_KEY3 = resolvedKey3;
+  process.env.VITE_GEMINI_API_KEY = resolvedKey3;
+  process.env.VITE_API_KEY = resolvedKey3;
+  process.env.GEMINI_API_KEY = resolvedKey3;
+}
+process.env.GOOGLE_CLOUD_PROJECT = 'gen-lang-client-0798249381';
+
 const app = express();
-const PORT = 3000;
+
+function resolveServerPort(): number {
+  const portArgIndex = process.argv.findIndex((arg) => arg === '--port' || arg === '-p');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const parsed = Number(process.argv[portArgIndex + 1]);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return Number(process.env.PORT) || 3000;
+}
+
+const PORT = resolveServerPort();
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -327,23 +350,70 @@ function formatNow(): string {
 // ============================================================================
 const MIMI_FLASH_CHAIN = [
   'gemini-3.8-flash',
-  'gemini-flash-latest',
   'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
 ] as const;
 
 const MIMI_MODEL_ALIAS_MAP: Record<string, string> = {
   'mimi-3.6-flash': 'gemini-3.8-flash',
-  'mimi-3.5-flash': 'gemini-flash-latest',
+  'mimi-3.5-flash': 'gemini-3.8-flash',
   'mimi-3.8-flash': 'gemini-3.8-flash',
   'mimi-3.1-flash': 'gemini-3.1-flash-lite',
+  'gemini-3.5-flash': 'gemini-3.8-flash',
+  'gemini-3.0-flash': 'gemini-3.8-flash',
   'gemini-3.8-flash': 'gemini-3.8-flash',
   'gemini-flash-latest': 'gemini-flash-latest',
   'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite',
 };
 
+const MAX_GEMINI_RPM = 15;
+const GEMINI_RPM_WINDOW_MS = 60_000;
+const serverGeminiCallTimestamps: number[] = [];
+
+function checkAndRecordServerGeminiRpm(): { allowed: boolean; waitMs: number } {
+  const now = Date.now();
+  while (
+    serverGeminiCallTimestamps.length > 0 &&
+    now - serverGeminiCallTimestamps[0] >= GEMINI_RPM_WINDOW_MS
+  ) {
+    serverGeminiCallTimestamps.shift();
+  }
+  if (serverGeminiCallTimestamps.length >= MAX_GEMINI_RPM) {
+    const oldest = serverGeminiCallTimestamps[0];
+    const waitMs = Math.max(500, GEMINI_RPM_WINDOW_MS - (now - oldest));
+    return { allowed: false, waitMs };
+  }
+  serverGeminiCallTimestamps.push(now);
+  return { allowed: true, waitMs: 0 };
+}
+
 function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+  // Synchronize and prioritize VITE_GEMINI_API_KEY3 / GEMINI_API_KEY3 (AQ... Free Tier for gen-lang-client-0798249381)
+  const key3Value = String(
+    process.env.VITE_GEMINI_API_KEY3 || process.env.GEMINI_API_KEY3 || ''
+  ).trim();
+  if (key3Value) {
+    process.env.VITE_GEMINI_API_KEY = key3Value;
+    process.env.VITE_API_KEY = key3Value;
+    process.env.GEMINI_API_KEY = key3Value;
+  }
+
+  const candidates = [
+    process.env.VITE_GEMINI_API_KEY3,
+    process.env.GEMINI_API_KEY3,
+    process.env.VITE_GEMINI_API_KEY,
+    process.env.VITE_API_KEY,
+    process.env.GEMINI_API_KEY,
+  ]
+    .map((k) => String(k || '').trim())
+    .filter((k) => k.length > 0 && k !== 'MY_GEMINI_API_KEY');
+
+  // Prefer AQ... formatted key (Key 3 Free Tier) and never use stale Key 5 if Key 3 is present
+  const aqKey = candidates.find((k) => k.startsWith('AQ'));
+  const nonKey5 = candidates.find((k) => !k.includes('oF'));
+  const apiKey = aqKey || key3Value || nonKey5 || candidates[0] || '';
+
+  if (!apiKey) {
     return null;
   }
   return new GoogleGenAI({
@@ -359,9 +429,9 @@ function getGeminiClient(): GoogleGenAI | null {
 const sleepMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Sistem Auto-Retry & Model Fallback Otomatis Gemini Flash Engine.
+ * Sistem Auto-Retry & Model Fallback Otomatis Gemini Flash Engine (Free Tier 15 RPM).
  * Mendukung alias mimi-3.6-flash, mimi-3.5-flash, mimi-3.8-flash, mimi-3.1-flash
- * serta fallback berurutan: gemini-3.8-flash -> gemini-flash-latest -> gemini-3.1-flash-lite
+ * serta retry + delay 2 detik (2000ms) saat terkena 429 rate limit.
  */
 async function generateWithMimiFlashEngine(options: {
   contents: string;
@@ -374,6 +444,15 @@ async function generateWithMimiFlashEngine(options: {
   const ai = getGeminiClient();
   if (!ai) {
     return null;
+  }
+
+  const rpmStatus = checkAndRecordServerGeminiRpm();
+  if (!rpmStatus.allowed) {
+    if (rpmStatus.waitMs <= 2500) {
+      await sleepMs(rpmStatus.waitMs);
+    } else {
+      return null;
+    }
   }
 
   const config: Record<string, any> = {
@@ -396,8 +475,6 @@ async function generateWithMimiFlashEngine(options: {
       ]
     : [...MIMI_FLASH_CHAIN];
 
-  const retryDelays = [800, 1500, 2500];
-
   for (let i = 0; i < orderedModels.length; i++) {
     const modelName = orderedModels[i];
     try {
@@ -416,18 +493,8 @@ async function generateWithMimiFlashEngine(options: {
         return response.text.trim();
       }
     } catch (err: any) {
-      const errMsg = String(err?.message || err || '').toLowerCase();
-      const isRetryable =
-        errMsg.includes('429') ||
-        errMsg.includes('500') ||
-        errMsg.includes('503') ||
-        errMsg.includes('overloaded') ||
-        errMsg.includes('quota') ||
-        errMsg.includes('timeout') ||
-        errMsg.includes('rate');
-      if (isRetryable && i < orderedModels.length - 1) {
-        await sleepMs(retryDelays[Math.min(i, retryDelays.length - 1)]);
-      }
+      // Immediate failover to next model in the chain (e.g. gemini-3.1-flash-lite)
+      // Flash-Lite operates on an independent capacity lane, avoiding artificial wait states.
       continue;
     }
   }
@@ -1569,77 +1636,6 @@ app.post('/api/mimi/chat', async (req, res) => {
         .map((m: { text: string }) => cleanHumanChatText(String(m.text)))
     : [];
 
-  // Fast-path Rule 6: Sapaan Biasa & Pertanyaan Basa-Basi Singkat = Jawab Singkat, Tenang, Manusiawi (1 Kalimat, Tanpa Lebay)
-  if (
-    cleanLower === 'mimi' ||
-    cleanLower === 'mim' ||
-    cleanLower === 'halo mimi' ||
-    cleanLower === 'hai mimi' ||
-    cleanLower === 'kak mimi' ||
-    cleanLower === 'halo' ||
-    cleanLower === 'hai' ||
-    cleanLower === 'hi' ||
-    cleanLower === 'hello' ||
-    cleanLower === 'hey' ||
-    cleanLower === 'yo' ||
-    cleanLower === 'pagi' ||
-    cleanLower === 'selamat pagi' ||
-    cleanLower === 'siang' ||
-    cleanLower === 'selamat siang' ||
-    cleanLower === 'sore' ||
-    cleanLower === 'selamat sore' ||
-    cleanLower === 'malam' ||
-    cleanLower === 'selamat malam' ||
-    cleanLower === 'p' ||
-    cleanLower === 'tes' ||
-    cleanLower === 'test' ||
-    cleanLower === 'horas' ||
-    cleanLower === 'kumaha damang' ||
-    cleanLower === 'lagi apa' ||
-    cleanLower === 'lagi ngapain' ||
-    cleanLower === 'mimi lagi apa' ||
-    cleanLower === 'mimi lagi ngapain' ||
-    cleanLower === 'kamu lagi apa' ||
-    cleanLower === 'kamu lagi ngapain' ||
-    cleanLower === 'lg apa' ||
-    cleanLower === 'lg ngapain' ||
-    cleanLower === 'apa kabar' ||
-    cleanLower === 'gimana kabarmu' ||
-    cleanLower === 'gimana kabarnya' ||
-    cleanLower === 'kabar gimana' ||
-    cleanLower === 'udah makan' ||
-    cleanLower === 'sudah makan'
-  ) {
-    const variedShortReply = buildHumanContextualReply(
-      promptText,
-      nameLabel,
-      levelLabel,
-      classLabel,
-      subjectLabel,
-      profesorActive,
-      recentMimiTexts
-    );
-    res.json({
-      reply: cleanHumanChatText(variedShortReply),
-      xpAwarded: 15,
-    });
-    return;
-  }
-
-  // Fast-path Rule 2: Konsep No Kunci Jawaban (Wajib Persis)
-  if (
-    cleanLower.includes('kunci jawaban') ||
-    cleanLower.includes('jawabannya langsung') ||
-    cleanLower.includes('minta kunci')
-  ) {
-    res.json({
-      reply:
-        'Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉',
-      xpAwarded: 15,
-    });
-    return;
-  }
-
   const recentHistory = Array.isArray(history)
     ? history
         .slice(-8)
@@ -1703,10 +1699,11 @@ app.post('/api/mimi/chat', async (req, res) => {
 
     case 'CASUAL_SOCIAL':
       flowTemperature = 0.8;
-      dynamicPersonalityGuide = `STATUS: OBROLAN SANTAI / SOSIAL / SAPAAN
+      dynamicPersonalityGuide = `STATUS: OBROLAN SANTAI / SOSIAL / SAPAAN / PERKENALAN
 - Pesan siswa: "${promptText}" (${wordCount} kata).
-${isShortCasualInput ? '- PERINGATAN: Pertanyaan SANGAT SINGKAT. Balas dengan SANGAT SINGKAT juga (cukup 1 sampai 2 kalimat pendek yang santai dan rileks, maksimal 20 kata)!' : '- Jawab wajar, santai, proporsional layaknya teman mengobrol.'}
-- JANGAN TIBA-TIBA MEMBAHAS PELAJARAN ATAU MATEMATIKA jika siswa hanya ngobrol santai!`;
+- Jika siswa bertanya "siapa kamu" atau perkenalan, jawab dengan ceria bahwa kamu adalah Mimi, Bestie Pelajar cewek pinter umur 17 tahun yang ramah, Gen Z, suka jelasin materi pakai analogi gampang, jawab cepat, dan gak bertele-tele!
+${isShortCasualInput ? '- Jawab dengan cepat, ramah, gaya bestie Gen Z (1-3 kalimat yang asyik dan hangat)!' : '- Jawab wajar, santai, proporsional layaknya bestie mengobrol.'}
+- JANGAN TIBA-TIBA MEMBAHAS PELAJARAN ATAU MATEMATIKA jika siswa hanya ngobrol santai atau tanya siapa kamu!`;
       break;
 
     case 'ACADEMIC_STUDY':
@@ -1717,39 +1714,38 @@ ${isShortCasualInput ? '- PERINGATAN: Pertanyaan SANGAT SINGKAT. Balas dengan SA
       break;
   }
 
-  // Enriched Vocabulary Matrix (Passive Understanding & Natural Active Selection)
+  const mimiBestieCorePersona = `Kamu Mimi bestie pelajar 17 tahun, pinter, Gen Z, jelasin cepat & gampang pakai Kurikulum Merdeka Indonesia.
+Kamu adalah Mimi, Bestie Pelajar, ramah, Gen Z, cewek pinter umur 17 tahun, jelasin pakai analogi gampang, jawab cepat, gak bertele-tele.
+Jawab sesuai pertanyaan user dengan cepat dan pinter!`;
+
   const vocabularyGuidelines = `DATABASE KOSAKATA & KADENSI BAHASA:
 Kamu menguasai wawasan kosakata luas lintas ranah bahasa:
 - Istilah Akademik: hipotesis, empiris, korelasi, variabel, parameter, paradigma, sintesis, komprehensif, analogi, formulasi, abstraksi.
 - Idiom & Ungkapan Indonesia: kepala dingin, berlapang dada, makan asam garam, membuka jalan, sedikit demi sedikit, alon-alon asal kelakon, tong hariwang, rancak bana, ewako.
 - Slang & Phrasal Verbs Gen-Z/Internasional: vibe, lowkey, chill, figure out, bounce back, show up, keep up, lock in, catch up, step back, take your time, valid no debat.
-ATURAN KADENSI: Memiliki banyak kosakata BUKAN berarti menjejali 5 istilah dalam satu kalimat! Gunakan secara alami (0-1 kata per giliran) yang pas dengan konteks dan usia siswa. Jangan terdengar lebay atau robotik.`;
+ATURAN KADENSI: Gunakan secara alami (0-1 kata per giliran) yang pas dengan konteks dan usia siswa. Jangan terdengar kaku atau robotik.`;
 
   let systemInstruction = '';
 
   if (isHumanFlow) {
-    systemInstruction = `IDENTITAS RESMI:
-Kamu adalah MIMI — teman ngobrol, teman curhat, dan sahabat belajar siswa Indonesia.
+    systemInstruction = `${mimiBestieCorePersona}
 Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel}.
 
 ${dynamicPersonalityGuide}
 
 ${vocabularyGuidelines}
 
-ATURAN WAJIB HUMAN-FLOW (ANTI-LEBAY & BEBAS BINTANG):
+ATURAN WAJIB HUMAN-FLOW (BESTIE PELAJAR & BEBAS BINTANG):
 1. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
    - JANGAN PERNAH membungkus kata dengan *kata* atau **kata**.
-   - Tulis teks percakapan biasa yang bersih, alami, dan mengalir seperti chat WhatsApp antarmanusia.
-2. DILARANG MENGGUNAKAN TEMPLATE KAKU ATAU BULLET POINTS:
-   - JANGAN gunakan "- ", "• ", atau angka "1. ", "2. ". Tulis kalimat mengalir dalam paragraf alami.
-3. LARANGAN IDENTITAS TEKNIS:
-   - JANGAN PERNAH menyebut Gemini, model AI, atau LLM.
-   - JANGAN memanggil "teman kecilku" atau "Siswa Cyber". Panggil "${nameLabel}" atau sapa santai.
-4. HINDARI PENGULANGAN PEMBUKA DARI BALASAN SEBELUMNYA:
+   - Tulis teks percakapan biasa yang bersih, alami, dan mengalir seperti chat WhatsApp antar bestie.
+2. DILARANG MENGGUNAKAN TEMPLATE ROBOT KAKU:
+   - Jawab langsung sesuai pertanyaan user dengan cepat, ramah, pakai analogi gampang kalau perlu, dan gak bertele-tele.
+3. HINDARI PENGULANGAN PEMBUKA DARI BALASAN SEBELUMNYA:
 ${previousOpeners}`;
   } else {
-    systemInstruction = `IDENTITAS RESMI:
-Kamu adalah MIMI — asisten belajar siswa Indonesia berbasis sumber buku resmi Kemendikdasmen Kurikulum Merdeka.
+    systemInstruction = `${mimiBestieCorePersona}
+Kamu juga memahami sumber buku resmi Kemendikdasmen Kurikulum Merdeka.
 Lawan bicaramu: ${nameLabel} | Jenjang: ${levelLabel} | Kelas: ${classLabel} | Mapel: ${subjectLabel} | Mode Profesor: ${profesorActive ? 'AKTIF' : 'Standar'}.
 
 ${vocabularyGuidelines}
@@ -1757,18 +1753,10 @@ ${vocabularyGuidelines}
 ATURAN WAJIB PENJELASAN PELAJARAN:
 1. DILARANG KERAS MENGGUNAKAN TANDA BINTANG (* atau **):
    - Jangan gunakan tanda bintang tebal atau miring. Tulis teks bersih.
-2. KONSEP NO KUNCI JAWABAN (WAJIB PERSIS):
-   - Mimi TIDAK PERNAH memberikan hasil akhir/kunci jawaban langsung. Jika siswa meminta kunci jawaban, jawab persis:
-     "Wah, kalau kunci jawaban langsung, kamu jadi gak belajar dong bestie 😆 Kunci lengkapnya hubungi Mimi in real life ya, nanti kita bahas bareng biar paham! 😉"
-3. KHUSUS MATEMATIKA = 3 LANGKAH + 3 OPSI PILIHAN (A, B, C):
-   - ${subjectLabel.toLowerCase().includes('mat') || promptText.toLowerCase().includes('matematika') || promptText.toLowerCase().includes('mtk') ? 'Pecah materi jadi 3 Langkah (tanpa hasil akhir), sebutkan Sumber Buku Matematika ' + classLabel + ' Kurikulum Merdeka, lalu berikan 3 Opsi Pilihan (A, B, C) cara memulai pengerjaan.' : 'Bukan matematika, JANGAN gunakan format 3 langkah!'}
-4. MATA PELAJARAN LAIN (IPA, IPS, B. INDO, ENGLISH, INFORMATIKA, DLL) = CLUE + KISI-KISI + SUMBER RESMI + ANALOGI SEHARI-HARI:
-   - JANGAN pakai 3 langkah untuk mapel non-matematika! Berikan clue menarik, kisi-kisi konsep, sumber resmi buku/kemdikbud.go.id, dan analogi kreatif kehidupan sehari-hari.
-5. MODE PROFESOR (${profesorActive ? 'AKTIF' : 'NON-AKTIF'}):
-   - ${profesorActive ? 'Berikan trik hafal cepat, jembatan keledai (mnemonic), memory palace, atau active recall spesifik untuk topik ini.' : 'Jika mode profesor tidak aktif, fokus pada pemahaman konsep.'}
-6. LARANGAN IDENTITAS TEKNIS:
-   - JANGAN PERNAH sebut Gemini, AI, atau LLM.
-   - JANGAN panggil "teman kecilku" atau "Siswa Cyber". Panggil "${nameLabel}" atau sebutan bersahabat.`;
+2. JELASKAN PAKAI ANALOGI GAMPANG, CEPAT, & GAK BERTELE-TELE:
+   - Sesuaikan tingkat kesulitan dengan ${levelLabel} ${classLabel} (jangan kasih materi di atas kelasnya!).
+3. MODE PROFESOR (${profesorActive ? 'AKTIF' : 'NON-AKTIF'}):
+   - ${profesorActive ? 'Berikan trik hafal cepat, jembatan keledai (mnemonic), memory palace, atau active recall spesifik untuk topik ini.' : 'Fokus pada pemahaman konsep pakai analogi gampang.'}`;
   }
 
   const fullContents = recentHistory
@@ -1806,14 +1794,47 @@ ATURAN WAJIB PENJELASAN PELAJARAN:
 // 7. DYNAMIC QUIZ GENERATOR ENDPOINT (/api/quiz/generate)
 // ============================================================================
 app.post('/api/quiz/generate', async (req, res) => {
-  const { educationLevel, selectedClass, topic } = req.body || {};
-  const levelLabel = String(educationLevel || 'SMP');
-  const classLabel = String(selectedClass || 'Kelas 8');
-  const topicLabel = String(topic || 'Matematika, Sains, dan Informatika');
+  const { educationLevel, selectedClass, topic, strictPrompt } = req.body || {};
+  const levelLabel = String(educationLevel || 'SD');
+  const classLabel = String(selectedClass || 'Kelas 1');
+  const topicLabel = String(topic || 'Matematika');
+
+  const classNumMatch = classLabel.match(/\d+/);
+  const classNum = classNumMatch ? Number(classNumMatch[0]) : 1;
+
+  let curriculumBoundaryRule = '';
+  if (levelLabel.toUpperCase() === 'SD') {
+    if (classNum === 1) {
+      curriculumBoundaryRule =
+        'ATURAN MUTLAK SD KELAS 1: Jika Matematika, HANYA penjumlahan 1-20, pengurangan sederhana, mengenal angka. DILARANG KERAS memberikan aljabar, pecahan, atau perkalian susah! Jika Bahasa Inggris, hanya kosakata warna, angka 1-10, sapaan dasar.';
+    } else if (classNum === 2) {
+      curriculumBoundaryRule =
+        'ATURAN MUTLAK SD KELAS 2: Jika Matematika, HANYA penjumlahan 1-100 dan perkalian dasar 1-5. DILARANG memberikan aljabar atau pecahan campuran!';
+    } else if (classNum === 3) {
+      curriculumBoundaryRule =
+        'ATURAN MUTLAK SD KELAS 3: Jika Matematika, HANYA perkalian, pembagian dasar, dan pecahan sederhana (1/2, 1/3, 1/4). DILARANG memberikan aljabar!';
+    } else {
+      curriculumBoundaryRule =
+        'ATURAN MUTLAK SD KELAS 4-6: Matematika boleh pecahan campuran, desimal, FPB & KPK, bangun datar/ruang dasar. Bahasa Inggris: This is, That is, vocab hewan & benda sekitar. DILARANG memberikan aljabar SMP atau trigonometri SMA!';
+    }
+  } else if (levelLabel.toUpperCase() === 'SMP') {
+    curriculumBoundaryRule =
+      'ATURAN MUTLAK SMP KELAS 7-9: Matematika wajib tingkat SMP (aljabar, persamaan linear, teorema Pythagoras, himpunan, fungsi). Bahasa Inggris Kelas 8 WAJIB Simple Past Tense, Present Perfect Tense, Passive Voice, atau Recount Text — DILARANG KERAS memberikan materi SD seperti "This is a book"!';
+  } else if (levelLabel.toUpperCase() === 'SMA' || levelLabel.toUpperCase() === 'SMK') {
+    curriculumBoundaryRule =
+      'ATURAN MUTLAK SMA/SMK KELAS 10-12: Matematika wajib tingkat SMA/SMK (logaritma, eksponen, trigonometri, matriks, limit & kalkulus dasar). Bahasa Inggris wajib tingkat SMA/SMK (Conditional Sentences, Analytical Exposition, Passive Voice, Academic Reading). DILARANG memberikan soal SD/SMP!';
+  }
+
+  const finalPrompt =
+    typeof strictPrompt === 'string' && strictPrompt.trim().length > 0
+      ? `${strictPrompt}\n${curriculumBoundaryRule}\nBuatkan 4 soal kuis pilihan ganda berkualitas tinggi dalam Bahasa Indonesia.`
+      : `Buatkan soal untuk ${levelLabel} ${classLabel.toUpperCase()} mapel ${topicLabel} level Standar - SESUAI KURIKULUM MERDEKA KELAS TERSEBUT, jangan kasih materi di atas kelasnya.\n${curriculumBoundaryRule}\nBuatkan 4 soal kuis pilihan ganda berkualitas tinggi dalam Bahasa Indonesia untuk siswa jenjang ${levelLabel} (${classLabel}) dengan fokus topik: ${topicLabel}. Pastikan setiap soal memiliki 4 pilihan jawaban, indeks jawaban benar (0 sampai 3), dan pembahasan singkat yang jelas.`;
 
   try {
     const rawJson = await generateWithMimiFlashEngine({
-      contents: `Buatkan 4 soal kuis pilihan ganda berkualitas tinggi dalam Bahasa Indonesia untuk siswa jenjang ${levelLabel} (${classLabel}) dengan fokus topik: ${topicLabel}. Pastikan setiap soal memiliki 4 pilihan jawaban, indeks jawaban benar (0 sampai 3), dan pembahasan singkat yang jelas.`,
+      contents: finalPrompt,
+      systemInstruction:
+        'Kamu Mimi bestie pelajar 17 tahun, pinter, Gen Z, jelasin cepat & gampang pakai Kurikulum Merdeka Indonesia.',
       temperature: 0.65,
       responseMimeType: 'application/json',
       responseSchema: {
@@ -1865,30 +1886,30 @@ app.post('/api/quiz/generate', async (req, res) => {
     questions: [
       {
         subject: topicLabel,
-        question: `Pada pembahasan konsep ${topicLabel} untuk ${levelLabel} (${classLabel}), langkah manakah yang paling tepat dilakukan pertama kali saat menganalisis soal?`,
-        options: [
-          'Mencatat informasi yang diketahui dan menentukan konsep dasar yang berkaitan',
-          'Menebak angka secara acak tanpa membaca satuan',
-          'Mengabaikan variabel yang ditanyakan pada soal',
-          'Menghapus seluruh informasi awal pada soal',
-        ],
-        correctIndex: 0,
+        question:
+          levelLabel === 'SD' && classNum === 1 && topicLabel.toLowerCase().includes('mat')
+            ? 'Ibu membeli 8 apel merah dan 6 apel hijau. Berapa jumlah seluruh apel Ibu sekarang?'
+            : `Pada pembahasan konsep ${topicLabel} untuk ${levelLabel} (${classLabel}), langkah manakah yang paling tepat dilakukan pertama kali saat menganalisis soal?`,
+        options:
+          levelLabel === 'SD' && classNum === 1 && topicLabel.toLowerCase().includes('mat')
+            ? ['12 apel', '13 apel', '14 apel', '15 apel']
+            : [
+                'Mencatat informasi yang diketahui dan menentukan konsep dasar yang berkaitan',
+                'Menebak angka secara acak tanpa membaca satuan',
+                'Mengabaikan variabel yang ditanyakan pada soal',
+                'Menghapus seluruh informasi awal pada soal',
+              ],
+        correctIndex:
+          levelLabel === 'SD' && classNum === 1 && topicLabel.toLowerCase().includes('mat')
+            ? 2
+            : 0,
         explanation:
-          'Langkah sistematis pertama dalam pemecahan masalah adalah mengidentifikasi informasi yang diketahui serta konsep dasar yang menghubungkannya.',
+          levelLabel === 'SD' && classNum === 1 && topicLabel.toLowerCase().includes('mat')
+            ? 'Penjumlahan bilangan 1 sampai 20: 8 ditambah 6 menghasilkan 14 apel.'
+            : 'Langkah sistematis pertama dalam pemecahan masalah adalah mengidentifikasi informasi yang diketahui serta konsep dasar yang menghubungkannya.',
       },
     ],
   });
-});
-
-// Owner notification relay endpoint for anna.adriiann@gmail.com
-app.post('/api/notify-owner', (req, res) => {
-  const payload = req.body || {};
-  console.log(
-    `[MIMI OWNER REPORT -> anna.adriiann@gmail.com] [${payload.tipe || 'log'}] From: ${
-      payload.from_name || 'Anonim'
-    } (${payload.from_email || '-'}) | Message: ${payload.message || '-'}`
-  );
-  res.json({ ok: true, recipient: 'anna.adriiann@gmail.com' });
 });
 
 // ============================================================================
@@ -1898,7 +1919,7 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       base: '/',
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false, watch: null },
       appType: 'spa',
     });
     app.use((req, _res, next) => {

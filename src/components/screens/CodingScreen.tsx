@@ -314,15 +314,9 @@ export const CodingScreen: React.FC<CodingScreenProps> = ({
             <div className="text-xs text-slate-400">
               Penulis / Penerbit: {selectedLesson.bookReference.author}
             </div>
-            <a
-              href={selectedLesson.bookReference.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 pt-1"
-            >
-              <span>Buka Sumber Buku / Dokumentasi Resmi</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 pt-1">
+              <span>● Modul Internal Terverifikasi Mimi V15</span>
+            </div>
           </div>
         </div>
       </section>
@@ -338,16 +332,10 @@ export const CodingScreen: React.FC<CodingScreenProps> = ({
               Seluruh sumber di bawah ini berasal dari buku teks resmi yang sudah terbit (Kemendikdasmen RI, No Starch Press, Mozilla MDN, & Harvard CS50)
             </p>
           </div>
-          <a
-            href="https://buku.kemendikdasmen.go.id/daftar-katalog"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2.5 rounded-xl btn-tactile-sky text-xs font-extrabold flex items-center gap-2 self-start sm:self-auto whitespace-nowrap shrink-0"
-          >
+          <span className="px-4 py-2.5 rounded-xl bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-extrabold flex items-center gap-2 self-start sm:self-auto whitespace-nowrap shrink-0">
             <BookOpen className="w-4 h-4 shrink-0" />
-            <span>Katalog Buku Kemendikdasmen</span>
-            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-          </a>
+            <span>Modul Internal Kurikulum Merdeka</span>
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -372,15 +360,9 @@ export const CodingScreen: React.FC<CodingScreenProps> = ({
               </div>
 
               <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                <a
-                  href={book.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1.5"
-                >
-                  <span>Baca / Buka Katalog</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <span>● Tersedia di Modul Lokal</span>
+                </span>
 
                 <button
                   type="button"

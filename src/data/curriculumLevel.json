@@ -1,0 +1,540 @@
+{
+  "SD": {
+    "1": {
+      "label": "SD Kelas 1",
+      "classKey": "sd1",
+      "mtk": {
+        "allowedTopics": [
+          "Penjumlahan sederhana 1 sampai 20",
+          "Pengurangan sederhana 1 sampai 20",
+          "Mengenal angka dan lambang bilangan 1 sampai 20",
+          "Membandingkan banyak benda (lebih banyak, lebih sedikit, sama banyak)",
+          "Mengenal bentuk bangun datar sederhana (segitiga, lingkaran, segi empat)"
+        ],
+        "forbiddenTopics": [
+          "Aljabar (x, y, persamaan linear)",
+          "Pecahan (1/2, 3/4, pecahan campuran, desimal)",
+          "Perkalian susah atau pembagian",
+          "Bilangan negatif",
+          "Pythagoras, kuadrat, logaritma, trigonometri"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Greetings sederhana (Hello, Good morning, Goodbye)",
+          "Angka 1-10 dalam Bahasa Inggris (One to Ten)",
+          "Warna dasar (Red, Blue, Yellow, Green)"
+        ],
+        "forbiddenTopics": [
+          "Tenses kompleks (Past Tense, Present Perfect, Passive Voice)"
+        ]
+      },
+      "indo": {
+        "allowedTopics": [
+          "Mengenal huruf vokal (a, i, u, e, o) dan konsonan",
+          "Mengeja suku kata sederhana (ba-ca, bu-ku, bo-la)",
+          "Kata sapaan santun (terima kasih, tolong, maaf)"
+        ]
+      },
+      "ipa": {
+        "allowedTopics": [
+          "Mengenal anggota tubuh dan pancaindra (mata, telinga, hidung, lidah, kulit)",
+          "Cara merawat kebersihan tubuh (mandi, menggosok gigi)",
+          "Benda siang dan malam (matahari, bulan, bintang)"
+        ]
+      },
+      "ips": {
+        "allowedTopics": [
+          "Mengenal anggota keluarga inti (ayah, ibu, kakak, adik)",
+          "Bagian-bagian rumah dan kebersihan lingkungan rumah"
+        ]
+      },
+      "pkn": {
+        "allowedTopics": [
+          "Lambang negara Garuda Pancasila",
+          "Bunyi sila ke-1 sampai ke-5 Pancasila",
+          "Aturan sederhana di rumah (pamit kepada orang tua, merapikan mainan)"
+        ]
+      }
+    },
+    "2": {
+      "label": "SD Kelas 2",
+      "classKey": "sd2",
+      "mtk": {
+        "allowedTopics": [
+          "Penjumlahan bilangan 1 sampai 100",
+          "Pengurangan bilangan 1 sampai 100",
+          "Nilai tempat puluhan dan satuan",
+          "Perkalian dasar 1 sampai 5",
+          "Membaca jam tepat dan setengah jam"
+        ],
+        "forbiddenTopics": [
+          "Aljabar (x, y, persamaan)",
+          "Pecahan campuran dan desimal",
+          "Bilangan negatif",
+          "Pythagoras, persamaan kuadrat"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Angka 1-20",
+          "Anggota keluarga (Father, Mother, Brother, Sister)",
+          "Buah-buahan sederhana (Apple, Banana, Orange, Mango)"
+        ],
+        "forbiddenTopics": [
+          "Simple Past Tense, Present Perfect, Passive Voice"
+        ]
+      },
+      "indo": {
+        "allowedTopics": [
+          "Penggunaan huruf kapital di awal kalimat dan nama orang",
+          "Tanda titik (.) dan tanda tanya (?)",
+          "Membaca cerita pendek anak"
+        ]
+      },
+      "ipa": {
+        "allowedTopics": [
+          "Wujud benda (padat, cair, gas) di sekitar rumah",
+          "Bagian tumbuhan (akar, batang, daun, bunga, buah)"
+        ]
+      },
+      "ips": {
+        "allowedTopics": [
+          "Lingkungan tetangga dan rukun bermain bersama teman",
+          "Peran anggota keluarga di rumah"
+        ]
+      },
+      "pkn": {
+        "allowedTopics": [
+          "Simbol sila-sila Pancasila (Bintang, Rantai, Pohon Beringin, Kepala Banteng, Padi dan Kapas)",
+          "Hidup rukun di sekolah"
+        ]
+      }
+    },
+    "3": {
+      "label": "SD Kelas 3",
+      "classKey": "sd3",
+      "mtk": {
+        "allowedTopics": [
+          "Perkalian dan pembagian dasar (1 sampai 10)",
+          "Pecahan sederhana (1/2, 1/3, 1/4) dengan penyebut sama",
+          "Keliling persegi dan persegi panjang sederhana",
+          "Satuan panjang (cm, m) dan berat (gram, kg)"
+        ],
+        "forbiddenTopics": [
+          "Aljabar (variabel x, y)",
+          "Persamaan linear",
+          "Pythagoras, trigonometri, logaritma"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Benda di kelas (Book, Pencil, Ruler, Eraser, Bag)",
+          "Hari dan bulan (Monday to Sunday)",
+          "Ungkapan I like / I have"
+        ],
+        "forbiddenTopics": [
+          "Passive Voice, Present Perfect, Conditional Sentences"
+        ]
+      },
+      "indo": {
+        "allowedTopics": [
+          "Menemukan gagasan pokok pada paragraf pendek",
+          "Kalimat tanya (Apa, Siapa, Di mana, Kapan, Mengapa, Bagaimana)",
+          "Dongeng dan pesan moral (amanat)"
+        ]
+      },
+      "ipa": {
+        "allowedTopics": [
+          "Ciri-ciri makhluk hidup (bernapas, bergerak, tumbuh, berkembang biak)",
+          "Perubahan wujud benda (mencair, membeku, menguap)",
+          "Cuaca (cerah, berawan, mendung, hujan)"
+        ]
+      },
+      "ips": {
+        "allowedTopics": [
+          "Mengenal mata angin (Utara, Selatan, Timur, Barat) dan denah sederhana",
+          "Jenis pekerjaan di sekitar kita"
+        ]
+      },
+      "pkn": {
+        "allowedTopics": [
+          "Semboyan Bhinneka Tunggal Ika",
+          "Hak dan kewajiban anak di rumah dan sekolah"
+        ]
+      }
+    },
+    "4": {
+      "label": "SD Kelas 4",
+      "classKey": "sd4",
+      "mtk": {
+        "allowedTopics": [
+          "Pecahan senilai, pecahan campuran, dan desimal dasar",
+          "Faktor dan Kelipatan (FPB dan KPK dasar)",
+          "Luas dan keliling persegi, persegi panjang, dan segitiga",
+          "Sudut lancip, siku-siku, dan tumpul"
+        ],
+        "forbiddenTopics": [
+          "Aljabar (variabel x, y, persamaan linear)",
+          "Pythagoras, persamaan kuadrat, logaritma, trigonometri"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Demonstratives: This is, That is, These are, Those are",
+          "Vocabulary hewan (Elephant, Giraffe, Lion, Tiger, Rabbit, Bird, Cat, Dog)",
+          "Benda-benda di rumah dan sekolah",
+          "Simple Present kegiatan harian dasar"
+        ],
+        "forbiddenTopics": [
+          "Passive Voice, Present Perfect, Conditional Type 2/3, Subjunctive"
+        ]
+      },
+      "indo": {
+        "allowedTopics": [
+          "Ide pokok dan kalimat penjelas",
+          "Kalimat transitif dan intransitif",
+          "Kata depan 'di' dan awalan 'di-' serta kamus"
+        ]
+      },
+      "ipa": {
+        "allowedTopics": [
+          "Fotosintesis pada tumbuhan hijau",
+          "Gaya (gaya otot, gaya gesek, gaya gravitasi, gaya magnet)",
+          "Perubahan bentuk energi dalam kehidupan sehari-hari"
+        ]
+      },
+      "ips": {
+        "allowedTopics": [
+          "Keragaman budaya, rumah adat, dan tarian daerah di Indonesia",
+          "Kenampakan alam (gunung, sungai, dataran rendah, pantai)"
+        ]
+      },
+      "pkn": {
+        "allowedTopics": [
+          "Penerapan nilai-nilai Pancasila di lingkungan masyarakat",
+          "Menghargai keragaman suku dan budaya bangsa"
+        ]
+      }
+    },
+    "5": {
+      "label": "SD Kelas 5",
+      "classKey": "sd5",
+      "mtk": {
+        "allowedTopics": [
+          "Operasi hitung pecahan campuran dan desimal",
+          "FPB dan KPK dalam soal cerita",
+          "Kecepatan, jarak, dan waktu (v = s / t)",
+          "Volume kubus dan balok"
+        ],
+        "forbiddenTopics": [
+          "Aljabar (persamaan linear x dan y)",
+          "Persamaan kuadrat, logaritma, trigonometri"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "This is / That is, Parts of the body, Food & Drinks, Taste (sweet, sour, salty)",
+          "Adjectives & perbandingan sederhana (big - bigger, tall - taller)"
+        ],
+        "forbiddenTopics": [
+          "Passive Voice rumit, Subjunctive, Inversion"
+        ]
+      },
+      "indo": {
+        "allowedTopics": [
+          "Kata sifat, sinonim, dan antonim",
+          "Teks prosedur sederhana dan surat undangan",
+          "Majas metafora dan personifikasi dasar"
+        ]
+      },
+      "ipa": {
+        "allowedTopics": [
+          "Siklus air (evaporasi, kondensasi, presipitasi)",
+          "Rantai makanan dan jaring-jaring makanan dalam ekosistem",
+          "Organ pernapasan dan pencernaan manusia"
+        ]
+      },
+      "ips": {
+        "allowedTopics": [
+          "Letak geografis Indonesia sebagai negara maritim dan agraris",
+          "Kegiatan ekonomi (produksi, distribusi, konsumsi)"
+        ]
+      },
+      "pkn": {
+        "allowedTopics": [
+          "Gotong royong dan musyawarah untuk mufakat",
+          "Norma kesopanan, kesusilaan, agama, dan hukum"
+        ]
+      }
+    },
+    "6": {
+      "label": "SD Kelas 6",
+      "classKey": "sd6",
+      "mtk": {
+        "allowedTopics": [
+          "Operasi hitung campuran bilangan bulat dan pecahan/desimal/persen",
+          "Unsur-unsur lingkaran, keliling dan luas lingkaran",
+          "Bangun ruang (prisma, tabung, limas, kerucut, bola)",
+          "Mean, median, dan modus data sederhana"
+        ],
+        "forbiddenTopics": [
+          "Aljabar variabel x/y tingkat SMP",
+          "Persamaan kuadrat, logaritma, trigonometri, kalkulus"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Simple Future (will / going to) sederhana",
+          "Public places, Feelings, Hobbies, dan cerita kegiatan liburan sederhana"
+        ],
+        "forbiddenTopics": [
+          "Inversion, Subjunctive, Conditional Type 3"
+        ]
+      },
+      "indo": {
+        "allowedTopics": [
+          "Teks eksplanasi dan laporan hasil pengamatan",
+          "Formulir, daftar riwayat hidup, dan pidato perpisahan sekolah",
+          "Kalimat efektif dan kata baku"
+        ]
+      },
+      "ipa": {
+        "allowedTopics": [
+          "Sistem Tata Surya (planet-planet, rotasi dan revolusi Bumi)",
+          "Perkembangbiakan tumbuhan (vegetatif & generatif) dan hewan",
+          "Rangkaian listrik sederhana (seri dan paralel)"
+        ]
+      },
+      "ips": {
+        "allowedTopics": [
+          "Negara-negara anggota ASEAN dan kerja sama di Asia Tenggara",
+          "Peristiwa sekitar Proklamasi Kemerdekaan Indonesia 17 Agustus 1945"
+        ]
+      },
+      "pkn": {
+        "allowedTopics": [
+          "Pengamalan sila ke-1 sampai ke-5 Pancasila secara utuh",
+          "Persatuan dan kesatuan dalam menjaga keutuhan NKRI"
+        ]
+      }
+    }
+  },
+  "SMP": {
+    "7": {
+      "label": "SMP Kelas 7",
+      "classKey": "kelas7",
+      "mtk": {
+        "allowedTopics": [
+          "Bilangan bulat dan pecahan tingkat SMP",
+          "Bentuk Aljabar dasar (suku sejenis, penjumlahan & pengurangan aljabar)",
+          "Persamaan dan Pertidaksamaan Linear Satu Variabel (PLSV)",
+          "Perbandingan senilai, berbalik nilai, dan Aritmetika Sosial",
+          "Garis dan sudut serta Segiempat & Segitiga"
+        ],
+        "forbiddenTopics": [
+          "Penjumlahan SD 1-20 yang terlalu mudah",
+          "Logaritma, Trigonometri SMA, Kalkulus/Turunan/Integral"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Simple Present Tense (verbal & nominal sentences)",
+          "Pronouns (Subject, Object, Possessive)",
+          "Descriptive Text (mendeskripsikan orang, hewan, tempat)",
+          "Telling Time, Days, Dates & Prepositions of Place"
+        ],
+        "forbiddenTopics": [
+          "Materi SD sangat dasar seperti mengeja warna/angka 1-10"
+        ]
+      }
+    },
+    "8": {
+      "label": "SMP Kelas 8",
+      "classKey": "kelas8",
+      "mtk": {
+        "allowedTopics": [
+          "Pola Bilangan dan Barisan Aritmetika/Geometri",
+          "Koordinat Kartesius, Relasi dan Fungsi",
+          "Persamaan Garis Lurus (gradien m)",
+          "Sistem Persamaan Linear Dua Variabel (SPLDV)",
+          "Teorema Pythagoras",
+          "Lingkaran dan Bangun Ruang Sisi Datar (kubus, balok, prisma, limas)"
+        ],
+        "forbiddenTopics": [
+          "Materi SD penjumlahan 1-20",
+          "Logaritma, Kalkulus Diferensial/Integral SMA"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Simple Past Tense (Regular & Irregular Verbs V2, did/didn't, was/were)",
+          "Present Perfect Tense (have/has + V3, for & since)",
+          "Passive Voice (is/am/are + V3 dan was/were + V3)",
+          "Recount Text (pengalaman masa lampau)",
+          "Comparative & Superlative Degrees (-er/more, -est/most)",
+          "Present Continuous & Past Continuous Tense"
+        ],
+        "forbiddenTopics": [
+          "Materi SD 'This is a book' / 'That is a pencil' / kosakata SD dasar"
+        ]
+      }
+    },
+    "9": {
+      "label": "SMP Kelas 9",
+      "classKey": "kelas9",
+      "mtk": {
+        "allowedTopics": [
+          "Perpangkatan (Eksponen) dan Bentuk Akar",
+          "Persamaan Kuadrat dan Fungsi Kuadrat",
+          "Transformasi Geometri (Translasi, Refleksi, Rotasi, Dilatasi)",
+          "Kesebangunan dan Kekongruenan",
+          "Bangun Ruang Sisi Lengkung (Tabung, Kerucut, Bola)"
+        ],
+        "forbiddenTopics": [
+          "Materi SD penjumlahan sederhana",
+          "Integral/Kalkulus lanjut SMA"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Passive Voice lintas tenses (Present, Past, Future, Perfect)",
+          "Narrative Text (Fairy tales, Fables, Folklores)",
+          "Report Text (teks ilmiah tentang fenomena alam/hewan)",
+          "Present Perfect & Past Perfect Tense",
+          "Conditional Sentences Type 1 & Agreement/Hope/Congratulation"
+        ],
+        "forbiddenTopics": [
+          "Materi SD 'This is a book'"
+        ]
+      }
+    }
+  },
+  "SMA": {
+    "10": {
+      "label": "SMA Kelas 10",
+      "classKey": "sma10",
+      "mtk": {
+        "allowedTopics": [
+          "Eksponen dan Logaritma",
+          "Barisan dan Deret Aritmetika & Geometri",
+          "Trigonometri Dasar (Perbandingan sin, cos, tan pada segitiga siku-siku)",
+          "Sistem Persamaan Linear Tiga Variabel (SPLTV)",
+          "Fungsi Kuadrat dan Statistika/Peluang"
+        ],
+        "forbiddenTopics": [
+          "Materi SD penjumlahan dasar"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Narrative Text, Descriptive & Recount Text tingkat SMA",
+          "Reported Speech (Indirect Speech)",
+          "Conditional Sentences Type 1 & 2, Passive Voice"
+        ],
+        "forbiddenTopics": [
+          "Materi SD 'This is a book'"
+        ]
+      }
+    },
+    "11": {
+      "label": "SMA Kelas 11",
+      "classKey": "sma11",
+      "mtk": {
+        "allowedTopics": [
+          "Fungsi Komposisi dan Fungsi Invers",
+          "Matriks (determinan, invers, operasi matriks)",
+          "Trigonometri Lanjut dan Persamaan Lingkaran",
+          "Limit Fungsi Aljabar dan Turunan Pertama (Kalkulus Dasar)"
+        ],
+        "forbiddenTopics": [
+          "Materi SD"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Analytical Exposition Text, Explanation Text",
+          "Conditional Sentences Type 2 & 3, Subjunctive, Passive Voice"
+        ],
+        "forbiddenTopics": [
+          "Materi SD"
+        ]
+      }
+    },
+    "12": {
+      "label": "SMA Kelas 12",
+      "classKey": "sma12",
+      "mtk": {
+        "allowedTopics": [
+          "Kalkulus Diferensial & Integral Dasar",
+          "Limit Fungsi Trigonometri & Aljabar",
+          "Geometri Dimensi Tiga (Jarak titik, garis, dan bidang)",
+          "Kaidah Pencacahan, Permutasi, Kombinasi, dan Peluang"
+        ],
+        "forbiddenTopics": [
+          "Materi SD"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "Discussion Text, Application Letter, News Item",
+          "Inversion, Subjunctive, Conditional Type 3, TOEFL Reading Comprehension"
+        ],
+        "forbiddenTopics": [
+          "Materi SD"
+        ]
+      }
+    }
+  },
+  "SMK": {
+    "10": {
+      "label": "SMK Kelas 10",
+      "classKey": "smk10",
+      "mtk": {
+        "allowedTopics": [
+          "Eksponen, Logaritma, dan Sistem Persamaan Linear Terapan",
+          "Barisan, Deret, dan Trigonometri Vokasi"
+        ],
+        "forbiddenTopics": ["Materi SD"]
+      }
+    },
+    "11": {
+      "label": "SMK Kelas 11",
+      "classKey": "smk11",
+      "mtk": {
+        "allowedTopics": [
+          "Matriks, Vektor, Fungsi Komposisi, dan Statistika Industri",
+          "Kalkulus Dasar dan Bunga Majemuk/Anuitas"
+        ],
+        "forbiddenTopics": ["Materi SD"]
+      }
+    },
+    "12": {
+      "label": "SMK Kelas 12",
+      "classKey": "smk12",
+      "mtk": {
+        "allowedTopics": [
+          "Kalkulus Diferensial & Integral Terapan, Peluang & Kombinatorika",
+          "Matematika Bisnis, BEP, dan Optimasi Produksi"
+        ],
+        "forbiddenTopics": ["Materi SD"]
+      }
+    }
+  },
+  "Umum": {
+    "Umum": {
+      "label": "Umum (Pengetahuan Umum HAGO)",
+      "classKey": "umum",
+      "mtk": {
+        "allowedTopics": [
+          "Logika Numerik, Deret Angka, Teka-Teki Otak, dan Aritmetika Cepat HAGO"
+        ]
+      },
+      "inggris": {
+        "allowedTopics": [
+          "English Idioms, Modern Slang, Daily Conversation, dan Academic Vocabulary"
+        ]
+      }
+    }
+  }
+}

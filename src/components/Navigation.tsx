@@ -16,6 +16,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { BottomNavTab, MimiUiState } from '../types/mimi';
+import { ShareButton } from './ShareButton';
+import { PwaInstallButton } from './PwaInstallButton';
 
 const NAV_ITEMS: Array<{
   tab: BottomNavTab;
@@ -202,6 +204,18 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
           <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
           <span>Buku PDF, Drive & Classroom</span>
         </motion.button>
+
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <ShareButton
+            compact
+            label="Share Link"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 hover:bg-indigo-500/30 transition-all"
+          />
+          <PwaInstallButton
+            compact
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-all shadow-xs"
+          />
+        </div>
       </div>
     </aside>
   );
@@ -374,6 +388,17 @@ export const WebTopBar: React.FC<WebTopBarProps> = ({
           <BookOpen className="w-3.5 h-3.5 text-sky-400" />
           <span>Buku PDF & Classroom</span>
         </button>
+
+        <ShareButton
+          compact
+          label="Share Link"
+          className="px-3 py-2 text-xs font-bold rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/35 hover:bg-indigo-500/30 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all"
+        />
+
+        <PwaInstallButton
+          compact
+          className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs transition-all"
+        />
 
         {/* 👁️ Warm Safe Button */}
         <button

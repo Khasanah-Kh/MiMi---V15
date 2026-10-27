@@ -1,0 +1,52 @@
+{
+  "version": "15.0.0",
+  "categories": {
+    "SD_Kelas_1_MTK": [
+      {
+        "q": "Ibu memberi Ani 8 permen, lalu Kakak memberi lagi 6 permen. Berapa jumlah permen Ani sekarang?",
+        "options": ["14 permen", "12 permen", "15 permen", "13 permen"],
+        "answer": 0
+      },
+      {
+        "q": "Di atas pohon ada 15 burung pipit. Terbang 5 burung pipit. Berapa sisa burung di pohon?",
+        "options": ["10 burung", "9 burung", "11 burung", "12 burung"],
+        "answer": 0
+      }
+    ],
+    "SMP_Kelas_8_Inggris": [
+      {
+        "q": "While I ___ my English assignment last night, the electricity went out.",
+        "options": ["was doing", "did", "am doing", "do"],
+        "answer": 0
+      },
+      {
+        "q": "Mount Semeru is ___ than Mount Bromo.",
+        "options": ["higher", "highest", "more high", "high"],
+        "answer": 0
+      }
+    ],
+    "SMA_SMK_Kelas_10_12": [
+      {
+        "q": "Nilai dari ²log 16 + ³log 27 adalah...",
+        "options": ["7", "6", "8", "5"],
+        "answer": 0
+      }
+    ],
+    "UMUM": {
+      "Pengetahuan_Umum": [
+        {
+          "q": "Perang Diponegoro berlangsung di Pulau Jawa pada rentang tahun...",
+          "options": ["1825 - 1830", "1908 - 1912", "1811 - 1816", "1945 - 1949"],
+          "answer": 0
+        }
+      ],
+      "Bahasa_Inggris_Umum": [
+        {
+          "q": "Apa arti dari idiom Bahasa Inggris 'A piece of cake'?",
+          "options": ["Sangat mudah", "Sangat mahal", "Sangat rumit", "Terlambat"],
+          "answer": 0
+        }
+      ]
+    }
+  }
+}

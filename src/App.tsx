@@ -1,5 +1,3 @@
-import emailjs from "@emailjs/browser";
-emailjs.init("b6hnq4qiQ2z8cgYpj");
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -33,8 +31,11 @@ import {
   SUBJECTS_BY_LEVEL,
   calculateCyberRank,
   calculateLevelFromXp,
+  getFilteredUnitsForSelection,
   getSuggestedPromptsForLevel,
 } from './data/curriculumData';
+import { PwaInstallButton } from './components/PwaInstallButton';
+import { ShareButton } from './components/ShareButton';
 import { SignInScreen } from './components/SignInScreen';
 import {
   CyberBottomBar,
@@ -57,8 +58,6 @@ import { LencanaScreen } from './components/screens/LencanaScreen';
 import { ProfilScreen } from './components/screens/ProfilScreen';
 import { DonationDialog } from './components/DonationDialog';
 import { XpToastNotification, XpToastData } from './components/XpToastNotification';
-import { ErrorReportModal } from './components/ErrorReportModal';
-import { AdminLaporanScreen } from './components/screens/AdminLaporanScreen';
 import {
   auth,
   loginWithEmail,
@@ -68,9 +67,15 @@ import {
   onAuthStateChanged,
   saveUserProgressToFirestore,
   getUserProgressFromFirestore,
-  logActivity,
-  logUserAccess,
 } from './firebase';
+import {
+  apiFetch,
+  safeJson,
+  chatMimiWithFallback,
+  acquireGeminiRpmSlot,
+  GEMINI_RETRY_DELAY_429_MS,
+  SEEDED_GLOBAL_LEADERBOARD,
+} from './services/ai';
 
 const TOKEN_STORAGE_KEY = 'mimi15_session_token';
 
@@ -119,9 +124,9 @@ export default function App() {
   // ==========================================================================
   const [currentTab, setCurrentTab] = useState<BottomNavTab>(BottomNavTab.BERANDA);
   const [selectedEducationLevel, setSelectedEducationLevel] = useState<EducationLevel>(
-    EducationLevel.SMP
+    EducationLevel.SD
   );
-  const [selectedClass, setSelectedClass] = useState<string>('Kelas 8');
+  const [selectedClass, setSelectedClass] = useState<string>('Kelas 1');
   const [selectedSubject, setSelectedSubject] = useState<string>('Matematika');
   const [isProfesorMode, setIsProfesorMode] = useState<boolean>(false);
 
@@ -201,19 +206,6 @@ export default function App() {
   // Donation Dialog (5 Editable Links + VERSI A Supporter View)
   const [isDonationOpen, setIsDonationOpen] = useState<boolean>(false);
 
-  // Error Report Modal ("⚠️ Lapor Error / Masukan")
-  const [isErrorReportOpen, setIsErrorReportOpen] = useState<boolean>(false);
-
-  // Owner Admin Dashboard (`/admin-laporan` for anna.adriiann@gmail.com)
-  const [isAdminLaporanOpen, setIsAdminLaporanOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return (
-      window.location.pathname.includes('/admin-laporan') ||
-      window.location.hash.includes('admin-laporan') ||
-      window.location.search.includes('admin-laporan')
-    );
-  });
-
   // Quiz state
   const [customAiQuizzes, setCustomAiQuizzes] = useState<QuizQuestion[] | null>(null);
   const [currentQuizIndex, setCurrentQuizIndex] = useState<number>(0);
@@ -263,44 +255,15 @@ export default function App() {
   }, [isWarmSafeOn]);
 
   const toggleWarmSafe = useCallback(() => {
-    setIsWarmSafeOn((prev) => {
-      const next = !prev;
-      logActivity('warm_safe_toggle', {
-        status: next ? 'on' : 'off',
-        email: authUser.email,
-        nama: authUser.displayName,
-      });
-      return next;
-    });
-  }, [authUser.email, authUser.displayName]);
+    setIsWarmSafeOn((prev) => !prev);
+  }, []);
 
-  // Save current class to localStorage and log page_view whenever tab changes
+  // Save current class to localStorage whenever tab changes
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('kelas', selectedClass);
     }
   }, [selectedClass]);
-
-  useEffect(() => {
-    const startTs = Date.now();
-    logActivity('page_view', {
-      page: currentTab,
-      halaman: currentTab,
-      kelas: selectedClass,
-      email: authUser.email,
-      nama: authUser.displayName,
-    });
-    return () => {
-      const durasiDetik = Math.round((Date.now() - startTs) / 1000);
-      if (durasiDetik >= 3) {
-        logActivity('page_duration', {
-          halaman: currentTab,
-          durasiDetik,
-          email: authUser.email,
-        });
-      }
-    };
-  }, [currentTab]);
 
   // ==========================================================================
   // 3. HYDRATE USER DATA HELPER & AUTO-ESTABLISH PUBLIC SESSION
@@ -392,7 +355,7 @@ export default function App() {
         }
 
         // Keep server session active for AI chat & APIs
-        fetch('/api/auth/google-quick', {
+        apiFetch('/api/auth/google-quick', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -400,7 +363,7 @@ export default function App() {
             email: authed.email,
           }),
         })
-          .then((res) => res.json())
+          .then((res) => safeJson(res))
           .then((data) => {
             if (data?.token) {
               localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
@@ -420,11 +383,11 @@ export default function App() {
     async function initPublicOrSavedSession() {
       try {
         if (sessionToken) {
-          const res = await fetch('/api/auth/me', {
+          const res = await apiFetch('/api/auth/me', {
             headers: { Authorization: `Bearer ${sessionToken}` },
           });
-          if (res.ok) {
-            const data = await res.json();
+          const data = await safeJson(res);
+          if (res.ok && data?.user) {
             const normalizedUser =
               data.user?.displayName === 'Siswa Cyber'
                 ? { ...data.user, displayName: 'Bestie Pelajar' }
@@ -433,12 +396,11 @@ export default function App() {
             applyServerUserData(data.userData);
             return;
           }
-          localStorage.removeItem(TOKEN_STORAGE_KEY);
         }
 
         // Auto-create/join a public session so anyone opening the shared link
         // immediately sees the full website and leaderboard without a login wall
-        const quickRes = await fetch('/api/auth/google-quick', {
+        const quickRes = await apiFetch('/api/auth/google-quick', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -446,24 +408,12 @@ export default function App() {
             email: 'pelajar.publik@mimi15.id',
           }),
         });
-        if (quickRes.ok) {
-          const data = await quickRes.json();
-          localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-          setSessionToken(data.token);
-          setAuthUser(data.user);
-          applyServerUserData(data.userData);
-        }
-
-        // Log guest/tamu session visit once per browser session
-        if (!sessionStorage.getItem('mimi_guest_logged')) {
-          sessionStorage.setItem('mimi_guest_logged', 'true');
-          logUserAccess({
-            email: 'tamu_anonim@mimi15.id',
-            nama: 'Tamu (Bestie Pelajar)',
-            kelas: localStorage.getItem('kelas') || 'Kelas 8',
-            isGuest: true,
-            actionType: 'guest_visit',
-          });
+        const quickData = await safeJson(quickRes);
+        if (quickRes.ok && quickData?.token) {
+          localStorage.setItem(TOKEN_STORAGE_KEY, quickData.token);
+          setSessionToken(quickData.token);
+          setAuthUser(quickData.user);
+          applyServerUserData(quickData.userData);
         }
       } catch {
         // Keep PUBLIC_DEFAULT_USER gracefully if offline
@@ -539,20 +489,24 @@ export default function App() {
   const fetchLeaderboard = useCallback(async () => {
     setIsLeaderboardLoading(true);
     try {
-      const res = await fetch('/api/leaderboard', {
+      const res = await apiFetch('/api/leaderboard', {
         headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {},
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.leaderboard)) {
-          setLeaderboard(data.leaderboard);
-        }
+      const data = await safeJson(res);
+      if (res.ok && data && Array.isArray(data.leaderboard)) {
+        setLeaderboard(data.leaderboard);
         if (data.updatedAt) {
           setLeaderboardUpdatedAt(data.updatedAt);
         }
+        return;
       }
+      setLeaderboard((prev) =>
+        prev.length > 0 ? prev : (SEEDED_GLOBAL_LEADERBOARD as LeaderboardEntry[])
+      );
     } catch {
-      // Keep existing leaderboard state if offline
+      setLeaderboard((prev) =>
+        prev.length > 0 ? prev : (SEEDED_GLOBAL_LEADERBOARD as LeaderboardEntry[])
+      );
     } finally {
       setIsLeaderboardLoading(false);
     }
@@ -573,24 +527,32 @@ export default function App() {
       const fbUser = await loginWithEmail(email, password);
 
       // 2. Fetch progress from Firestore
-      const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
-      if (firestoreData) {
-        applyServerUserData(firestoreData);
+      try {
+        const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
+        if (firestoreData) {
+          applyServerUserData(firestoreData);
+        }
+      } catch {
+        // Ignore Firestore read error
       }
 
-      // 3. Establish server session token
-      const res = await fetch('/api/auth/google-quick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName: fbUser.displayName || email.split('@')[0],
-          email: fbUser.email || email,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.token) {
-        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-        setSessionToken(data.token);
+      // 3. Establish server session token (safe on static hosts)
+      try {
+        const res = await apiFetch('/api/auth/google-quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName: fbUser.displayName || email.split('@')[0],
+            email: fbUser.email || email,
+          }),
+        });
+        const data = await safeJson(res);
+        if (res.ok && data?.token) {
+          localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+          setSessionToken(data.token);
+        }
+      } catch {
+        // Ignore on static hosting
       }
 
       setAuthUser({
@@ -613,24 +575,20 @@ export default function App() {
       });
       setShowSignInModal(false);
       triggerXpToast('Berhasil masuk dengan Firebase Auth!');
-      logUserAccess({
-        email: fbUser.email || email,
-        nama: fbUser.displayName || email.split('@')[0],
-        kelas: selectedClass,
-        isGuest: false,
-        actionType: 'login',
-      });
     } catch (err: any) {
       console.warn('Firebase login attempt:', err);
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await apiFetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
         });
-        const data = await res.json();
-        if (!res.ok) {
-          const rawErr = err?.message || data?.error || 'Gagal masuk. Periksa kembali email dan kata sandi.';
+        const data = await safeJson(res);
+        if (!res.ok || !data?.token) {
+          const rawErr =
+            err?.message ||
+            data?.error ||
+            'Gagal masuk. Periksa kembali email dan kata sandi.';
           const friendlyErr =
             rawErr.includes('invalid-credential') || rawErr.includes('user-not-found')
               ? 'Email atau kata sandi tidak cocok di Firebase Auth.'
@@ -664,28 +622,36 @@ export default function App() {
       const fbUser = await registerWithEmail(displayName, email, password);
 
       // 2. Save user progression document in Firestore
-      await saveUserProgressToFirestore(fbUser.uid, {
-        uid: fbUser.uid,
-        displayName: displayName.trim() || 'Bestie Pelajar',
-        email: fbUser.email || email,
-        xp,
-        streakDays,
-        selectedEducationLevel,
-        selectedClass,
-        themeMode,
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        await saveUserProgressToFirestore(fbUser.uid, {
+          uid: fbUser.uid,
+          displayName: displayName.trim() || 'Bestie Pelajar',
+          email: fbUser.email || email,
+          xp,
+          streakDays,
+          selectedEducationLevel,
+          selectedClass,
+          themeMode,
+          createdAt: new Date().toISOString(),
+        });
+      } catch {
+        // Ignore Firestore write warning
+      }
 
-      // 3. Establish server session token
-      const res = await fetch('/api/auth/google-quick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, email }),
-      });
-      const data = await res.json();
-      if (res.ok && data.token) {
-        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-        setSessionToken(data.token);
+      // 3. Establish server session token (safe on static hosts)
+      try {
+        const res = await apiFetch('/api/auth/google-quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName, email }),
+        });
+        const data = await safeJson(res);
+        if (res.ok && data?.token) {
+          localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+          setSessionToken(data.token);
+        }
+      } catch {
+        // Ignore on static hosting
       }
 
       setAuthUser({
@@ -708,24 +674,18 @@ export default function App() {
       });
       setShowSignInModal(false);
       triggerXpToast('Akun berhasil dibuat di Firebase Auth! (+50 XP)');
-      logUserAccess({
-        email: fbUser.email || email,
-        nama: displayName.trim() || 'Bestie Pelajar',
-        kelas: selectedClass,
-        isGuest: false,
-        actionType: 'register',
-      });
     } catch (err: any) {
       console.warn('Firebase register attempt:', err);
       try {
-        const res = await fetch('/api/auth/register', {
+        const res = await apiFetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ displayName, email, password, securityPin }),
         });
-        const data = await res.json();
-        if (!res.ok) {
-          const rawErr = err?.message || data?.error || 'Gagal mendaftarkan akun baru.';
+        const data = await safeJson(res);
+        if (!res.ok || !data?.token) {
+          const rawErr =
+            err?.message || data?.error || 'Gagal mendaftarkan akun baru.';
           const friendlyErr = rawErr.includes('email-already-in-use')
             ? 'Email ini sudah terdaftar di Firebase. Silakan pilih Masuk Akun!'
             : rawErr;
@@ -753,35 +713,43 @@ export default function App() {
       const fbUser = await loginWithGoogle();
 
       // 2. Fetch or initialize progress in Firestore
-      const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
-      if (firestoreData) {
-        applyServerUserData(firestoreData);
-      } else {
-        await saveUserProgressToFirestore(fbUser.uid, {
-          uid: fbUser.uid,
-          displayName: fbUser.displayName || displayName || 'Bestie Pelajar',
-          email: fbUser.email || email,
-          xp,
-          streakDays,
-          selectedEducationLevel,
-          selectedClass,
-          themeMode,
-        });
+      try {
+        const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
+        if (firestoreData) {
+          applyServerUserData(firestoreData);
+        } else {
+          await saveUserProgressToFirestore(fbUser.uid, {
+            uid: fbUser.uid,
+            displayName: fbUser.displayName || displayName || 'Bestie Pelajar',
+            email: fbUser.email || email,
+            xp,
+            streakDays,
+            selectedEducationLevel,
+            selectedClass,
+            themeMode,
+          });
+        }
+      } catch {
+        // Ignore Firestore sync warning
       }
 
-      // 3. Establish server session token
-      const res = await fetch('/api/auth/google-quick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName: fbUser.displayName || displayName,
-          email: fbUser.email || email,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.token) {
-        localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-        setSessionToken(data.token);
+      // 3. Establish server session token (safe on static hosts)
+      try {
+        const res = await apiFetch('/api/auth/google-quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName: fbUser.displayName || displayName,
+            email: fbUser.email || email,
+          }),
+        });
+        const data = await safeJson(res);
+        if (res.ok && data?.token) {
+          localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+          setSessionToken(data.token);
+        }
+      } catch {
+        // Ignore on static hosting
       }
 
       setAuthUser({
@@ -804,42 +772,41 @@ export default function App() {
       });
       setShowSignInModal(false);
       triggerXpToast('Login Google Firebase Berhasil!');
-      logUserAccess({
-        email: fbUser.email || email || 'pelajar@mimi15.id',
-        nama: fbUser.displayName || displayName || 'Bestie Pelajar',
-        kelas: selectedClass,
-        isGuest: false,
-        actionType: 'login',
-      });
     } catch (err: any) {
       console.warn('Google Firebase Auth fallback:', err);
       // If popup closed or restricted in iframe, fallback smoothly to quick Google session
       try {
-        const res = await fetch('/api/auth/google-quick', {
+        const res = await apiFetch('/api/auth/google-quick', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ displayName, email }),
         });
-        const data = await res.json();
-        if (res.ok) {
+        const data = await safeJson(res);
+        if (res.ok && data?.user) {
           localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
           setSessionToken(data.token);
           setAuthUser(data.user);
           applyServerUserData(data.userData);
           setShowSignInModal(false);
-          logUserAccess({
-            email: data.user?.email || email || 'pelajar@mimi15.id',
-            nama: data.user?.displayName || displayName || 'Bestie Pelajar',
-            kelas: selectedClass,
-            isGuest: false,
-            actionType: 'login',
-          });
           triggerXpToast('Sesi masuk terverifikasi!');
         } else {
-          setSignInError(err?.message || data?.error || 'Gagal masuk dengan Google.');
+          // Fallback local guest session if on static hosting and popup was blocked
+          setAuthUser({
+            ...PUBLIC_DEFAULT_USER,
+            displayName: displayName || 'Bestie Pelajar',
+            email: email || 'pelajar@mimi15.id',
+          });
+          setShowSignInModal(false);
+          triggerXpToast('Sesi masuk aktif!');
         }
       } catch {
-        setSignInError(err?.message || 'Gagal menghubungkan Google Sign-In.');
+        setAuthUser({
+          ...PUBLIC_DEFAULT_USER,
+          displayName: displayName || 'Bestie Pelajar',
+          email: email || 'pelajar@mimi15.id',
+        });
+        setShowSignInModal(false);
+        triggerXpToast('Sesi masuk aktif!');
       }
     } finally {
       setIsSigningIn(false);
@@ -863,12 +830,12 @@ export default function App() {
     newPassword?: string,
     securityPin?: string
   ): Promise<string | null> => {
+    setAuthUser((prev) => ({ ...prev, displayName }));
     if (!sessionToken) {
-      setAuthUser((prev) => ({ ...prev, displayName }));
       return null;
     }
     try {
-      const res = await fetch('/api/auth/update-profile', {
+      const res = await apiFetch('/api/auth/update-profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -876,12 +843,13 @@ export default function App() {
         },
         body: JSON.stringify({ displayName, newPassword, securityPin }),
       });
-      const data = await res.json();
-      if (!res.ok) return data.error || 'Gagal memperbarui profil.';
-      setAuthUser(data.user);
+      const data = await safeJson(res);
+      if (res.ok && data?.user) {
+        setAuthUser(data.user);
+      }
       return null;
     } catch {
-      return 'Gagal menghubungi server.';
+      return null;
     }
   };
 
@@ -929,13 +897,25 @@ export default function App() {
   };
 
   const currentLevels = useMemo(() => {
+    const filtered = getFilteredUnitsForSelection(
+      selectedEducationLevel,
+      selectedClass,
+      selectedSubject,
+      studyProgress.completedLevelIds
+    );
+    if (filtered.length > 0) return filtered;
     return INITIAL_LEVELS.filter((l) => l.educationLevel === selectedEducationLevel).map(
       (l) => ({
         ...l,
         isCompleted: studyProgress.completedLevelIds.includes(l.id),
       })
     );
-  }, [selectedEducationLevel, studyProgress.completedLevelIds]);
+  }, [
+    selectedEducationLevel,
+    selectedClass,
+    selectedSubject,
+    studyProgress.completedLevelIds,
+  ]);
 
   const activeQuizPool = useMemo(() => {
     if (customAiQuizzes && customAiQuizzes.length > 0) return customAiQuizzes;
@@ -1025,24 +1005,20 @@ export default function App() {
     storyText: string
   ) => {
     try {
-      const res = await fetch('/api/mimi/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `Mimi, hari ini perasaanku lagi "${mood}". Aku mau curhat: ${storyText}`,
+      const result = await chatMimiWithFallback(
+        `Mimi, hari ini perasaanku lagi "${mood}". Aku mau curhat: ${storyText}`,
+        [],
+        {
           educationLevel: selectedEducationLevel,
           selectedClass,
           selectedSubject: 'Curhat & Perasaan',
           isProfesorMode: false,
           studentName: authUser.displayName,
-          history: [],
-        }),
-      });
-      const data = await res.json();
+        }
+      );
       const warmReply =
-        res.ok && data.reply
-          ? data.reply
-          : `Makasih udah cerita jujur ke Mimi ya, bestie ${authUser.displayName} 🤗💜 Perasaan "${mood}" yang kamu rasain hari ini valid banget. Take your time dan semangat terus ya!`;
+        result.reply ||
+        `Makasih udah cerita jujur ke Mimi ya, bestie ${authUser.displayName} 🤗💜 Perasaan "${mood}" yang kamu rasain hari ini valid banget. Take your time dan semangat terus ya!`;
 
       const newEntry: CurhatJournalEntry = {
         id: 'curhat_' + Date.now(),
@@ -1117,17 +1093,6 @@ export default function App() {
         ...prev,
         totalQuizzesTaken: prev.totalQuizzesTaken + 1,
       }));
-      logActivity('kuis_finish', {
-        email: authUser.email,
-        nama: authUser.displayName,
-        benar: quizScore,
-        salah: Math.max(0, activeQuizPool.length - quizScore),
-        skor: Math.round((quizScore / Math.max(1, activeQuizPool.length)) * 100),
-        mapel: selectedSubject,
-        kelas: selectedClass,
-        mode: 'Kuis Reguler',
-        waktu: new Date().toLocaleString('id-ID'),
-      });
     }
   };
 
@@ -1141,17 +1106,34 @@ export default function App() {
   const handleGenerateAiQuiz = async (customTopic?: string) => {
     setIsGeneratingAiQuiz(true);
     try {
-      const res = await fetch('/api/quiz/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          educationLevel: selectedEducationLevel,
-          selectedClass,
-          topic: customTopic || selectedSubject,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.questions) && data.questions.length > 0) {
+      const rpmSlot = acquireGeminiRpmSlot();
+      if (!rpmSlot.allowed && rpmSlot.waitMs <= 2500) {
+        await new Promise((r) => setTimeout(r, rpmSlot.waitMs));
+      }
+      if (!rpmSlot.allowed && rpmSlot.waitMs > 2500) {
+        return;
+      }
+
+      let res: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        res = await apiFetch('/api/quiz/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            educationLevel: selectedEducationLevel,
+            selectedClass,
+            topic: customTopic || selectedSubject,
+          }),
+        });
+        if (res.status === 429 && attempt === 0) {
+          await new Promise((r) => setTimeout(r, GEMINI_RETRY_DELAY_429_MS));
+          continue;
+        }
+        break;
+      }
+
+      const data = await safeJson(res);
+      if (res && res.ok && data && Array.isArray(data.questions) && data.questions.length > 0) {
         const formatted: QuizQuestion[] = data.questions.map(
           (q: any, index: number) => ({
             id: `ai-q-${Date.now()}-${index}`,
@@ -1195,7 +1177,17 @@ export default function App() {
   };
 
   const handleSendMessageToMimi = async (text: string) => {
-    const textLower = text.toLowerCase();
+    if (isMimiTyping) return;
+    const cleanText = (text || '').trim();
+    if (!cleanText) {
+      return;
+    }
+
+    // Set isMimiTyping = true immediately before fetch to prevent concurrent/spam requests
+    setIsMimiTyping(true);
+    setMimiDialogCount((prev) => prev + 1);
+
+    const textLower = cleanText.toLowerCase();
 
     // 1. Auto-detect subject if user mentions specific subject domain keywords
     let targetSubject = selectedSubject;
@@ -1299,33 +1291,24 @@ export default function App() {
     const userMsg: ChatMessage = {
       id: 'msg_u_' + Date.now(),
       sender: 'user',
-      text,
+      text: cleanText,
       timestamp: formatShortTime(),
     };
     setChatMessages((prev) => [...prev, userMsg]);
-    setIsMimiTyping(true);
-    setMimiDialogCount((prev) => prev + 1);
 
     try {
-      const res = await fetch('/api/mimi/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          educationLevel: selectedEducationLevel,
-          selectedClass,
-          selectedSubject: targetSubject,
-          isProfesorMode: effectiveProfesorMode,
-          studentName: authUser.displayName || 'Bestie',
-          history: chatMessages.slice(-8),
-        }),
+      const result = await chatMimiWithFallback(text, chatMessages.slice(-8), {
+        educationLevel: selectedEducationLevel,
+        selectedClass,
+        selectedSubject: targetSubject,
+        isProfesorMode: effectiveProfesorMode,
+        studentName: authUser.displayName || 'Bestie',
       });
-      const data = await res.json();
+
       const replyText =
-        res.ok && data.reply
-          ? data.reply
-          : 'Mimi tetap di sini nemenin kamu bestie! ✨ Coba tulis ulang pertanyaan atau topik yang pengen kita bahas bareng ya.';
-      const xpGain = res.ok ? Number(data.xpAwarded) || 15 : 15;
+        result.reply ||
+        'Mimi tetap di sini nemenin kamu bestie! ✨ Coba tulis ulang pertanyaan atau topik yang pengen kita bahas bareng ya.';
+      const xpGain = Number(result.xpAwarded) || 15;
 
       const mimiMsg: ChatMessage = {
         id: 'msg_m_' + Date.now(),
@@ -1345,7 +1328,7 @@ export default function App() {
         {
           id: 'msg_err_' + Date.now(),
           sender: 'mimi',
-          text: 'Koneksi ke server Mimi sedang sibuk sebentar. Coba kirim ulang pesanmu ya bestie!',
+          text: 'Waduh bestie, Mimi lagi tarik napas 3 detik ya, habis itu kita lanjut lagi ✨',
           timestamp: formatShortTime(),
         },
       ]);
@@ -1520,31 +1503,10 @@ export default function App() {
             onUpdateProfileSecurity={handleUpdateProfileSecurity}
             onSignOut={handleSignOut}
             onOpenDonation={() => setIsDonationOpen(true)}
-            onOpenErrorReport={() => setIsErrorReportOpen(true)}
-            onOpenAdminDashboard={() => {
-              window.history.pushState({}, '', '/admin-laporan');
-              setIsAdminLaporanOpen(true);
-            }}
           />
         );
     }
   };
-
-  if (isAdminLaporanOpen) {
-    return (
-      <div className="min-h-screen w-full bg-[#0B1120] text-slate-100 overflow-y-auto px-4 sm:px-8 py-6">
-        <div className="max-w-7xl mx-auto">
-          <AdminLaporanScreen
-            currentUserEmail={authUser.email}
-            onBackToHome={() => {
-              window.history.pushState({}, '', '/');
-              setIsAdminLaporanOpen(false);
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-[100dvh] w-full bg-[#0B1120] text-slate-100 overflow-hidden flex flex-col">
@@ -1567,14 +1529,6 @@ export default function App() {
       <DonationDialog
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
-      />
-
-      {/* Modal Lapor Error / Masukan ke Owner (anna.adriiann@gmail.com) */}
-      <ErrorReportModal
-        isOpen={isErrorReportOpen}
-        onClose={() => setIsErrorReportOpen(false)}
-        userEmail={authUser.email}
-        userName={authUser.displayName}
       />
 
       {isWideScreen ? (
@@ -1734,6 +1688,17 @@ export default function App() {
                 <span>👁️ {isWarmSafeOn ? 'Warm ON' : 'Warm OFF'}</span>
               </button>
 
+              {/* PWA Download App & Share Shortcut for Mobile */}
+              <PwaInstallButton
+                compact
+                className="px-2 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold flex items-center gap-1 shrink-0 shadow-xs"
+              />
+              <ShareButton
+                compact
+                label="Share"
+                className="px-2 py-1 rounded-xl bg-indigo-600/30 border border-indigo-400/40 text-indigo-200 text-[10px] font-extrabold flex items-center gap-1 shrink-0"
+              />
+
               {/* Book Drive Hub Shortcut */}
               <button
                 type="button"
@@ -1807,34 +1772,6 @@ export default function App() {
           />
         </div>
       )}
-      
-  {/* 🚨 TOMBOL LAPOR ERROR - MiMi-V15 - Email ke Anna */}
-  <button
-    onClick={() => {
-      const pesan = prompt("🚨 Ada error apa di MiMi-V15?\nTulis disini Met:");
-      if(!pesan) return;
-      emailjs.send("Mimi-Service","Mimi-Service",{
-        name: "User MiMi-V15",
-        email: "reporter@mimi-v15.com",
-        waktu: new Date().toLocaleString('id-ID'),
-        device: navigator.userAgent,
-        error_url: window.location.href,
-        title: document.title,
-        message: pesan,
-        kelas: "-",
-        tipe: "Bug Report",
-        time: new Date().toString()
-      }).then(()=>alert("✅ Makasih! Laporan terkirim ke Anna!")).catch(()=>alert("❌ Gagal kirim!"));
-    }}
-    style={{
-      position: 'fixed', bottom: '20px', right: '20px',
-      background: '#ff3b3b', color: 'white', border: 'none',
-      padding: '14px 22px', borderRadius: '50px', fontWeight: 'bold',
-      zIndex: 99999, cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,0,0,0.4)'
-    }}
-  >
-    🚨 Lapor Error
-  </button>
 
       {/* Warm Safe Ambient Overlay (Active only when toggled ON, zero obstruction) */}
       <div
