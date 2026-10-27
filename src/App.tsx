@@ -7,8 +7,6 @@ emailjs.init("b6hnq4qiQ2z8cgYpj");
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import emailjs from "@emailjs/browser";
-emailjs.init("b6hnq4qiQ2z8cgYpj");
 import {
   AuthUser,
   BadgeItem,
