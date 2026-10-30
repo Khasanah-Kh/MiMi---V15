@@ -523,11 +523,11 @@
   },
   "Umum": {
     "Umum": {
-      "label": "Umum (Pengetahuan Umum HAGO)",
+      "label": "Umum (Pengetahuan & Logika Mimi)",
       "classKey": "umum",
       "mtk": {
         "allowedTopics": [
-          "Logika Numerik, Deret Angka, Teka-Teki Otak, dan Aritmetika Cepat HAGO"
+          "Logika Numerik, Deret Angka, Teka-Teki Otak, dan Aritmetika Cepat Mimi V15"
         ]
       },
       "inggris": {

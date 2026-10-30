@@ -237,143 +237,11 @@ class SoundService {
   }
 
   /**
-   * Start clearly audible, exciting Cyber Battle BGM (works vs Bot & vs Player)
-   * Uses midrange frequencies (110Hz - 880Hz) so phone and laptop speakers play it clearly!
+   * Duel BGM is now handled exclusively by `duelMusicService.ts` (4 distinct MP3 files per level)
+   * inside the active duel room only. Keeping `startDuelMusic()` silent prevents audio collision.
    */
   public startDuelMusic(): void {
-    if (!this.isBgmOn) return;
-    const ctx = this.resumeAudio();
-    if (!ctx) return;
-    if (this.isMusicPlaying) return;
-
-    this.isMusicPlaying = true;
-
-    try {
-      const masterBgmGain = ctx.createGain();
-      const targetGain = Math.max(0.05, this.bgmVolume * 0.45);
-      masterBgmGain.gain.setValueAtTime(0.01, ctx.currentTime);
-      masterBgmGain.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.5);
-      masterBgmGain.connect(ctx.destination);
-      this.bgmGainNode = masterBgmGain;
-    } catch {
-      return;
-    }
-
-    // Cyber Synthwave progression in A minor -> F major -> G major -> E minor
-    // Bass in audible octave (A2=110Hz, F2=87.31Hz, G2=98.0Hz, E2=82.41Hz + octave harmonics 220Hz/174Hz)
-    const bassRoots = [110.0, 110.0, 87.31, 98.0];
-    // Melodic Cyber Pluck Arp (A3-E4-A4 range: 220Hz - 659Hz, super clear on all speakers)
-    const arpPatterns = [
-      [220.0, 261.63, 329.63, 440.0, 329.63, 261.63, 329.63, 440.0], // Am
-      [220.0, 329.63, 440.0, 523.25, 440.0, 329.63, 261.63, 220.0],  // Am high
-      [174.61, 220.0, 261.63, 349.23, 261.63, 220.0, 261.63, 349.23], // F
-      [196.0, 246.94, 293.66, 392.0, 329.63, 293.66, 246.94, 196.0],  // G/Em
-    ];
-
-    let step = 0;
-
-    const playStep = () => {
-      if (!this.isMusicPlaying || !this.isBgmOn || !this.bgmGainNode) return;
-      const now = ctx.currentTime;
-      const barIdx = Math.floor((step % 32) / 8);
-      const rootFreq = bassRoots[barIdx] || 110.0;
-      const currentArp = arpPatterns[barIdx] || arpPatterns[0];
-
-      // 1. Driving Cyber Bassline (steps 0, 2, 4, 6) - Sawtooth + Triangle in 110-220Hz range
-      if (step % 2 === 0) {
-        try {
-          const bOsc = ctx.createOscillator();
-          const bGain = ctx.createGain();
-          const bFilter = ctx.createBiquadFilter();
-
-          bOsc.type = 'sawtooth';
-          const freq = step % 4 === 0 ? rootFreq : rootFreq * 2; // Octave bounce!
-          bOsc.frequency.setValueAtTime(freq, now);
-
-          bFilter.type = 'lowpass';
-          bFilter.frequency.setValueAtTime(650, now);
-          bFilter.frequency.exponentialRampToValueAtTime(190, now + 0.18);
-
-          bGain.gain.setValueAtTime(0.32, now);
-          bGain.gain.exponentialRampToValueAtTime(0.005, now + 0.2);
-
-          bOsc.connect(bFilter);
-          bFilter.connect(bGain);
-          bGain.connect(this.bgmGainNode);
-
-          bOsc.start(now);
-          bOsc.stop(now + 0.21);
-        } catch {}
-      }
-
-      // 2. Clear Melodic Cyber Synth Arp (Every step! Gives exciting battle momentum)
-      try {
-        const noteFreq = currentArp[step % 8];
-        const aOsc = ctx.createOscillator();
-        const aGain = ctx.createGain();
-
-        aOsc.type = 'triangle';
-        aOsc.frequency.setValueAtTime(noteFreq, now);
-
-        const accent = step % 4 === 0 ? 0.28 : 0.16;
-        aGain.gain.setValueAtTime(accent, now);
-        aGain.gain.exponentialRampToValueAtTime(0.002, now + 0.15);
-
-        aOsc.connect(aGain);
-        aGain.connect(this.bgmGainNode);
-
-        aOsc.start(now);
-        aOsc.stop(now + 0.16);
-      } catch {}
-
-      // 3. Warm Pad Chord on beat 0 of every bar (every 8 steps)
-      if (step % 8 === 0) {
-        try {
-          const chordNotes = [currentArp[0], currentArp[2], currentArp[3]];
-          chordNotes.forEach((cFreq) => {
-            const pOsc = ctx.createOscillator();
-            const pGain = ctx.createGain();
-            pOsc.type = 'sine';
-            pOsc.frequency.setValueAtTime(cFreq, now);
-
-            pGain.gain.setValueAtTime(0.001, now);
-            pGain.gain.linearRampToValueAtTime(0.1, now + 0.3);
-            pGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
-
-            pOsc.connect(pGain);
-            pGain.connect(this.bgmGainNode!);
-
-            pOsc.start(now);
-            pOsc.stop(now + 1.15);
-          });
-        } catch {}
-      }
-
-      // 4. Soft Cyber Snare / Hi-Hat Tick on off-beats
-      if (step % 2 === 1) {
-        try {
-          const tOsc = ctx.createOscillator();
-          const tGain = ctx.createGain();
-          tOsc.type = 'sine';
-          tOsc.frequency.setValueAtTime(step % 4 === 3 ? 1600 : 1100, now);
-
-          tGain.gain.setValueAtTime(0.08, now);
-          tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-
-          tOsc.connect(tGain);
-          tGain.connect(this.bgmGainNode);
-
-          tOsc.start(now);
-          tOsc.stop(now + 0.05);
-        } catch {}
-      }
-
-      step = (step + 1) % 64;
-    };
-
-    // Play first step immediately so user hears music right on click!
-    playStep();
-    this.duelMusicTimer = window.setInterval(playStep, 145);
+    this.stopDuelMusic();
   }
 
   /**
@@ -393,12 +261,12 @@ class SoundService {
         const now = this.audioCtx.currentTime;
         nodeToClean.gain.cancelScheduledValues(now);
         nodeToClean.gain.setValueAtTime(nodeToClean.gain.value, now);
-        nodeToClean.gain.linearRampToValueAtTime(0.0001, now + 0.35);
+        nodeToClean.gain.linearRampToValueAtTime(0.0001, now + 0.15);
         setTimeout(() => {
           try {
             nodeToClean.disconnect();
           } catch {}
-        }, 400);
+        }, 200);
       } catch {
         this.bgmGainNode = null;
       }
@@ -417,8 +285,6 @@ class SoundService {
     }
     if (!this.isBgmOn) {
       this.stopDuelMusic();
-    } else {
-      this.startDuelMusic();
     }
     return this.isBgmOn;
   }

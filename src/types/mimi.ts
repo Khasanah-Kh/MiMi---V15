@@ -201,6 +201,11 @@ export interface AuthUser {
   uid: string;
   displayName: string;
   email: string;
+  studentId?: string;
+  photoURL?: string;
+  googleLinked?: boolean;
+  isDev?: boolean;
+  lastNameChange?: number | null;
   authMethod: 'PBKDF2_SCRYPT' | 'GOOGLE_VERIFIED';
   hasSecurityPin: boolean;
   createdAt: string;
@@ -213,9 +218,14 @@ export interface MimiUiState {
   selectedEducationLevel: EducationLevel;
   selectedClass: string;
   selectedSubject: string;
+  selectedArenaLevel?: string;
   isProfesorMode: boolean;
   studentName: string;
   studentEmail: string;
+  studentId?: string;
+  studentPhotoUrl?: string;
+  isDev?: boolean;
+  lastNameChange?: number | null;
   xp: number;
   level: number;
   streakDays: number;

@@ -8,47 +8,19 @@ import {
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
+// Minimal, least-privilege OAuth scopes:
+// 1. Basic profile (email & name/photo for login)
+// 2. Read-only Drive access (view & download PDFs only — NO edit/delete/create)
 export const SCOPES = [
-  // Google Drive scopes
-  'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/drive.activity',
-  'https://www.googleapis.com/auth/drive.activity.readonly',
-  'https://www.googleapis.com/auth/drive.appdata',
-  'https://www.googleapis.com/auth/drive.apps.readonly',
-  'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.install',
-  'https://www.googleapis.com/auth/drive.meet.readonly',
-  'https://www.googleapis.com/auth/drive.metadata',
-  'https://www.googleapis.com/auth/drive.metadata.readonly',
-  'https://www.googleapis.com/auth/drive.photos.readonly',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/drive.readonly',
-  'https://www.googleapis.com/auth/drive.scripts',
-  // Google Classroom scopes
-  'https://www.googleapis.com/auth/classroom.addons.student',
-  'https://www.googleapis.com/auth/classroom.addons.teacher',
-  'https://www.googleapis.com/auth/classroom.announcements',
-  'https://www.googleapis.com/auth/classroom.announcements.readonly',
-  'https://www.googleapis.com/auth/classroom.courses',
-  'https://www.googleapis.com/auth/classroom.courses.readonly',
-  'https://www.googleapis.com/auth/classroom.coursework.me',
-  'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
-  'https://www.googleapis.com/auth/classroom.coursework.students',
-  'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
-  'https://www.googleapis.com/auth/classroom.courseworkmaterials',
-  'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
-  'https://www.googleapis.com/auth/classroom.guardianlinks.me.readonly',
-  'https://www.googleapis.com/auth/classroom.guardianlinks.students',
-  'https://www.googleapis.com/auth/classroom.guardianlinks.students.readonly',
-  'https://www.googleapis.com/auth/classroom.profile.emails',
-  'https://www.googleapis.com/auth/classroom.profile.photos',
-  'https://www.googleapis.com/auth/classroom.push-notifications',
-  'https://www.googleapis.com/auth/classroom.rosters',
-  'https://www.googleapis.com/auth/classroom.rosters.readonly',
-  'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
-  'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
-  'https://www.googleapis.com/auth/classroom.topics',
-  'https://www.googleapis.com/auth/classroom.topics.readonly',
 ];
+
+export const OFFICIAL_DRIVE_PDF_FOLDER_URL =
+  'https://drive.google.com/drive/folders/11kyLbfZzoErchLOthATLV8RqHiplI5Lk?usp=drive_link';
+export const OFFICIAL_DRIVE_PDF_FOLDER_ID =
+  '11kyLbfZzoErchLOthATLV8RqHiplI5Lk';
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -274,64 +246,9 @@ export async function listDrivePdfsInFolder(
 }
 
 /**
- * Uploads a PDF file strictly into the Admin's link-shared Google Drive folder.
+ * Downloads a PDF file strictly in read-only mode (drive.readonly).
+ * Never edits, creates, or deletes any user files on Google Drive.
  */
-export async function uploadPdfToDriveFolder(
-  file: File,
-  folderId: string,
-  customTitle?: string
-): Promise<DrivePdfFile> {
-  const token = await getDriveAccessToken();
-  if (!token) {
-    throw new Error('UNAUTHENTICATED_DRIVE');
-  }
-
-  if (!folderId || !folderId.trim()) {
-    throw new Error(
-      'Silakan hubungkan link folder Google Drive yang dibagikan terlebih dahulu.'
-    );
-  }
-
-  const metadata: Record<string, any> = {
-    name: customTitle
-      ? customTitle.endsWith('.pdf')
-        ? customTitle
-        : `${customTitle}.pdf`
-      : file.name,
-    mimeType: 'application/pdf',
-    parents: [folderId.trim()],
-  };
-
-  const form = new FormData();
-  form.append(
-    'metadata',
-    new Blob([JSON.stringify(metadata)], { type: 'application/json' })
-  );
-  form.append('file', file);
-
-  const res = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,mimeType,size,modifiedTime,webViewLink,webContentLink',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: form,
-    }
-  );
-
-  if (res.status === 401 || res.status === 403) {
-    cachedAccessToken = null;
-    throw new Error('UNAUTHENTICATED_DRIVE');
-  }
-
-  if (!res.ok) {
-    throw new Error('Gagal mengunggah buku PDF ke folder link Google Drive.');
-  }
-
-  return (await res.json()) as DrivePdfFile;
-}
-
 export async function downloadDrivePdfBlob(
   fileId: string,
   fileName: string
@@ -367,192 +284,27 @@ export async function downloadDrivePdfBlob(
   setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
 }
 
-export async function deleteDriveFile(fileId: string): Promise<void> {
-  const token = await getDriveAccessToken();
-  if (!token) {
-    throw new Error('UNAUTHENTICATED_DRIVE');
-  }
-
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
-      fileId
-    )}?supportsAllDrives=true`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error('Gagal menghapus file dari Google Drive.');
-  }
-}
-
 /**
- * Google Classroom API: Lists active courses for the authenticated student/teacher.
+ * Opens the official Google Drive PDF folder so students can select and download
+ * the exact subject PDF material they clicked.
  */
-export async function listClassroomCourses(): Promise<ClassroomCourseItem[]> {
-  const token = await getDriveAccessToken();
-  if (!token) {
-    throw new Error('UNAUTHENTICATED_DRIVE');
-  }
-
-  const res = await fetch(
-    'https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE&pageSize=20',
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  if (res.status === 401 || res.status === 403) {
-    cachedAccessToken = null;
-    throw new Error('UNAUTHENTICATED_DRIVE');
-  }
-
-  if (!res.ok) {
-    throw new Error('Gagal memuat daftar kelas dari Google Classroom.');
-  }
-
-  const data = await res.json();
-  return Array.isArray(data.courses) ? data.courses : [];
-}
-
-/**
- * Google Classroom API: Lists coursework & materials for a selected course.
- */
-export async function listClassroomCourseItems(
-  courseId: string
-): Promise<ClassroomWorkItem[]> {
-  const token = await getDriveAccessToken();
-  if (!token) {
-    throw new Error('UNAUTHENTICATED_DRIVE');
-  }
-
-  const [workRes, matRes] = await Promise.all([
-    fetch(
-      `https://classroom.googleapis.com/v1/courses/${encodeURIComponent(
-        courseId
-      )}/courseWork?pageSize=15`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    ),
-    fetch(
-      `https://classroom.googleapis.com/v1/courses/${encodeURIComponent(
-        courseId
-      )}/courseWorkMaterials?pageSize=15`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    ),
-  ]);
-
-  const items: ClassroomWorkItem[] = [];
-  if (workRes.ok) {
-    const workData = await workRes.json();
-    if (Array.isArray(workData.courseWork)) {
-      items.push(...workData.courseWork);
-    }
-  }
-  if (matRes.ok) {
-    const matData = await matRes.json();
-    if (Array.isArray(matData.courseWorkMaterial)) {
-      items.push(...matData.courseWorkMaterial);
-    }
-  }
-
-  return items;
-}
-
-/**
- * Generates a valid, standards-compliant downloadable PDF file on the fly
- * for any module or textbook summary so students can always download PDF material offline.
- */
-export function downloadGeneratedModulePdf(options: {
-  title: string;
-  level: string;
-  classRange: string;
-  subject: string;
-  bookTitle: string;
-  publisher: string;
-  catalogUrl: string;
-  summaryPoints: string[];
+export function downloadGeneratedModulePdf(_options?: {
+  title?: string;
+  level?: string;
+  classRange?: string;
+  subject?: string;
+  bookTitle?: string;
+  publisher?: string;
+  catalogUrl?: string;
+  summaryPoints?: string[];
   formula?: string;
 }): void {
-  const sanitizePdfText = (str: string) =>
-    str
-      .replace(/[^\x20-\x7E]/g, ' ')
-      .replace(/[()\\]/g, '')
-      .slice(0, 95);
-
-  const lines: string[] = [
-    'MODUL & RINGKASAN BUKU RESMI - ROOM BELAJAR MIMI V15',
-    `Jenjang: ${options.level} (${options.classRange}) | Mata Pelajaran: ${options.subject}`,
-    `Judul Modul: ${options.title}`,
-    '------------------------------------------------------------------------',
-    'SUMBER BUKU TEKS TERVERIFIKASI:',
-    `Judul Buku: ${options.bookTitle}`,
-    `Penerbit: ${options.publisher}`,
-    `Katalog Resmi: ${options.catalogUrl}`,
-    '------------------------------------------------------------------------',
-    'INTISARI KONSEP & MATERI:',
-    ...options.summaryPoints.map((pt, i) => `${i + 1}. ${pt}`),
-  ];
-
-  if (options.formula) {
-    lines.push(
-      '------------------------------------------------------------------------'
-    );
-    lines.push(`Rumus / Model Kunci: ${options.formula}`);
-  }
-
-  lines.push(
-    '------------------------------------------------------------------------'
-  );
-  lines.push('Dicetak otomatis dari Room Belajar Mimi V15 (Cloud 24/7)');
-
-  let contentStream = 'BT\n/F1 11 Tf\n50 760 Td\n16 TL\n';
-  for (const line of lines) {
-    const clean = line.replace(/[^\x20-\x7E]/g, ' ').replace(/[()\\]/g, '');
-    const chunks = clean.match(/.{1,82}(\s|$)/g) || [clean];
-    for (const chunk of chunks) {
-      contentStream += `(${sanitizePdfText(chunk.trim())}) Tj T*\n`;
-    }
-  }
-  contentStream += 'ET';
-
-  const objects: string[] = [
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
-    '3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >>\nendobj\n',
-    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
-    `5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`,
-  ];
-
-  let pdf = '%PDF-1.4\n';
-  const offsets: number[] = [];
-  for (const obj of objects) {
-    offsets.push(pdf.length);
-    pdf += obj;
-  }
-  const xrefStart = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets) {
-    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
-
-  const blob = new Blob([pdf], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const safeFilename = options.title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-  a.href = url;
-  a.download = `Materi-${options.level}-${safeFilename || 'mimi-v15'}.pdf`;
+  a.href = OFFICIAL_DRIVE_PDF_FOLDER_URL;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
+

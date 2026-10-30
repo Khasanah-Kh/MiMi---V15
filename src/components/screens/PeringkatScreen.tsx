@@ -15,6 +15,13 @@ import {
   MimiUiState,
 } from '../../types/mimi';
 import { CYBER_RANKS } from '../../data/curriculumData';
+import {
+  DevBadge,
+  CREATOR_NAME,
+  isDevUser,
+  getLevelBadge,
+  getBadgeColor,
+} from '../DevBadge';
 
 interface PeringkatScreenProps {
   uiState: MimiUiState;
@@ -36,13 +43,35 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
   const [levelFilter, setLevelFilter] = useState<'ALL' | EducationLevel>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isCreatorEntry = (entry: LeaderboardEntry) => {
+    const lowerName = (entry.displayName || '').toLowerCase();
+    return (
+      (entry.isCurrentUser && isDevUser(uiState.studentEmail)) ||
+      lowerName === CREATOR_NAME.toLowerCase() ||
+      lowerName === 'mimi15_real'
+    );
+  };
+
+  const isBotEntry = (entry: LeaderboardEntry) => {
+    if (entry.isCurrentUser || isCreatorEntry(entry)) return false;
+    return (
+      entry.uid.startsWith('seed-') ||
+      entry.uid.startsWith('bot') ||
+      entry.displayName.toLowerCase().includes('rakha') ||
+      entry.displayName.toLowerCase().includes('bot')
+    );
+  };
+
   // Ensure current user's live XP and rank are always reflected instantaneously
   const mergedLeaderboard = useMemo(() => {
     const list = leaderboard.map((entry) => {
       if (entry.isCurrentUser) {
+        const displayName = isDevUser(uiState.studentEmail)
+          ? CREATOR_NAME
+          : uiState.studentName;
         return {
           ...entry,
-          displayName: uiState.studentName,
+          displayName,
           educationLevel: uiState.selectedEducationLevel,
           selectedClass: uiState.selectedClass,
           xp: uiState.xp,
@@ -63,6 +92,7 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
   }, [
     leaderboard,
     uiState.studentName,
+    uiState.studentEmail,
     uiState.selectedEducationLevel,
     uiState.selectedClass,
     uiState.xp,
@@ -145,8 +175,19 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
                     {currentUserEntry.educationLevel} ({currentUserEntry.selectedClass})
                   </span>
                 </div>
-                <div className="text-lg font-extrabold text-white">
-                  {currentUserEntry.displayName} — {currentUserEntry.cyberRank}
+                <div className="text-lg font-extrabold text-white flex flex-wrap items-center gap-2">
+                  <span>{currentUserEntry.displayName}</span>
+                  {isCreatorEntry(currentUserEntry) && <DevBadge size="xs" />}
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(
+                      getLevelBadge(currentUserEntry.xp)
+                    )}`}
+                  >
+                    {getLevelBadge(currentUserEntry.xp)}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-400">
+                    — {currentUserEntry.cyberRank}
+                  </span>
                 </div>
                 <div className="text-xs text-slate-400 font-mono tabular-nums">
                   {nextRivalAbove
@@ -210,14 +251,24 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
                       <span>Peringkat #{student.rankPosition}</span>
                     </div>
 
-                    <span className="text-xs font-mono text-slate-400 tabular-nums">
-                      {student.educationLevel} · {student.selectedClass}
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(
+                        getLevelBadge(student.xp)
+                      )}`}
+                    >
+                      {getLevelBadge(student.xp)}
                     </span>
                   </div>
 
                   <div>
-                    <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                    <h2 className="text-lg font-extrabold text-white flex flex-wrap items-center gap-1.5">
                       <span className="truncate">{student.displayName}</span>
+                      {isCreatorEntry(student) && <DevBadge size="xs" />}
+                      {isBotEntry(student) && (
+                        <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 text-[9px] font-bold">
+                          🤖 BOT
+                        </span>
+                      )}
                       {student.isCurrentUser && (
                         <span className="text-xs font-semibold text-sky-400 shrink-0">
                           (Anda)
@@ -225,7 +276,7 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
                       )}
                     </h2>
                     <p className="text-xs text-sky-400 font-medium mt-0.5">
-                      {student.cyberRank}
+                      {student.cyberRank} · {student.educationLevel} ({student.selectedClass})
                     </p>
                   </div>
                 </div>
@@ -297,6 +348,7 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
               <tr className="border-b border-slate-800 bg-[#0B1120] text-[11px] font-semibold text-slate-400">
                 <th className="py-3 px-4">Peringkat</th>
                 <th className="py-3 px-4">Nama Teman Belajar</th>
+                <th className="py-3 px-4">Badge Level Skor</th>
                 <th className="py-3 px-4">Jenjang & Kelas</th>
                 <th className="py-3 px-4">Gelar Belajar</th>
                 <th className="py-3 px-4 text-right">Modul & Tantangan</th>
@@ -304,65 +356,84 @@ export const PeringkatScreen: React.FC<PeringkatScreenProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 text-xs sm:text-sm">
-              {filteredList.map((row, idx) => (
-                <tr
-                  key={`row-${row.uid || 'row'}-${row.rankPosition || idx}`}
-                  className={`transition-colors ${
-                    row.isCurrentUser
-                      ? 'bg-sky-500/10'
-                      : 'hover:bg-slate-900/60'
-                  }`}
-                >
-                  <td className="py-3.5 px-4 font-mono font-bold tabular-nums">
-                    <span
-                      className={
-                        row.rankPosition === 1
-                          ? 'text-amber-400'
-                          : row.rankPosition === 2
-                          ? 'text-slate-200'
-                          : row.rankPosition === 3
-                          ? 'text-amber-600'
-                          : 'text-slate-400'
-                      }
-                    >
-                      #{row.rankPosition}
-                    </span>
-                  </td>
+              {filteredList.map((row, idx) => {
+                const scoreBadge = getLevelBadge(row.xp);
+                return (
+                  <tr
+                    key={`row-${row.uid || 'row'}-${row.rankPosition || idx}`}
+                    className={`transition-colors ${
+                      row.isCurrentUser
+                        ? 'bg-sky-500/10'
+                        : 'hover:bg-slate-900/60'
+                    }`}
+                  >
+                    <td className="py-3.5 px-4 font-mono font-bold tabular-nums">
+                      <span
+                        className={
+                          row.rankPosition === 1
+                            ? 'text-amber-400'
+                            : row.rankPosition === 2
+                            ? 'text-slate-200'
+                            : row.rankPosition === 3
+                            ? 'text-amber-600'
+                            : 'text-slate-400'
+                        }
+                      >
+                        #{row.rankPosition}
+                      </span>
+                    </td>
 
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-white flex items-center gap-2">
-                      <span>{row.displayName}</span>
-                      {row.isCurrentUser && (
-                        <span className="text-[11px] font-semibold text-sky-400">
-                          · Anda
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-slate-400 font-mono tabular-nums">
-                      Streak {row.streakDays} hari aktif
-                    </div>
-                  </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-white flex flex-wrap items-center gap-1.5">
+                        <span>{row.displayName}</span>
+                        {isCreatorEntry(row) && <DevBadge size="xs" />}
+                        {isBotEntry(row) && (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 text-[9px] font-bold">
+                            🤖 BOT
+                          </span>
+                        )}
+                        {row.isCurrentUser && (
+                          <span className="text-[11px] font-semibold text-sky-400">
+                            · Anda
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono tabular-nums">
+                        Streak {row.streakDays} hari aktif
+                      </div>
+                    </td>
 
-                  <td className="py-3.5 px-4 text-xs text-slate-300 whitespace-nowrap">
-                    {row.educationLevel} · {row.selectedClass}
-                  </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(
+                          scoreBadge
+                        )}`}
+                      >
+                        {scoreBadge}
+                      </span>
+                    </td>
 
-                  <td className="py-3.5 px-4 text-xs font-semibold text-sky-400 whitespace-nowrap">
-                    {row.cyberRank}
-                  </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-300 whitespace-nowrap">
+                      {row.educationLevel} · {row.selectedClass}
+                    </td>
 
-                  <td className="py-3.5 px-4 text-right font-mono text-xs text-slate-300 tabular-nums whitespace-nowrap">
-                    {row.completedModules} Modul · {row.rivalWins} Menang
-                  </td>
+                    <td className="py-3.5 px-4 text-xs font-semibold text-sky-400 whitespace-nowrap">
+                      {row.cyberRank}
+                    </td>
 
-                  <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
-                    <span className="text-slate-400 text-xs mr-2">Lv.{row.level}</span>
-                    <span className="font-extrabold text-emerald-400">
-                      {row.xp} XP
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                    <td className="py-3.5 px-4 text-right font-mono text-xs text-slate-300 tabular-nums whitespace-nowrap">
+                      {row.completedModules} Modul · {row.rivalWins} Menang
+                    </td>
+
+                    <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                      <span className="text-slate-400 text-xs mr-2">Lv.{row.level}</span>
+                      <span className="font-extrabold text-emerald-400">
+                        {row.xp} XP
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

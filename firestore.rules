@@ -22,6 +22,40 @@ service cloud.firestore {
     // Users collection (supporting both Firebase Auth accounts and student guest profiles)
     match /users/{userId} {
       allow read, write: if isValidId(userId);
+
+      match /friends/{friendId} {
+        allow read, write: if true;
+      }
+
+      match /duelHistory/{historyId} {
+        allow read, write: if true;
+      }
+
+      match /duelSessions/{sessionId} {
+        allow read, write: if true;
+      }
+
+      match /gameHistory/{historyId} {
+        allow read, write: if true;
+      }
+
+      match /scores/{scoreId} {
+        allow read, write: if true;
+      }
+    }
+
+    // Student ID fast lookup index (MIMI-XXXX-XXXX)
+    match /studentIdIndex/{studentId} {
+      allow read, write: if true;
+    }
+
+    // Question bank & anti-repeat history
+    match /question_bank/{docId} {
+      allow read, write: if true;
+    }
+
+    match /user_question_history/{userId} {
+      allow read, write: if true;
     }
 
     // Duel Arena Rooms collection for real-time multiplayer challenges

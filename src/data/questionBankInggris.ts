@@ -444,30 +444,150 @@ const SMA_SMK_INGGRIS: Omit<AdaptiveQuestion, 'id' | 'classKey' | 'subject'>[] =
     level: 'ahli',
     explanation: 'Literasi digital mencakup berpikir kritis dan etika, bukan sekadar kemampuan teknis mengoperasikan perangkat.',
   },
+  // Additional SMA/SMK Level Pemula (Konsep Dasar SMA/SMK: Passive Voice, Opinion, Direct/Indirect, Conditional Type 1/2 Dasar)
+  {
+    q: '[Passive Voice Dasar SMA] Many renewable energy projects ___ by young Indonesian engineers every year.',
+    options: ['are developed', 'is developed', 'developed', 'developing'],
+    answer: 0,
+    type: 'passiveSMA',
+    level: 'pemula',
+    explanation: 'Subjek jamak "Many renewable energy projects" dalam kalimat pasif Simple Present menggunakan "are + V3 (developed)".',
+  },
+  {
+    q: '[Asking & Giving Opinion SMA] "In my view, vocational training is essential for students." The underlined phrase expresses...',
+    options: ['Giving an opinion', 'Asking for help', 'Declining an invitation', 'Expressing sympathy'],
+    answer: 0,
+    type: 'opinionSMA',
+    level: 'pemula',
+    explanation: '"In my view..." digunakan untuk menyampaikan pendapat (giving an opinion).',
+  },
+  {
+    q: '[Simple Past vs Present Perfect SMA] The research team ___ three prototypes since January.',
+    options: ['has built', 'built', 'builds', 'is building'],
+    answer: 0,
+    type: 'tensesSMA',
+    level: 'pemula',
+    explanation: 'Penanda waktu "since January" menunjukkan Present Perfect Tense ("has + V3").',
+  },
+  {
+    q: '[Cause & Effect SMA] Due to ___ heavy rain, the outdoor robotics competition was rescheduled.',
+    options: ['the', 'because', 'since', 'although'],
+    answer: 0,
+    type: 'causeEffectSMA',
+    level: 'menengah',
+    explanation: 'Setelah "Due to" diikuti oleh noun phrase ("the heavy rain").',
+  },
+  {
+    q: '[Analytical Exposition SMA] In an analytical exposition text, the section that restates the writer’s position at the end is called...',
+    options: ['Reiteration', 'Thesis', 'Orientation', 'Complication'],
+    answer: 0,
+    type: 'expositionSMA',
+    level: 'menengah',
+    explanation: 'Struktur Analytical Exposition terdiri dari Thesis, Arguments, dan Reiteration (penegasan ulang).',
+  },
+  {
+    q: '[Application Letter SMA/SMK] "I am writing to apply for the Junior Web Developer position advertised on your company portal." This sentence belongs to the ___ of a job application letter.',
+    options: ['Opening paragraph', 'Closing salutation', 'Postscript', 'Bibliography'],
+    answer: 0,
+    type: 'applicationLetter',
+    level: 'mahir',
+    explanation: 'Kalimat tersebut merupakan paragraf pembuka surat lamaran kerja yang menyebutkan posisi yang dilamar.',
+  },
+  {
+    q: '[UTBK/HOTS Reading Inference] "While automation replaces repetitive manual tasks, it simultaneously increases the demand for creative problem-solving." The author implies that...',
+    options: [
+      'Workers should cultivate creative and analytical problem-solving skills',
+      'All human jobs will completely vanish within a week',
+      'Repetitive manual tasks require more creativity than engineering',
+      'Automation decreases the need for problem-solving',
+    ],
+    answer: 0,
+    type: 'hotsReadingSMA',
+    level: 'ahli',
+    explanation: 'Karena otomatisasi meningkatkan kebutuhan akan pemecahan masalah kreatif, pekerja perlu mengasah keterampilan tersebut.',
+  },
 ];
 
-function expandPoolToLevels(
+const UMUM_ADULT_INGGRIS: Omit<AdaptiveQuestion, 'id' | 'classKey' | 'subject'>[] = [
+  {
+    q: '[Daily Conversation Umum] When someone says "Let’s call it a day", what do they mean?',
+    options: [
+      'Mari kita akhiri pekerjaan/kegiatan hari ini untuk beristirahat',
+      'Mari kita memberi nama hari ini di kalender',
+      'Mari kita bekerja lembur sampai besok pagi',
+      'Mari kita menelepon seseorang sekarang juga',
+    ],
+    answer: 0,
+    type: 'idiomUmum',
+    level: 'pemula',
+    explanation: 'Idiom "Call it a day" berarti menghentikan pekerjaan hari ini karena sudah cukup.',
+  },
+  {
+    q: '[Workplace English Umum] "Could you please ___ me in the loop regarding the project schedule?"',
+    options: ['keep', 'make', 'take', 'throw'],
+    answer: 0,
+    type: 'collocationUmum',
+    level: 'pemula',
+    explanation: '"Keep someone in the loop" berarti terus memberi kabar/informasi terbaru kepada seseorang.',
+  },
+  {
+    q: '[Phrasal Verb Umum] Despite the initial technical glitch, the presentation ___ very well.',
+    options: ['went off', 'gave up', 'broke down', 'ran out'],
+    answer: 0,
+    type: 'phrasalVerbUmum',
+    level: 'menengah',
+    explanation: '"Go off well" berarti berlangsung atau berjalan dengan sukses.',
+  },
+  {
+    q: '[Professional Email Umum] Which closing phrase is the most appropriate for a formal business email?',
+    options: ['Best regards,', 'See ya later,', 'Talk soon bro,', 'Cheers mate,'],
+    answer: 0,
+    type: 'businessEnglish',
+    level: 'menengah',
+    explanation: '"Best regards," atau "Sincerely," adalah penutup yang sopan dan profesional dalam email resmi.',
+  },
+  {
+    q: '[Advanced Idiom Umum] The manager decided to "play devil’s advocate" during the brainstorming session. This means she...',
+    options: [
+      'Presented a counter-argument to test the strength of the team’s idea',
+      'Cancelled the entire project without any reason',
+      'Agreed with everyone without asking any questions',
+      'Left the meeting room immediately',
+    ],
+    answer: 0,
+    type: 'idiomMahirUmum',
+    level: 'mahir',
+    explanation: '"Play devil’s advocate" berarti sengaja mengajukan argumen pembanding untuk menguji kematangan suatu ide.',
+  },
+  {
+    q: '[TOEFL/IELTS Structure Umum] Scarcely ___ the keynote speaker finished her presentation when the audience gave a standing ovation.',
+    options: ['had', 'has', 'did', 'was'],
+    answer: 0,
+    type: 'inversionAhliUmum',
+    level: 'ahli',
+    explanation: 'Pola inversi "Scarcely + had + Subject + V3 ... when + Simple Past".',
+  },
+];
+
+function expandPoolPreservingLevels(
   baseItems: Omit<AdaptiveQuestion, 'id' | 'classKey' | 'subject'>[],
   classKeys: string[]
 ): AdaptiveQuestion[] {
   const out: AdaptiveQuestion[] = [];
-  const allLevels: ('pemula' | 'menengah' | 'mahir' | 'ahli')[] = ['pemula', 'menengah', 'mahir', 'ahli'];
 
   classKeys.forEach((cls) => {
-    allLevels.forEach((lvl) => {
-      baseItems.forEach((item, idx) => {
-        out.push({
-          id: `${cls}-en-${lvl}-${idx}`,
-          q: item.q,
-          options: [...item.options],
-          answer: item.answer,
-          type: item.type,
-          level: lvl,
-          subject: 'inggris',
-          classKey: cls,
-          story: item.story,
-          explanation: item.explanation,
-        });
+    baseItems.forEach((item, idx) => {
+      out.push({
+        id: `${cls}-en-${item.level}-${idx}`,
+        q: item.q,
+        options: [...item.options],
+        answer: item.answer,
+        type: item.type,
+        level: item.level,
+        subject: 'inggris',
+        classKey: cls,
+        story: item.story,
+        explanation: item.explanation,
       });
     });
   });
@@ -477,12 +597,13 @@ function expandPoolToLevels(
 
 export function generateEnglishQuestionBank(): AdaptiveQuestion[] {
   return [
-    ...expandPoolToLevels(SD_LOWER_INGGRIS, ['sd1', 'sd2', 'sd3']),
-    ...expandPoolToLevels(SD_UPPER_INGGRIS, ['sd4', 'sd5', 'sd6', 'sd']),
-    ...expandPoolToLevels(SMP_KELAS7_INGGRIS, ['kelas7']),
-    ...expandPoolToLevels(SMP_KELAS8_INGGRIS, ['kelas8']),
-    ...expandPoolToLevels([...SMP_KELAS8_INGGRIS, ...SMP_KELAS9_INGGRIS], ['kelas9']),
-    ...expandPoolToLevels(SMA_SMK_INGGRIS, ['sma10', 'sma11', 'sma12', 'smk10', 'smk11', 'smk12', 'sma', 'umum']),
+    ...expandPoolPreservingLevels(SD_LOWER_INGGRIS, ['sd1', 'sd2', 'sd3']),
+    ...expandPoolPreservingLevels(SD_UPPER_INGGRIS, ['sd4', 'sd5', 'sd6', 'sd']),
+    ...expandPoolPreservingLevels(SMP_KELAS7_INGGRIS, ['kelas7']),
+    ...expandPoolPreservingLevels(SMP_KELAS8_INGGRIS, ['kelas8']),
+    ...expandPoolPreservingLevels([...SMP_KELAS8_INGGRIS, ...SMP_KELAS9_INGGRIS], ['kelas9']),
+    ...expandPoolPreservingLevels(SMA_SMK_INGGRIS, ['sma10', 'sma11', 'sma12', 'smk10', 'smk11', 'smk12', 'sma']),
+    ...expandPoolPreservingLevels([...UMUM_ADULT_INGGRIS, ...SMA_SMK_INGGRIS], ['umum']),
   ];
 }
 

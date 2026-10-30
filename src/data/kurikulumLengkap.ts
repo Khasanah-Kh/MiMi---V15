@@ -41,7 +41,7 @@ export const SYSTEM_INSTRUCTION_MIMI_V15 =
   'Kamu Mimi bestie pelajar 17 tahun, pinter, Gen Z, jelasin cepat & gampang pakai Kurikulum Merdeka Indonesia.';
 
 /**
- * Hanya 2 Kategori untuk Level UMUM / RANDOM (HAGO / Millionaire / Cerdas Cermat Style)
+ * Hanya 2 Kategori untuk Level UMUM / RANDOM (Wawasan & Logika Mimi Style)
  */
 export const UMUM_CATEGORIES = ['Pengetahuan Umum', 'Bahasa Inggris Umum'] as const;
 
@@ -376,7 +376,7 @@ export const KURIKULUM_LENGKAP_UNITS: KurikulumUnitBlueprint[] = [
     educationLevel: EducationLevel.UMUM,
     kelas: 'Umum',
     mapel: 'Pengetahuan Umum',
-    title: 'Cerdas Cermat Pengetahuan Umum: Sains, Sejarah & Rekor Dunia (HAGO & Millionaire Style)',
+    title: 'Cerdas Cermat Pengetahuan Umum: Sains, Sejarah & Rekor Dunia (Mimi V15 Style)',
     subtitle: 'Kumpulan wawasan populer Nusantara, penemuan sains, geografi dunia, dan fakta unik',
     bookTitle: 'Ensiklopedia Cerdas Cermat Pengetahuan Umum Nusantara & Dunia',
     bookAuthor: 'Database Internal Mimi V15 — Edisi Cerdas Cermat',
@@ -561,10 +561,10 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
     explanation: 'Kalimat fakta memuat data terukur dan sumber lembaga resmi yang dapat diverifikasi kebenarannya.',
   },
 
-  // ── LEVEL UMUM / RANDOM — KATEGORI 1: PENGETAHUAN UMUM (HAGO / MILLIONAIRE / CERDAS CERMAT) ──
+  // ── LEVEL UMUM / RANDOM — KATEGORI 1: PENGETAHUAN UMUM (WAWASAN & LOGIKA MIMI) ──
   {
     id: 'klq-umum-pu-1',
-    q: '[Millionaire Pengetahuan Umum] Perang besar di Pulau Jawa pada tahun 1825–1830 yang dipimpin oleh Pangeran Ontowiryo dikenal dalam sejarah Indonesia sebagai...',
+    q: '[Wawasan Nusantara Mimi] Perang besar di Pulau Jawa pada tahun 1825–1830 yang dipimpin oleh Pangeran Ontowiryo dikenal dalam sejarah Indonesia sebagai...',
     options: ['Perang Diponegoro', 'Perang Padri', 'Perang Puputan Margarana', 'Perang Banjar'],
     answer: 0,
     type: 'sejarahNusantara',
@@ -575,7 +575,7 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
   },
   {
     id: 'klq-umum-pu-2',
-    q: '[HAGO Cerdas Cermat] Gas apakah di atmosfer Bumi yang diserap oleh tumbuhan hijau melalui stomata daun sebagai bahan baku utama proses fotosintesis?',
+    q: '[Duel Mimi Cerdas Cermat] Gas apakah di atmosfer Bumi yang diserap oleh tumbuhan hijau melalui stomata daun sebagai bahan baku utama proses fotosintesis?',
     options: ['Karbon dioksida (CO₂)', 'Oksigen (O₂)', 'Helium (He)', 'Argon (Ar)'],
     answer: 0,
     type: 'sainsPopuler',
@@ -597,7 +597,7 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
   },
   {
     id: 'klq-umum-pu-4',
-    q: '[Trivia Dunia HAGO] Negara manakah di kawasan Asia Tenggara yang tidak pernah dijajah oleh bangsa Eropa dan dikenal dengan julukan Negeri Gajah Putih?',
+    q: '[Wawasan Dunia Mimi] Negara manakah di kawasan Asia Tenggara yang tidak pernah dijajah oleh bangsa Eropa dan dikenal dengan julukan Negeri Gajah Putih?',
     options: ['Thailand', 'Vietnam', 'Filipina', 'Myanmar'],
     answer: 0,
     type: 'triviaDunia',
@@ -608,7 +608,7 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
   },
   {
     id: 'klq-umum-pu-5',
-    q: '[Millionaire Sains] Planet manakah di Tata Surya kita yang memiliki ukuran paling besar sekaligus satelit alami terbanyak seperti Ganymede dan Europa?',
+    q: '[Mimi Sains Populer] Planet manakah di Tata Surya kita yang memiliki ukuran paling besar sekaligus satelit alami terbanyak seperti Ganymede dan Europa?',
     options: ['Jupiter', 'Mars', 'Merkurius', 'Venus'],
     answer: 0,
     type: 'astronomi',
@@ -629,7 +629,7 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
     explanation: 'Danau Toba di Sumatera Utara merupakan danau kaldera vulkanik terbesar di dunia.',
   },
 
-  // ── LEVEL UMUM / RANDOM — KATEGORI 2: BAHASA INGGRIS UMUM (HAGO / MILLIONAIRE / CERDAS CERMAT) ──
+  // ── LEVEL UMUM / RANDOM — KATEGORI 2: BAHASA INGGRIS UMUM (DUEL MIMI) ──
   {
     id: 'klq-umum-en-1',
     q: '[Cerdas Cermat Bahasa Inggris] Saat sahabatmu akan tampil di panggung lomba pidato, ungkapan idiom Bahasa Inggris yang berarti "Semoga sukses!" adalah...',
@@ -643,7 +643,7 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
   },
   {
     id: 'klq-umum-en-2',
-    q: '[HAGO English Quiz] Pilihlah kata yang tepat untuk melengkapi kalimat ini: "Even though the puzzle was tricky, we managed to ___ the solution together."',
+    q: '[Mimi English Quiz] Pilihlah kata yang tepat untuk melengkapi kalimat ini: "Even though the puzzle was tricky, we managed to ___ the solution together."',
     options: ['figure out', 'give up', 'turn off', 'run out'],
     answer: 0,
     type: 'phrasalVerb',
@@ -654,7 +654,7 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
   },
   {
     id: 'klq-umum-en-3',
-    q: '[Millionaire English Challenge] Manakah antonim (lawan kata) yang paling tepat dari kata "Ancient" (Kuno / Purba)?',
+    q: '[Mimi English Challenge] Manakah antonim (lawan kata) yang paling tepat dari kata "Ancient" (Kuno / Purba)?',
     options: ['Modern', 'Antique', 'Historic', 'Old-fashioned'],
     answer: 0,
     type: 'englishAntonym',
@@ -665,7 +665,7 @@ export const KURIKULUM_LENGKAP_QUESTIONS: AdaptiveQuestion[] = [
   },
   {
     id: 'klq-umum-en-4',
-    q: '[HAGO Speed English] Jika temanmu berkata "I am feeling a bit under the weather today", apa yang sedang ia rasakan?',
+    q: '[Mimi Speed English] Jika temanmu berkata "I am feeling a bit under the weather today", apa yang sedang ia rasakan?',
     options: [
       'Sedang kurang enak badan / sedikit sakit',
       'Sedang kehujanan di luar rumah',

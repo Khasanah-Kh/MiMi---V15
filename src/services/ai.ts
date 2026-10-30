@@ -408,17 +408,17 @@ export async function chatMimiWithFallback(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: prompt,
-          model: 'gemini-3.8-flash',
-          mimiModelLabel: 'gemini-3.8-flash',
+          model: 'gemini-2.5-flash',
+          mimiModelLabel: 'gemini-2.5-flash',
           educationLevel,
           selectedClass,
           selectedSubject,
           isProfesorMode,
           studentName,
-          history: history.slice(-6),
+          history: history.slice(-15),
         }),
       },
-      7000
+      9000
     );
 
     const data = await safeJson<{ reply?: string; xpAwarded?: number }>(res);
@@ -534,10 +534,10 @@ export async function generateStrictCurriculumQuestions(params: {
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3.8-flash',
-        contents: `${strictPrompt}\nBuatkan 4 soal pilihan ganda dalam format JSON array.`,
+        contents: `${strictPrompt}\nBuatkan 4 soal pilihan ganda dalam format JSON array. Pastikan kamu melakukan validasi: "Apakah guru ${params.kategori} Kelas ${params.kelas} akan malu kasih soal ini?" Jika terlalu mudah seperti soal SD untuk jenjang SMP/SMA/SMK, buat ulang!`,
         config: {
           systemInstruction:
-            'Kamu Mimi bestie pelajar 17 tahun, pinter, Gen Z, jelasin cepat & gampang pakai Kurikulum Merdeka Indonesia.',
+            'Kamu adalah AI Engine Pembuat Soal Kurikulum Merdeka Mimi-V15. Patuhi ATURAN FIX HARGA MATI: Level Pemula, Menengah, Mahir, Ahli hanya mengatur kedalaman di dalam jenjang tersebut, DILARANG KERAS menurunkan jenjang ke SD!',
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.ARRAY,

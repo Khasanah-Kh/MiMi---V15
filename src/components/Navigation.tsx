@@ -18,6 +18,7 @@ import {
 import { BottomNavTab, MimiUiState } from '../types/mimi';
 import { ShareButton } from './ShareButton';
 import { PwaInstallButton } from './PwaInstallButton';
+import { DevBadge, isDevUser } from './DevBadge';
 
 const NAV_ITEMS: Array<{
   tab: BottomNavTab;
@@ -98,11 +99,21 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
           <div className="text-xl font-extrabold tracking-tight text-slate-50 whitespace-nowrap">
             Room Belajar Mimi V15
           </div>
-          <div className="text-xs text-slate-400 flex items-center gap-2">
-            <span>{uiState.selectedEducationLevel}</span>
-            <span aria-hidden="true">·</span>
-            <span>{uiState.selectedClass}</span>
-            <span aria-hidden="true">·</span>
+          <div className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-slate-200">
+              {uiState.selectedEducationLevel === 'UMUM'
+                ? 'UMUM'
+                : `${uiState.selectedEducationLevel} · ${uiState.selectedClass}`}
+            </span>
+            {uiState.selectedArenaLevel && (
+              <>
+                <span aria-hidden="true" className="text-slate-600">·</span>
+                <span className="px-1.5 py-0.5 text-[10px] rounded bg-amber-400/20 text-amber-300 font-mono font-bold">
+                  {uiState.selectedArenaLevel}
+                </span>
+              </>
+            )}
+            <span aria-hidden="true" className="text-slate-600">·</span>
             <span className="font-mono text-sky-400 font-bold tabular-nums">
               Lv.{uiState.level}
             </span>
@@ -111,13 +122,28 @@ export const CyberNavigationRail: React.FC<CyberNavigationRailProps> = ({
 
         {/* Student Progress Summary Box */}
         <div className="p-4 rounded-[18px] bg-[#0B101E] border border-white/[0.06] shadow-md space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-200 truncate max-w-[130px]">
-              {uiState.studentName}
-            </span>
-            <span className="font-mono text-emerald-400 font-extrabold tabular-nums">
-              {uiState.xp} XP
-            </span>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="inline-flex items-center gap-1 font-bold text-slate-200 truncate max-w-[170px]">
+                <span className="truncate">{uiState.studentName}</span>
+                {(uiState.isDev || isDevUser(uiState.studentEmail)) && <DevBadge size="xs" />}
+              </span>
+              <span className="font-mono text-emerald-400 font-extrabold tabular-nums shrink-0">
+                {uiState.xp} XP
+              </span>
+            </div>
+            {uiState.studentId && (
+              <div
+                title="ID Siswa Mimi (Klik untuk salin)"
+                onClick={() => {
+                  navigator.clipboard?.writeText(uiState.studentId!);
+                }}
+                className="text-[10px] font-mono font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/25 inline-flex items-center gap-1.5 cursor-pointer hover:bg-sky-500/20 transition-colors"
+              >
+                <span>🆔</span>
+                <span>{uiState.studentId}</span>
+              </div>
+            )}
           </div>
           <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
             <motion.div

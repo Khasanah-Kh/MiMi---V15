@@ -45,11 +45,23 @@ import {
   SUBJECTS_BY_LEVEL,
   getFilteredUnitsForSelection,
 } from '../../data/curriculumData';
-import { downloadGeneratedModulePdf } from '../../services/googleDriveService';
+import {
+  downloadGeneratedModulePdf,
+  OFFICIAL_DRIVE_PDF_FOLDER_URL,
+} from '../../services/googleDriveService';
 import { fetchAiLearningPath } from '../../services/ai';
 import { ShareButton, NEW_PUBLIC_APP_URL } from '../ShareButton';
 import { PwaInstallButton } from '../PwaInstallButton';
 import { NewCoursesSection } from '../NewCoursesSection';
+import { ModuleProgressBar } from '../ModuleProgressBar';
+import {
+  EnglishDictionaryModal,
+  DictionaryCategoryTab,
+} from '../EnglishDictionaryModal';
+import { SmartFaqSection } from '../SmartFaqSection';
+import { RecentXpBarChart } from '../RecentXpBarChart';
+import { DevBadge, isDevUser } from '../DevBadge';
+import { useArenaStore, Kelas, Level } from '../../store/useArenaStore';
 
 interface HomeScreenProps {
   uiState: MimiUiState;
@@ -88,6 +100,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateTab,
   onOpenBookDriveHub,
 }) => {
+  const {
+    selectedKelas: storeKelas,
+    selectedLevel: storeLevel,
+    setKelas: setStoreKelas,
+    setLevel: setStoreLevel,
+  } = useArenaStore();
+
   const [milestoneTitle, setMilestoneTitle] = useState('');
   const [milestoneXp, setMilestoneXp] = useState(40);
   const [shareToast, setShareToast] = useState<string | null>(null);
@@ -122,6 +141,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isGoogleTasksModalOpen, setIsGoogleTasksModalOpen] = useState<boolean>(false);
   const [tasksSyncToast, setTasksSyncToast] = useState<string | null>(null);
   const [isMapelExpanded, setIsMapelExpanded] = useState<boolean>(false);
+
+  // Kamus Bahasa Inggris Internal State
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState<boolean>(false);
+  const [dictionaryTab, setDictionaryTab] = useState<DictionaryCategoryTab>('DAILY');
+  const [showDictQuickChoices, setShowDictQuickChoices] = useState<boolean>(false);
+
+  const openEnglishDictionary = (tab: DictionaryCategoryTab = 'DAILY') => {
+    setDictionaryTab(tab);
+    setIsDictionaryOpen(true);
+    setShowDictQuickChoices(false);
+  };
 
   // Saran AI (Personalized Learning Path) States
   const [aiLearningPath, setAiLearningPath] = useState<AiLearningPath | null>(null);
@@ -290,8 +320,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   ● GuruMu, AsistenMu, Teman CurhatMu
                 </span>
               </div>
-              <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
-                Halo bestie {uiState.studentName}! ✨ Semangat Belajar Hari Ini!
+              <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug flex items-center gap-2 flex-wrap">
+                <span>Halo bestie {uiState.studentName}!</span>
+                {(uiState.isDev || isDevUser(uiState.studentEmail)) && <DevBadge size="md" />}
+                <span>✨ Semangat Belajar Hari Ini!</span>
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                 Sumber resmi Buku Paket Kemendikbud Kurikulum Merdeka (SD, SMP, SMA, SMK & Umum). Aktivitas terakhir:{' '}
@@ -320,6 +352,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <span>Buku PDF & Drive</span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => setShowDictQuickChoices((prev) => !prev)}
+                className="px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 shadow-lg transition-colors"
+              >
+                <BookOpen className="w-4 h-4 shrink-0" />
+                <span>Kamus Bahasa Inggris</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform ${
+                    showDictQuickChoices ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
               <ShareButton
                 label="Share Link"
                 className="px-4 py-3 rounded-2xl btn-tactile-sky font-extrabold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
@@ -331,6 +377,73 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
               <PwaInstallButton className="px-4 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 shadow-lg" />
             </div>
+
+            {/* Pilihan Saat Tombol Kamus Bahasa Inggris Diklik */}
+            <AnimatePresence>
+              {showDictQuickChoices && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -6, height: 0 }}
+                  className="overflow-hidden pt-1"
+                >
+                  <div className="p-3.5 rounded-2xl bg-[#0B101E] border border-amber-400/50 space-y-2.5 shadow-xl">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-extrabold text-amber-300">
+                        Pilih Kategori Kamus Bahasa Inggris (Modul Internal Mimi V15):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowDictQuickChoices(false)}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEnglishDictionary('DAILY')}
+                        className="p-3 rounded-xl bg-slate-900 hover:bg-sky-950/60 border border-slate-800 hover:border-sky-400 text-left transition-all"
+                      >
+                        <div className="text-xs font-extrabold text-sky-300">
+                          1. Kosakata Percakapan Sehari-hari
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          Ungkapan harian, arti &amp; contoh kalimat
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openEnglishDictionary('FORMAL')}
+                        className="p-3 rounded-xl bg-slate-900 hover:bg-emerald-950/60 border border-slate-800 hover:border-emerald-400 text-left transition-all"
+                      >
+                        <div className="text-xs font-extrabold text-emerald-300">
+                          2. Kosakata Formal
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          Kosakata akademik, esai &amp; pidato resmi
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openEnglishDictionary('VERBS')}
+                        className="p-3 rounded-xl bg-slate-900 hover:bg-amber-950/60 border border-slate-800 hover:border-amber-400 text-left transition-all"
+                      >
+                        <div className="text-xs font-extrabold text-amber-300">
+                          3. Kamus Verb 1, 2, 3
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          Irregular &amp; Regular Verbs + V-ing &amp; Arti
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Right Hero Column: Cyber Progress & Status Widget (5 cols on PC) */}
@@ -390,14 +503,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
 
+        {/* 7-Day Recent XP Gains Visualization Bar Chart */}
+        <RecentXpBarChart currentXp={uiState.xp} streakDays={uiState.streakDays} />
+
         {shareToast && (
           <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-600/60 text-xs font-bold text-emerald-200 flex items-center justify-between gap-2 shadow-md">
             <span>✅ {shareToast}</span>
           </div>
         )}
 
-        {/* 3 Featured Hub Cards: Curhat Manusiawi, Belajar Coding, & Katalog Buku PDF Kemendikdasmen/Drive */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
+        {/* 4 Featured Hub Cards: Curhat Manusiawi, Belajar Coding, Katalog Buku PDF, & Kamus Bahasa Inggris */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5">
           <button
             type="button"
             onClick={() => onNavigateTab(BottomNavTab.CURHAT)}
@@ -459,10 +575,59 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 Katalog Kemendikdasmen & Link Drive
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Unduh materi PDF SD–SMA/SMK dan sinkronisasi otomatis dari link folder Google Drive & Classroom.
+                Unduh materi PDF SD–SMA/SMK dan pilih langsung sesuai mata pelajaran di Google Drive.
               </p>
             </div>
           </button>
+
+          <div className="p-5 sm:p-6 rounded-2xl bg-[#0B101E] border-2 border-slate-800 hover:border-amber-400/60 text-left transition-all flex flex-col justify-between gap-3">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-amber-400 flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Kamus Bahasa Inggris Internal</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openEnglishDictionary('DAILY')}
+                  className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1"
+                >
+                  <span>Buka Semua</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="text-sm font-extrabold text-white">
+                Percakapan, Formal &amp; Verb 1-2-3
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Pilih langsung kamus kosakata percakapan sehari-hari, kosakata formal, atau tabel Verb 1, 2, 3 lengkap dengan audio pelafalan.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => openEnglishDictionary('DAILY')}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-sky-500/20 text-sky-300 border border-slate-800 hover:border-sky-400/50 text-[11px] font-bold transition-colors"
+              >
+                Percakapan Sehari-hari
+              </button>
+              <button
+                type="button"
+                onClick={() => openEnglishDictionary('FORMAL')}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-500/20 text-emerald-300 border border-slate-800 hover:border-emerald-400/50 text-[11px] font-bold transition-colors"
+              >
+                Kosakata Formal
+              </button>
+              <button
+                type="button"
+                onClick={() => openEnglishDictionary('VERBS')}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-amber-500/20 text-amber-300 border border-slate-800 hover:border-amber-400/50 text-[11px] font-bold transition-colors"
+              >
+                Kamus Verb 1, 2, 3
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -470,14 +635,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <section className="p-4 sm:p-6 card-study space-y-3.5 sm:space-y-4 rounded-3xl border border-slate-800/80 bg-[#0c1222]/90 backdrop-blur-md shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
                 <span>Pilih Jenjang, Kelas & Mapel</span>
               </h2>
-              <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20 lg:hidden">
-                Kurikulum Merdeka
-              </span>
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-amber-400/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-black shadow-xs">
+                <span>🎯 TARGET: {storeKelas.toUpperCase()}</span>
+                <span className="text-sky-400">•</span>
+                <span>Level {storeLevel}</span>
+              </div>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
               Kurikulum Merdeka Indonesia (SD, SMP, SMA, SMK & Umum) · Matematika = 3 Langkah + Opsi · Mapel Lain = Clue + Kisi + Analogi
@@ -522,7 +689,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       key={item.id}
                       type="button"
                       whileTap={{ scale: 0.96 }}
-                      onClick={() => onSelectEducationLevel(item.id)}
+                      onClick={() => {
+                        onSelectEducationLevel(item.id);
+                        const mappedKelas: Kelas =
+                          item.id === EducationLevel.UMUM ? 'Umum' : (item.id as Kelas);
+                        setStoreKelas(mappedKelas);
+                      }}
                       className={`relative px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 overflow-hidden ${
                         isSelected
                           ? 'text-slate-950 font-black'
@@ -543,6 +715,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Global Level Selector Chips (Two-way bound with DuelArena) */}
+        <div className="pt-2 border-t border-slate-800/70 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="text-[11px] sm:text-xs font-bold text-amber-300 font-mono flex items-center gap-1 shrink-0">
+            <span>⭐ Level Kesulitan:</span>
+          </span>
+          {(['Pemula', 'Menengah', 'Mahir', 'Ahli'] as Level[]).map((lvl) => {
+            const isLvlSelected = storeLevel === lvl;
+            return (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => setStoreLevel(lvl)}
+                className={`px-3 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer active:scale-95 shrink-0 ${
+                  isLvlSelected
+                    ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.3)] font-black'
+                    : 'bg-[#0B1120] text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
+                }`}
+              >
+                {lvl}
+              </button>
+            );
+          })}
         </div>
 
         {/* Step 2: Class Buttons (Smooth Touch Scroll with Navigation Chevrons) */}
@@ -1022,6 +1218,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* 3. Aesthetic Unit Banner & Duolingo Stepping Path vs. Compact Cards Switcher */}
       <section className="space-y-6">
+        {/* Top Visual Progress Bar Component for Learning Modules */}
+        <ModuleProgressBar
+          subject={uiState.selectedSubject}
+          classLabel={uiState.selectedClass}
+          educationLevel={uiState.selectedEducationLevel}
+          units={filteredUnits}
+          completedLevelIds={studyProgress.completedLevelIds}
+          onSelectUnit={(unit) => openModuleModal(unit)}
+        />
+
         {/* Aesthetic Gradient Banner (Vibrant Teen/Gen-Z Aesthetic) */}
         <div className="p-6 sm:p-8 rounded-[20px] bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-700 text-slate-100 shadow-[0_0_40px_rgba(124,58,237,0.3)] border border-violet-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative overflow-hidden">
           <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
@@ -1268,26 +1474,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </div>
 
                     <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          downloadGeneratedModulePdf({
-                            title: lvl.title,
-                            level: lvl.educationLevel,
-                            classRange: lvl.classRange,
-                            subject: lvl.subject,
-                            bookTitle: lvl.bookSource.title,
-                            publisher: lvl.bookSource.authorOrPublisher,
-                            catalogUrl: lvl.bookSource.catalogUrl,
-                            summaryPoints: lvl.summaryPoints,
-                            formula: lvl.simulation.formulaDisplay,
-                          })
-                        }
+                      <a
+                        href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`Pilih & Download PDF ${lvl.subject} di Google Drive`}
                         className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all duration-300 hover:brightness-110 hover:shadow-lg"
                       >
                         <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>Unduh PDF</span>
-                      </button>
+                        <span>Unduh PDF ({lvl.subject})</span>
+                      </a>
 
                       <div className="flex items-center gap-2.5">
                         {isDone && (
@@ -1434,6 +1631,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       </section>
 
+      {/* 4B. FAQ Pintar Berbasis AI, Saran & Kritik, serta Petunjuk Hubungi Mimi Real (Tombol Hijau WA di Profil) */}
+      <SmartFaqSection
+        studentName={uiState.studentName}
+        selectedLevel={uiState.selectedEducationLevel}
+        selectedClass={uiState.selectedClass}
+        selectedSubject={uiState.selectedSubject}
+        onNavigateTab={onNavigateTab}
+        onAskMimiTopic={onAskMimiTopic}
+      />
+
       {/* 5. Interactive Two-Zone Sandbox Lesson & Simulation Modal (Bottom-Sheet on Mobile, Centered Dialog on PC) */}
       <AnimatePresence>
       {activeModal && (
@@ -1478,6 +1685,88 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Interactive Topic Mastery Progress Bar at Top of Learning Module */}
+            {(() => {
+              const isAlreadyDone = studyProgress.completedLevelIds.includes(
+                activeModal.id
+              );
+              const isSimComplete =
+                simValue === activeModal.simulation.targetValue;
+              const isQuizComplete =
+                selectedPracticeOpt === activeModal.practiceQuestion.correctIndex;
+              const topicStepPercent = isAlreadyDone
+                ? 100
+                : 35 + (isSimComplete ? 35 : 0) + (isQuizComplete ? 30 : 0);
+
+              return (
+                <div className="p-4 rounded-2xl bg-[#0B101E] border border-slate-800 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 font-bold text-slate-200">
+                      <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                      <span>Progres Penyelesaian Topik Modul Ini</span>
+                    </div>
+                    <span className="font-mono font-extrabold text-emerald-400 tabular-nums">
+                      {topicStepPercent}% Selesai
+                    </span>
+                  </div>
+
+                  <div
+                    role="progressbar"
+                    aria-valuenow={topicStepPercent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="w-full h-3 bg-slate-900 border border-slate-800 rounded-full overflow-hidden p-0.5"
+                  >
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-400 to-emerald-400"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${topicStepPercent}%` }}
+                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>1. Konsep Inti Dibuka (35%)</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-1.5 font-semibold ${
+                        isSimComplete || isAlreadyDone
+                          ? 'text-emerald-300'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      <CheckCircle2
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          isSimComplete || isAlreadyDone
+                            ? 'text-emerald-400'
+                            : 'text-slate-600'
+                        }`}
+                      />
+                      <span>2. Target Simulasi (+35%)</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-1.5 font-semibold ${
+                        isQuizComplete || isAlreadyDone
+                          ? 'text-emerald-300'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      <CheckCircle2
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          isQuizComplete || isAlreadyDone
+                            ? 'text-emerald-400'
+                            : 'text-slate-600'
+                        }`}
+                      />
+                      <span>3. Uji Pemahaman (+30%)</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Two-Zone Sandbox Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
@@ -1674,26 +1963,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <span>Tanya Kisi-Kisi ke Mimi</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadGeneratedModulePdf({
-                      title: activeModal.title,
-                      level: activeModal.educationLevel,
-                      classRange: activeModal.classRange,
-                      subject: activeModal.subject,
-                      bookTitle: activeModal.bookSource.title,
-                      publisher: activeModal.bookSource.authorOrPublisher,
-                      catalogUrl: activeModal.bookSource.catalogUrl,
-                      summaryPoints: activeModal.summaryPoints,
-                      formula: activeModal.simulation.formulaDisplay,
-                    })
-                  }
+                <a
+                  href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-2 whitespace-nowrap shrink-0"
                 >
                   <Download className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Unduh PDF Materi Ini</span>
-                </button>
+                  <span>Unduh PDF Materi ({activeModal.subject})</span>
+                </a>
               </div>
 
               <button
@@ -1773,26 +2051,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <span>Mulai Belajar (+{selectedUnit.xpReward} XP)</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    downloadGeneratedModulePdf({
-                      title: selectedUnit.title,
-                      level: selectedUnit.educationLevel,
-                      classRange: selectedUnit.classRange,
-                      subject: selectedUnit.subject,
-                      bookTitle: selectedUnit.bookSource.title,
-                      publisher: selectedUnit.bookSource.authorOrPublisher,
-                      catalogUrl: selectedUnit.bookSource.catalogUrl,
-                      summaryPoints: selectedUnit.summaryPoints,
-                      formula: selectedUnit.simulation.formulaDisplay,
-                    });
-                  }}
+                <a
+                  href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Unduh PDF Materi Ini</span>
-                </button>
+                  <span>Unduh PDF Materi ({selectedUnit.subject})</span>
+                </a>
               </div>
             </motion.div>
           </motion.div>
@@ -1877,6 +2144,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 8. Kamus Bahasa Inggris Internal Modal (Percakapan, Formal, & Verb 1-2-3) */}
+      <EnglishDictionaryModal
+        isOpen={isDictionaryOpen}
+        initialTab={dictionaryTab}
+        onClose={() => setIsDictionaryOpen(false)}
+        onAskMimiTopic={onAskMimiTopic}
+      />
     </div>
   );
 };

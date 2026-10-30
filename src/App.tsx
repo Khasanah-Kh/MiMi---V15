@@ -76,6 +76,21 @@ import {
   GEMINI_RETRY_DELAY_429_MS,
   SEEDED_GLOBAL_LEADERBOARD,
 } from './services/ai';
+import { askMimi } from './services/geminiService';
+import {
+  getOrCreateStudentProfile,
+  updateStudentDisplayName,
+  recordGameHistory,
+} from './services/studentIdService';
+import { isDevUser, DevBadge, CREATOR_NAME, getLevelBadge } from './components/DevBadge';
+import {
+  LevelUpConfettiCelebration,
+  LevelUpCelebrationData,
+} from './components/LevelUpConfettiCelebration';
+import { useArenaStore, Kelas, Level } from './store/useArenaStore';
+
+import { recordLoginDay } from './services/userStatsService';
+import { getOrCreateMimiId } from './services/mimiAuthService';
 
 const TOKEN_STORAGE_KEY = 'mimi15_session_token';
 
@@ -92,6 +107,8 @@ const PUBLIC_DEFAULT_USER: AuthUser = {
   uid: 'usr_public_visitor',
   email: 'pelajar.indonesia@mimi15.id',
   displayName: 'Bestie Pelajar',
+  studentId: 'MIMI-A3F9-K2L1',
+  googleLinked: false,
   authMethod: 'GOOGLE_VERIFIED',
   hasSecurityPin: false,
   createdAt: 'Hari ini',
@@ -118,17 +135,54 @@ export default function App() {
   const [showSignInModal, setShowSignInModal] = useState<boolean>(false);
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
   const [signInError, setSignInError] = useState<string | null>(null);
+  // Track daily login for streak calculation
+  useEffect(() => {
+    const activeMimiId = getOrCreateMimiId();
+    recordLoginDay(activeMimiId);
+  }, []);
 
   // ==========================================================================
   // 2. MIMI VIEWMODEL STATE
   // ==========================================================================
   const [currentTab, setCurrentTab] = useState<BottomNavTab>(BottomNavTab.BERANDA);
-  const [selectedEducationLevel, setSelectedEducationLevel] = useState<EducationLevel>(
-    EducationLevel.SD
+  const { selectedKelas, selectedLevel, setKelas, setLevel } = useArenaStore();
+
+  const initialEduLevel =
+    selectedKelas === 'Umum'
+      ? EducationLevel.UMUM
+      : (selectedKelas as EducationLevel);
+
+  const [selectedEducationLevel, setSelectedEducationLevel] = useState<EducationLevel>(initialEduLevel);
+  const [selectedClass, setSelectedClass] = useState<string>(
+    initialEduLevel === EducationLevel.UMUM
+      ? 'Umum'
+      : CLASSES_BY_LEVEL[initialEduLevel]?.[0] || 'Kelas 1'
   );
-  const [selectedClass, setSelectedClass] = useState<string>('Kelas 1');
-  const [selectedSubject, setSelectedSubject] = useState<string>('Matematika');
+  const [selectedSubject, setSelectedSubject] = useState<string>(
+    initialEduLevel === EducationLevel.UMUM ? 'Pengetahuan Umum' : 'Matematika'
+  );
   const [isProfesorMode, setIsProfesorMode] = useState<boolean>(false);
+
+  // Two-way synchronization: when selectedKelas changes in useArenaStore, update App state
+  useEffect(() => {
+    const targetEdu =
+      selectedKelas === 'Umum'
+        ? EducationLevel.UMUM
+        : (selectedKelas as EducationLevel);
+    if (selectedEducationLevel !== targetEdu) {
+      setSelectedEducationLevel(targetEdu);
+      const defaultCls =
+        targetEdu === EducationLevel.UMUM
+          ? 'Umum'
+          : CLASSES_BY_LEVEL[targetEdu]?.[0] || 'Kelas 1';
+      const defaultSubj =
+        targetEdu === EducationLevel.UMUM
+          ? 'Pengetahuan Umum'
+          : SUBJECTS_BY_LEVEL[targetEdu]?.[0] || 'Matematika';
+      setSelectedClass(defaultCls);
+      setSelectedSubject(defaultSubj);
+    }
+  }, [selectedKelas]);
 
   const [xp, setXp] = useState<number>(120);
   const [streakDays, setStreakDays] = useState<number>(3);
@@ -188,6 +242,9 @@ export default function App() {
   const [isMimiTyping, setIsMimiTyping] = useState<boolean>(false);
   const [latestXpNotification, setLatestXpNotification] = useState<string | null>(null);
   const [xpToastData, setXpToastData] = useState<XpToastData | null>(null);
+  const [levelUpCelebration, setLevelUpCelebration] =
+    useState<LevelUpCelebrationData | null>(null);
+  const prevXpRef = React.useRef<number>(120);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-mimi',
@@ -270,7 +327,10 @@ export default function App() {
   // ==========================================================================
   const applyServerUserData = useCallback((userData: Record<string, any> | null) => {
     if (!userData) return;
-    if (typeof userData.xp === 'number') setXp(userData.xp);
+    if (typeof userData.xp === 'number') {
+      prevXpRef.current = userData.xp;
+      setXp(userData.xp);
+    }
     if (typeof userData.streakDays === 'number') setStreakDays(userData.streakDays);
     if (
       userData.selectedEducationLevel &&
@@ -324,10 +384,29 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const isGoogle = fbUser.providerData.some((p) => p.providerId === 'google.com');
+
+        // Fetch or create permanent Student ID profile
+        let studentProfile = null;
+        try {
+          studentProfile = await getOrCreateStudentProfile(fbUser);
+        } catch (e) {
+          console.warn('Could not load student profile:', e);
+        }
+
+        const userEmail = fbUser.email || studentProfile?.email || 'pelajar@mimi15.id';
+        const isDev = isDevUser(userEmail);
+
         const authed: AuthUser = {
           uid: fbUser.uid,
-          email: fbUser.email || 'pelajar@mimi15.id',
-          displayName: fbUser.displayName || 'Bestie Pelajar',
+          email: userEmail,
+          displayName: isDev
+            ? CREATOR_NAME
+            : studentProfile?.displayName || fbUser.displayName || 'Bestie Pelajar',
+          studentId: studentProfile?.studentId || 'MIMI-A3F9-K2L1',
+          photoURL: fbUser.photoURL || studentProfile?.photoURL || '',
+          googleLinked: true,
+          isDev,
+          lastNameChange: studentProfile?.lastNameChange || null,
           authMethod: isGoogle ? 'GOOGLE_VERIFIED' : 'PBKDF2_SCRYPT',
           hasSecurityPin: false,
           createdAt: 'Hari ini',
@@ -335,7 +414,9 @@ export default function App() {
           securityAudit: [
             {
               id: 'aud_fb_' + Date.now(),
-              action: 'Login via Firebase Authentication',
+              action: isDev
+                ? 'Login via Firebase Authentication (👑 DEVELOPER MIMI-V15)'
+                : 'Login via Firebase Authentication',
               method: isGoogle ? 'Google Sign-In' : 'Email/Password',
               timestamp: formatShortTime(),
               status: 'TERVERIFIKASI',
@@ -344,14 +425,15 @@ export default function App() {
         };
         setAuthUser(authed);
 
-        // Fetch progress from Firestore
+        // Fetch progress & preferences from Firestore
         try {
+          await useArenaStore.getState().loadFromFirestore(fbUser.uid);
           const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
           if (firestoreData) {
             applyServerUserData(firestoreData);
           }
         } catch (e) {
-          console.warn('Could not load Firestore progress:', e);
+          console.warn('Could not load Firestore progress/preferences:', e);
         }
 
         // Keep server session active for AI chat & APIs
@@ -422,6 +504,39 @@ export default function App() {
     initPublicOrSavedSession();
   }, [sessionToken, applyServerUserData]);
 
+  // Trigger celebratory confetti & level-up banner when user crosses a new XP level or rank threshold
+  useEffect(() => {
+    const prevXp = prevXpRef.current;
+    if (xp > prevXp) {
+      const prevLevel = calculateLevelFromXp(prevXp);
+      const newLevel = calculateLevelFromXp(xp);
+      const prevBadge = getLevelBadge(prevXp);
+      const newBadge = getLevelBadge(xp);
+      const prevRank = calculateCyberRank(prevXp);
+      const newRank = calculateCyberRank(xp);
+
+      if (newLevel > prevLevel || newBadge !== prevBadge || newRank !== prevRank) {
+        const reason =
+          newBadge !== prevBadge
+            ? `Badge Skor naik dari ${prevBadge} ke ${newBadge}!`
+            : newRank !== prevRank
+            ? `Gelar Baru Tercapai: ${newRank}!`
+            : `Selamat! Kamu menembus ambang ${xp} XP (Level ${newLevel})!`;
+
+        setLevelUpCelebration({
+          id: `lvlup_${Date.now()}`,
+          previousLevel: prevLevel,
+          newLevel,
+          xp,
+          cyberRank: newRank,
+          badgeLevel: newBadge,
+          reason,
+        });
+      }
+    }
+    prevXpRef.current = xp;
+  }, [xp]);
+
   // Sync progress to server and Firestore whenever key metrics change
   useEffect(() => {
     if (!sessionToken) return;
@@ -481,9 +596,73 @@ export default function App() {
     selectedClass,
     themeMode,
     studyProgress,
+  ]);
+
+  // Manual Sync Data Function triggered from Profil tab
+  const handleManualSyncData = useCallback(async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const syncPayload = {
+        xp,
+        streakDays,
+        selectedEducationLevel,
+        selectedClass,
+        completedLevelIds: studyProgress.completedLevelIds,
+        totalQuizzesTaken: studyProgress.totalQuizzesTaken,
+        correctQuizAnswers: studyProgress.correctQuizAnswers,
+        totalQuizQuestions: studyProgress.totalQuizQuestions,
+        studyMinutes: studyProgress.studyMinutes,
+        lastStudiedTopic: studyProgress.lastStudiedTopic,
+        milestones,
+        rivalWins,
+        rivalMatches,
+        studyProgress,
+      };
+
+      // 1. Send to Firebase Firestore
+      const permanentMimiId = getOrCreateMimiId();
+      const targetUid =
+        authUser?.uid && authUser.uid !== 'usr_public_visitor' ? authUser.uid : permanentMimiId;
+
+      await saveUserProgressToFirestore(targetUid, {
+        uid: targetUid,
+        displayName: authUser?.displayName || 'Bestie Pelajar',
+        email: authUser?.email || '',
+        ...syncPayload,
+      });
+
+      // 2. Send to Server Backend (/api/user/sync)
+      const token = sessionToken || localStorage.getItem(TOKEN_STORAGE_KEY);
+      await apiFetch('/api/user/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ userData: syncPayload }),
+      });
+
+      return {
+        success: true,
+        message: `Data studyProgress (${studyProgress.completedLevelIds.length} modul selesai), ${xp} XP, dan ${milestones.length} target harian berhasil disinkronkan ke Firebase Firestore & Server Backend!`,
+      };
+    } catch (err: any) {
+      console.error('Manual sync error:', err);
+      return {
+        success: false,
+        message: err?.message || 'Gagal menyinkronkan data. Silakan coba lagi.',
+      };
+    }
+  }, [
+    xp,
+    streakDays,
+    selectedEducationLevel,
+    selectedClass,
+    studyProgress,
+    milestones,
     rivalWins,
     rivalMatches,
-    milestones,
+    authUser,
+    sessionToken,
   ]);
 
   const fetchLeaderboard = useCallback(async () => {
@@ -709,29 +888,27 @@ export default function App() {
     setIsSigningIn(true);
     setSignInError(null);
     try {
-      // 1. Real Google Sign-In via Firebase Authentication Popup
+      // 1. Real Google Sign-In via Firebase Authentication Popup (OAuth scope: profile & email only)
       const fbUser = await loginWithGoogle();
 
-      // 2. Fetch or initialize progress in Firestore
+      // 2. Fetch or initialize permanent Student ID profile in Firestore
+      const studentProfile = await getOrCreateStudentProfile(fbUser);
+
       try {
+        await useArenaStore.getState().loadFromFirestore(fbUser.uid);
         const firestoreData = await getUserProgressFromFirestore(fbUser.uid);
         if (firestoreData) {
           applyServerUserData(firestoreData);
-        } else {
-          await saveUserProgressToFirestore(fbUser.uid, {
-            uid: fbUser.uid,
-            displayName: fbUser.displayName || displayName || 'Bestie Pelajar',
-            email: fbUser.email || email,
-            xp,
-            streakDays,
-            selectedEducationLevel,
-            selectedClass,
-            themeMode,
-          });
         }
       } catch {
         // Ignore Firestore sync warning
       }
+
+      const resolvedEmail = fbUser.email || studentProfile.email || email || 'pelajar@mimi15.id';
+      const isDev = isDevUser(resolvedEmail);
+      const resolvedDisplayName = isDev
+        ? CREATOR_NAME
+        : studentProfile.displayName || fbUser.displayName || displayName || 'Bestie Pelajar';
 
       // 3. Establish server session token (safe on static hosts)
       try {
@@ -739,8 +916,8 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            displayName: fbUser.displayName || displayName,
-            email: fbUser.email || email,
+            displayName: resolvedDisplayName,
+            email: resolvedEmail,
           }),
         });
         const data = await safeJson(res);
@@ -754,8 +931,13 @@ export default function App() {
 
       setAuthUser({
         uid: fbUser.uid,
-        email: fbUser.email || email || 'pelajar@mimi15.id',
-        displayName: fbUser.displayName || displayName || 'Bestie Pelajar',
+        email: resolvedEmail,
+        displayName: resolvedDisplayName,
+        studentId: studentProfile.studentId,
+        photoURL: fbUser.photoURL || studentProfile.photoURL || '',
+        googleLinked: true,
+        isDev,
+        lastNameChange: studentProfile.lastNameChange || null,
         authMethod: 'GOOGLE_VERIFIED',
         hasSecurityPin: false,
         createdAt: 'Hari ini',
@@ -763,7 +945,9 @@ export default function App() {
         securityAudit: [
           {
             id: 'aud_google_fb_' + Date.now(),
-            action: 'Masuk via Google Firebase Authentication',
+            action: isDev
+              ? 'Masuk via Google Firebase Auth (👑 DEVELOPER MIMI-V15)'
+              : 'Masuk via Google Firebase Authentication',
             method: 'Google OAuth Popup',
             timestamp: formatShortTime(),
             status: 'TERVERIFIKASI',
@@ -771,10 +955,9 @@ export default function App() {
         ],
       });
       setShowSignInModal(false);
-      triggerXpToast('Login Google Firebase Berhasil!');
+      triggerXpToast(`Selamat datang ${resolvedDisplayName}! ID: ${studentProfile.studentId}`);
     } catch (err: any) {
       console.warn('Google Firebase Auth fallback:', err);
-      // If popup closed or restricted in iframe, fallback smoothly to quick Google session
       try {
         const res = await apiFetch('/api/auth/google-quick', {
           method: 'POST',
@@ -790,7 +973,6 @@ export default function App() {
           setShowSignInModal(false);
           triggerXpToast('Sesi masuk terverifikasi!');
         } else {
-          // Fallback local guest session if on static hosting and popup was blocked
           setAuthUser({
             ...PUBLIC_DEFAULT_USER,
             displayName: displayName || 'Bestie Pelajar',
@@ -830,27 +1012,26 @@ export default function App() {
     newPassword?: string,
     securityPin?: string
   ): Promise<string | null> => {
-    setAuthUser((prev) => ({ ...prev, displayName }));
-    if (!sessionToken) {
-      return null;
-    }
-    try {
-      const res = await apiFetch('/api/auth/update-profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({ displayName, newPassword, securityPin }),
-      });
-      const data = await safeJson(res);
-      if (res.ok && data?.user) {
-        setAuthUser(data.user);
+    if (authUser.uid && authUser.uid !== 'usr_public_visitor') {
+      const res = await updateStudentDisplayName(
+        authUser.uid,
+        displayName,
+        authUser.studentId,
+        authUser.lastNameChange
+      );
+      if (!res.success) {
+        return res.message;
       }
-      return null;
-    } catch {
+      setAuthUser((prev) => ({
+        ...prev,
+        displayName: res.updatedName || displayName,
+        lastNameChange: Date.now(),
+      }));
+      triggerXpToast('Nama siswa berhasil diperbarui!');
       return null;
     }
+    setAuthUser((prev) => ({ ...prev, displayName }));
+    return null;
   };
 
   // ==========================================================================
@@ -865,8 +1046,8 @@ export default function App() {
 
   const handleSelectEducationLevel = (lvl: EducationLevel) => {
     setSelectedEducationLevel(lvl);
-    const defaultCls = CLASSES_BY_LEVEL[lvl]?.[0] || 'Kelas 7';
-    const defaultSubj = SUBJECTS_BY_LEVEL[lvl]?.[0] || 'Matematika';
+    const defaultCls = CLASSES_BY_LEVEL[lvl]?.[0] || (lvl === EducationLevel.UMUM ? 'Umum' : 'Kelas 1');
+    const defaultSubj = SUBJECTS_BY_LEVEL[lvl]?.[0] || (lvl === EducationLevel.UMUM ? 'Pengetahuan Umum' : 'Matematika');
     setSelectedClass(defaultCls);
     setSelectedSubject(defaultSubj);
     setCustomAiQuizzes(null);
@@ -874,6 +1055,9 @@ export default function App() {
     setSelectedQuizAnswer(null);
     setQuizScore(0);
     setIsQuizFinished(false);
+
+    const mappedKelas: Kelas = lvl === EducationLevel.UMUM ? 'Umum' : (lvl as Kelas);
+    setKelas(mappedKelas, authUser?.uid);
   };
 
   const handleSelectClass = (cls: string) => {
@@ -1297,31 +1481,33 @@ export default function App() {
     setChatMessages((prev) => [...prev, userMsg]);
 
     try {
-      const result = await chatMimiWithFallback(text, chatMessages.slice(-8), {
+      const mimiAnswer = await askMimi(chatMessages.slice(-15), text, {
         educationLevel: selectedEducationLevel,
         selectedClass,
         selectedSubject: targetSubject,
         isProfesorMode: effectiveProfesorMode,
-        studentName: authUser.displayName || 'Bestie',
+        studentName:
+          isDevUser(authUser.email) || authUser.isDev
+            ? CREATOR_NAME
+            : authUser.displayName || 'Bestie',
+        studentEmail: authUser.email || '',
       });
 
       const replyText =
-        result.reply ||
+        mimiAnswer ||
         'Mimi tetap di sini nemenin kamu bestie! ✨ Coba tulis ulang pertanyaan atau topik yang pengen kita bahas bareng ya.';
-      const xpGain = Number(result.xpAwarded) || 15;
+      const xpGain = 15;
 
       const mimiMsg: ChatMessage = {
         id: 'msg_m_' + Date.now(),
         sender: 'mimi',
         text: replyText,
         timestamp: formatShortTime(),
-        xpEarned: xpGain > 0 ? xpGain : undefined,
+        xpEarned: xpGain,
       };
       setChatMessages((prev) => [...prev, mimiMsg]);
-      if (xpGain > 0) {
-        setXp((prev) => prev + xpGain);
-        triggerXpToast(`Ngobrol bareng Mimi! (+${xpGain} XP)`);
-      }
+      setXp((prev) => prev + xpGain);
+      triggerXpToast(`Ngobrol bareng Mimi! (+${xpGain} XP)`);
     } catch {
       setChatMessages((prev) => [
         ...prev,
@@ -1350,9 +1536,17 @@ export default function App() {
     selectedEducationLevel,
     selectedClass,
     selectedSubject,
+    selectedArenaLevel: selectedLevel,
     isProfesorMode,
-    studentName: authUser.displayName || 'Bestie Pelajar',
+    studentName:
+      isDevUser(authUser.email) || authUser.isDev
+        ? CREATOR_NAME
+        : authUser.displayName || 'Bestie Pelajar',
     studentEmail: authUser.email || '',
+    studentId: authUser.studentId,
+    studentPhotoUrl: authUser.photoURL,
+    isDev: isDevUser(authUser.email) || !!authUser.isDev,
+    lastNameChange: authUser.lastNameChange,
     xp,
     level: calculateLevelFromXp(xp),
     streakDays,
@@ -1503,6 +1697,7 @@ export default function App() {
             onUpdateProfileSecurity={handleUpdateProfileSecurity}
             onSignOut={handleSignOut}
             onOpenDonation={() => setIsDonationOpen(true)}
+            onManualSyncData={handleManualSyncData}
           />
         );
     }
@@ -1514,6 +1709,12 @@ export default function App() {
       <XpToastNotification
         notification={xpToastData}
         onDismiss={() => setXpToastData(null)}
+      />
+
+      {/* Global Level-Up Confetti & Celebration Banner */}
+      <LevelUpConfettiCelebration
+        celebration={levelUpCelebration}
+        onDismiss={() => setLevelUpCelebration(null)}
       />
 
       {/* Share & Download Hub Dialog */}
@@ -1650,7 +1851,9 @@ export default function App() {
             >
               <span className="text-sm leading-none">🎓</span>
               <span className="truncate max-w-[110px] sm:max-w-none">
-                {selectedEducationLevel} · {selectedClass}
+                {selectedEducationLevel === EducationLevel.UMUM
+                  ? 'UMUM'
+                  : `${selectedEducationLevel} · ${selectedClass}`}
               </span>
             </button>
 

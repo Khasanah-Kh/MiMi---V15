@@ -42,13 +42,13 @@ export const KuisScreen: React.FC<KuisScreenProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div className="space-y-1">
             <div className="text-xs text-sky-400 font-medium">
-              Evaluasi Adaptif · {uiState.selectedEducationLevel} ({uiState.selectedClass})
+              Evaluasi Adaptif · {uiState.selectedEducationLevel} ({uiState.selectedClass}) · Soal disesuaikan Kurikulum Merdeka &amp; materi terupdate
             </div>
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              Kuis Interaktif & Generator Soal AI Mimi
+              Kuis Interaktif &amp; Generator Soal AI Mimi
             </h1>
             <p className="text-xs sm:text-sm text-slate-400">
-              Jawab soal kurikulum dengan tepat atau minta AI Mimi membuat paket soal baru sesuai topik pilihanmu
+              Soal disesuaikan Kurikulum Merdeka &amp; materi terupdate sesuai jenjang kelasmu — jawab soal atau minta AI Mimi membuat paket soal baru.
             </p>
           </div>
 

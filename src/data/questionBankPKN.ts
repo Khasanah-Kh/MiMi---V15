@@ -364,14 +364,73 @@ const PKN_CURATED_QUESTIONS: PknTopicQuestion[] = [
     level: 'ahli',
     explanation: 'Sikap selektif positif berarti menyerap kemajuan IPTEK dan disiplin kerja sembari menyaring budaya yang bertentangan dengan Pancasila.',
   },
+  // Additional SMA/SMK & Umum Pemula/Menengah/Mahir/Ahli questions so every level is rich
+  {
+    q: 'Dalam sistem ketatanegaraan Republik Indonesia menurut UUD NRI Tahun 1945, kekuasaan membentuk undang-undang (fungsi legislatif) dipegang oleh...',
+    options: ['Dewan Perwakilan Rakyat (DPR) bersama Presiden', 'Mahkamah Agung (MA)', 'Badan Pemeriksa Keuangan (BPK)', 'Komisi Pemilihan Umum (KPU)'],
+    answer: 0,
+    type: 'konstitusi',
+    level: 'pemula',
+    explanation: 'Sesuai Pasal 20 ayat (1) dan (2) UUD NRI Tahun 1945, DPR memegang kekuasaan membentuk UU dan setiap RUU dibahas bersama Presiden.',
+  },
+  {
+    q: 'Nilai dasar Pancasila yang menjamin hak setiap warga negara untuk memeluk agama dan beribadah menurut agamanya masing-masing diatur dalam UUD NRI Tahun 1945 Pasal...',
+    options: ['Pasal 29 ayat (2)', 'Pasal 33 ayat (1)', 'Pasal 31 ayat (1)', 'Pasal 23 ayat (1)'],
+    answer: 0,
+    type: 'uud',
+    level: 'pemula',
+    explanation: 'Pasal 29 ayat (2) UUD NRI 1945 menjamin kemerdekaan tiap-tiap penduduk untuk memeluk agamanya masing-masing.',
+  },
+  {
+    q: 'Hak warga negara untuk mendapatkan pendidikan yang layak diatur secara tegas dalam UUD NRI Tahun 1945 pada...',
+    options: ['Pasal 31 ayat (1)', 'Pasal 30 ayat (1)', 'Pasal 34 ayat (1)', 'Pasal 28A'],
+    answer: 0,
+    type: 'uud',
+    level: 'pemula',
+    explanation: 'Pasal 31 ayat (1) UUD NRI Tahun 1945 berbunyi: Setiap warga negara berhak mendapat pendidikan.',
+  },
+  {
+    q: 'Dalam hierarki peraturan perundang-undangan di Indonesia (UU No. 12 Tahun 2011), peraturan yang menempati kedudukan tertinggi sebagai hukum dasar tertulis adalah...',
+    options: ['UUD Negara Republik Indonesia Tahun 1945', 'Peraturan Pemerintah (PP)', 'Peraturan Daerah Provinsi', 'Peraturan Presiden (Perpres)'],
+    answer: 0,
+    type: 'konstitusi',
+    level: 'menengah',
+    explanation: 'UUD NRI Tahun 1945 menempati puncak hierarki peraturan perundang-undangan di Indonesia.',
+  },
+  {
+    q: 'Sikap menghormati keberagaman suku, agama, ras, dan antargolongan (SARA) dalam bingkai NKRI untuk mencegah konflik horizontal disebut...',
+    options: ['Integrasi Nasional & Toleransi', 'Etnosentrisme Sempit', 'Chauvinisme Ekstrem', 'Primordialisme Berlebihan'],
+    answer: 0,
+    type: 'bhineka',
+    level: 'menengah',
+    explanation: 'Integrasi nasional dan sikap toleransi menyatukan perbedaan SARA dalam semboyan Bhinneka Tunggal Ika.',
+  },
+  {
+    q: 'Lembaga negara independen yang berwenang memeriksa pengelolaan dan tanggung jawab keuangan negara menurut Pasal 23E UUD NRI Tahun 1945 adalah...',
+    options: ['Badan Pemeriksa Keuangan (BPK)', 'Mahkamah Konstitusi (MK)', 'Komisi Yudisial (KY)', 'Dewan Perwakilan Daerah (DPD)'],
+    answer: 0,
+    type: 'konstitusi',
+    level: 'mahir',
+    explanation: 'BPK bertugas memeriksa pengelolaan dan tanggung jawab tentang keuangan negara dan menyerahkan hasilnya kepada DPR, DPD, dan DPRD.',
+  },
+  {
+    q: 'Pengakuan dan penghormatan negara terhadap kesatuan-kesatuan masyarakat hukum adat beserta hak-hak tradisionalnya sepanjang masih hidup dan sesuai prinsip NKRI diatur dalam UUD NRI 1945 Pasal...',
+    options: ['Pasal 18B ayat (2)', 'Pasal 1 ayat (1)', 'Pasal 10', 'Pasal 22E'],
+    answer: 0,
+    type: 'otonomi',
+    level: 'ahli',
+    explanation: 'Pasal 18B ayat (2) UUD NRI 1945 mengatur pengakuan negara atas masyarakat hukum adat beserta hak tradisionalnya.',
+  },
 ];
 
 /**
- * Generates 800+ structured PKN questions across classes and levels
+ * Generates structured PKN questions across classes and levels
+ * WITHOUT downgrading SMP/SMA/SMK/Umum to elementary SD 1-3 Sila memorization.
  */
 export function generatePknQuestionBank(): AdaptiveQuestion[] {
   const results: AdaptiveQuestion[] = [];
-  const sdClasses = ['sd1', 'sd2', 'sd3', 'sd4', 'sd5', 'sd6', 'sd'];
+  const sdLowerClasses = ['sd1', 'sd2', 'sd3'];
+  const sdUpperClasses = ['sd4', 'sd5', 'sd6', 'sd'];
   const upperClasses = [
     'kelas7',
     'kelas8',
@@ -385,110 +444,140 @@ export function generatePknQuestionBank(): AdaptiveQuestion[] {
     'sma',
     'umum',
   ];
-  const allClasses = [...sdClasses, ...upperClasses];
-  const levels: ('pemula' | 'menengah' | 'mahir' | 'ahli')[] = ['pemula', 'menengah', 'mahir', 'ahli'];
 
-  // 1. Auto-generate rich variations from the 5 Sila of Pancasila (suitable for all grades)
+  // 1. Pancasila Sila Variations:
+  // - Bunyi & Lambang Sila -> ONLY for SD Kelas 1-3 (Pemula & Menengah)
+  // - Contoh Penerapan di Sekolah -> SD Kelas 1-3 (Mahir) & SD Kelas 4-6 (Pemula & Menengah)
+  // - Kasus Penerapan Kontekstual -> SD Kelas 1-3 (Ahli), SD Kelas 4-6 (Mahir & Ahli), SMP/SMA/SMK (Pemula)
   PANCASILA_DATA.forEach((sila) => {
     const otherSilas = PANCASILA_DATA.filter((s) => s.nomor !== sila.nomor);
 
-    allClasses.forEach((cls) => {
-      levels.forEach((lvl) => {
-        // Variation A: Bunyi Sila
-        results.push({
-          id: `${cls}-pkn-sila-bunyi-${sila.nomor}-${lvl}`,
-          q: `Bunyi Sila ke-${sila.nomor} Pancasila yang tepat adalah...`,
-          options: [
-            sila.bunyi,
-            otherSilas[0].bunyi,
-            otherSilas[1].bunyi,
-            otherSilas[2].bunyi,
-          ],
-          answer: 0,
-          type: 'pancasila',
-          level: lvl,
-          subject: 'pkn',
-          classKey: cls,
-          explanation: `Sila ke-${sila.nomor} Pancasila berbunyi "${sila.bunyi}" dengan lambang ${sila.lambang}.`,
-        });
+    // SD Kelas 1-3: Bunyi (pemula) & Lambang (menengah)
+    sdLowerClasses.forEach((cls) => {
+      results.push({
+        id: `${cls}-pkn-sila-bunyi-${sila.nomor}-pemula`,
+        q: `Bunyi Sila ke-${sila.nomor} Pancasila yang tepat adalah...`,
+        options: [
+          sila.bunyi,
+          otherSilas[0].bunyi,
+          otherSilas[1].bunyi,
+          otherSilas[2].bunyi,
+        ],
+        answer: 0,
+        type: 'pancasila',
+        level: 'pemula',
+        subject: 'pkn',
+        classKey: cls,
+        explanation: `Sila ke-${sila.nomor} Pancasila berbunyi "${sila.bunyi}" dengan lambang ${sila.lambang}.`,
+      });
 
-        // Variation B: Lambang Sila
+      results.push({
+        id: `${cls}-pkn-sila-lambang-${sila.nomor}-menengah`,
+        q: `Lambang dari Sila ke-${sila.nomor} Pancasila ("${sila.bunyi}") pada perisai Garuda Pancasila adalah...`,
+        options: [
+          sila.lambang,
+          otherSilas[0].lambang,
+          otherSilas[1].lambang,
+          otherSilas[2].lambang,
+        ],
+        answer: 0,
+        type: 'pancasila',
+        level: 'menengah',
+        subject: 'pkn',
+        classKey: cls,
+        explanation: `Lambang Sila ke-${sila.nomor} adalah ${sila.lambang}.`,
+      });
+    });
+
+    // Contoh Penerapan di Sekolah: SD 1-3 (mahir) & SD 4-6 (pemula & menengah)
+    sila.contohSekolah.forEach((contoh, cIdx) => {
+      sdLowerClasses.forEach((cls) => {
         results.push({
-          id: `${cls}-pkn-sila-lambang-${sila.nomor}-${lvl}`,
-          q: `Lambang dari Sila ke-${sila.nomor} Pancasila ("${sila.bunyi}") pada perisai Garuda Pancasila adalah...`,
+          id: `${cls}-pkn-sila-sek-${sila.nomor}-${cIdx}-mahir`,
+          q: `Perilaku "${contoh}" merupakan contoh nyata pengamalan Pancasila di lingkungan sekolah, khususnya Sila ke-...`,
           options: [
-            sila.lambang,
-            otherSilas[0].lambang,
-            otherSilas[1].lambang,
-            otherSilas[2].lambang,
+            `Sila ke-${sila.nomor} (${sila.bunyi})`,
+            `Sila ke-${otherSilas[0].nomor} (${otherSilas[0].bunyi})`,
+            `Sila ke-${otherSilas[1].nomor} (${otherSilas[1].bunyi})`,
+            `Sila ke-${otherSilas[2].nomor} (${otherSilas[2].bunyi})`,
           ],
           answer: 0,
-          type: 'pancasila',
-          level: lvl,
+          type: 'penerapan',
+          level: 'mahir',
           subject: 'pkn',
           classKey: cls,
-          explanation: `Lambang Sila ke-${sila.nomor} adalah ${sila.lambang}.`,
+          explanation: `Tindakan tersebut mencerminkan ${sila.nilaiUtama} pada Sila ke-${sila.nomor}.`,
         });
       });
 
-      // Variation C: Contoh Penerapan di Sekolah
-      sila.contohSekolah.forEach((contoh, cIdx) => {
-        levels.forEach((lvl) => {
-          results.push({
-            id: `${cls}-pkn-sila-sek-${sila.nomor}-${cIdx}-${lvl}`,
-            q: `Perilaku "${contoh}" merupakan contoh nyata pengamalan Pancasila di lingkungan sekolah, khususnya Sila ke-...`,
-            options: [
-              `Sila ke-${sila.nomor} (${sila.bunyi})`,
-              `Sila ke-${otherSilas[0].nomor} (${otherSilas[0].bunyi})`,
-              `Sila ke-${otherSilas[1].nomor} (${otherSilas[1].bunyi})`,
-              `Sila ke-${otherSilas[2].nomor} (${otherSilas[2].bunyi})`,
-            ],
-            answer: 0,
-            type: 'penerapan',
-            level: lvl,
-            subject: 'pkn',
-            classKey: cls,
-            explanation: `Tindakan tersebut mencerminkan ${sila.nilaiUtama} pada Sila ke-${sila.nomor}.`,
-          });
+      sdUpperClasses.forEach((cls) => {
+        const lvl = cIdx % 2 === 0 ? 'pemula' : 'menengah';
+        results.push({
+          id: `${cls}-pkn-sila-sek-${sila.nomor}-${cIdx}-${lvl}`,
+          q: `Perilaku "${contoh}" merupakan contoh nyata pengamalan Pancasila di lingkungan sekolah, khususnya Sila ke-...`,
+          options: [
+            `Sila ke-${sila.nomor} (${sila.bunyi})`,
+            `Sila ke-${otherSilas[0].nomor} (${otherSilas[0].bunyi})`,
+            `Sila ke-${otherSilas[1].nomor} (${otherSilas[1].bunyi})`,
+            `Sila ke-${otherSilas[2].nomor} (${otherSilas[2].bunyi})`,
+          ],
+          answer: 0,
+          type: 'penerapan',
+          level: lvl,
+          subject: 'pkn',
+          classKey: cls,
+          explanation: `Tindakan tersebut mencerminkan ${sila.nilaiUtama} pada Sila ke-${sila.nomor}.`,
+        });
+      });
+    });
+
+    // Kasus Penerapan Kontekstual: SD 1-3 (ahli), SD 4-6 (mahir/ahli), SMP/SMA (pemula)
+    sila.kasusPenerapan.forEach((kasusObj, kIdx) => {
+      sdLowerClasses.forEach((cls) => {
+        results.push({
+          id: `${cls}-pkn-kasus-${sila.nomor}-${kIdx}-ahli`,
+          q: kasusObj.kasus,
+          options: [kasusObj.tindakanBenar, ...kasusObj.distractors],
+          answer: 0,
+          type: 'kasus_penerapan',
+          level: 'ahli',
+          subject: 'pkn',
+          classKey: cls,
+          explanation: `Sesuai Sila ke-${sila.nomor} (${sila.bunyi}), kita wajib mengutamakan ${sila.nilaiUtama.toLowerCase()}.`,
         });
       });
 
-      // Variation D: Kasus Penerapan Kontekstual
-      sila.kasusPenerapan.forEach((kasusObj, kIdx) => {
-        levels.forEach((lvl) => {
-          results.push({
-            id: `${cls}-pkn-kasus-${sila.nomor}-${kIdx}-${lvl}`,
-            q: kasusObj.kasus,
-            options: [kasusObj.tindakanBenar, ...kasusObj.distractors],
-            answer: 0,
-            type: 'kasus_penerapan',
-            level: lvl,
-            subject: 'pkn',
-            classKey: cls,
-            explanation: `Sesuai Sila ke-${sila.nomor} (${sila.bunyi}), kita wajib mengutamakan ${sila.nilaiUtama.toLowerCase()}.`,
-          });
+      sdUpperClasses.forEach((cls) => {
+        const lvl = kIdx === 0 ? 'mahir' : 'ahli';
+        results.push({
+          id: `${cls}-pkn-kasus-${sila.nomor}-${kIdx}-${lvl}`,
+          q: kasusObj.kasus,
+          options: [kasusObj.tindakanBenar, ...kasusObj.distractors],
+          answer: 0,
+          type: 'kasus_penerapan',
+          level: lvl,
+          subject: 'pkn',
+          classKey: cls,
+          explanation: `Sesuai Sila ke-${sila.nomor} (${sila.bunyi}), kita wajib mengutamakan ${sila.nilaiUtama.toLowerCase()}.`,
         });
       });
     });
   });
 
-  // 2. Add Curated PKN Questions (UUD, Norma, Demokrasi, HAM, Otonomi, Globalisasi -> SMP/SMA/SMK/Umum; basic Norma/Bhinneka -> SD 4-6)
+  // 2. Add Curated PKN Questions preserving their true `item.level`!
   PKN_CURATED_QUESTIONS.forEach((item, idx) => {
-    const targetClasses =
-      item.level === 'pemula' ? ['sd4', 'sd5', 'sd6', 'sd', ...upperClasses] : upperClasses;
+    const targetClasses = [...sdUpperClasses, ...upperClasses];
     targetClasses.forEach((cls) => {
-      levels.forEach((lvl) => {
-        results.push({
-          id: `${cls}-pkn-cur-${idx}-${lvl}`,
-          q: item.q,
-          options: [...item.options],
-          answer: item.answer,
-          type: item.type,
-          level: lvl,
-          subject: 'pkn',
-          classKey: cls,
-          explanation: item.explanation,
-        });
+      results.push({
+        id: `${cls}-pkn-cur-${idx}-${item.level}`,
+        q: item.q,
+        options: [...item.options],
+        answer: item.answer,
+        type: item.type,
+        level: item.level,
+        subject: 'pkn',
+        classKey: cls,
+        explanation: item.explanation,
       });
     });
   });
@@ -497,4 +586,5 @@ export function generatePknQuestionBank(): AdaptiveQuestion[] {
 }
 
 export const QUESTION_BANK_PKN: AdaptiveQuestion[] = generatePknQuestionBank();
+
 

@@ -28,7 +28,7 @@ export const DonationDialog: React.FC<DonationDialogProps> = ({
   const danaNumber = '082148184782';
   const seabankNumber = '901075234508';
   const waNumber = '082148184782';
-  const waLink = 'https://wa.me/message/2CFS37UB7TKUA1';
+  const waLink = `https://wa.me/6282148184782?text=${encodeURIComponent('Halo Mimi_Real, aku mau bertanya nih, boleh gak?')}`;
 
   const copyToClipboard = async (
     text: string,

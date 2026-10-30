@@ -24,7 +24,10 @@ import {
   getFilteredUnitsForSelection,
   KEMENDIKDASMEN_CATALOG_URL,
 } from '../data/curriculumData';
-import { downloadGeneratedModulePdf } from '../services/googleDriveService';
+import {
+  downloadGeneratedModulePdf,
+  OFFICIAL_DRIVE_PDF_FOLDER_URL,
+} from '../services/googleDriveService';
 
 interface NewCoursesSectionProps {
   educationLevel: EducationLevel;
@@ -267,6 +270,14 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const completedInNewCourses = displayedCourses.filter((c) =>
+    completedLevelIds.includes(c.id)
+  ).length;
+  const newCoursesProgressPercent =
+    displayedCourses.length > 0
+      ? Math.min(100, Math.round((completedInNewCourses / displayedCourses.length) * 100))
+      : 0;
+
   return (
     <section
       aria-label="Kursus Baru Berdasarkan Preferensi"
@@ -361,6 +372,46 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
             <SlidersHorizontal className="w-3.5 h-3.5 text-sky-400" />
             <span>Atur Minat Mapel</span>
           </button>
+        </div>
+      </div>
+
+      {/* Top Visual Progress Bar for Learning Modules in Kursus Baru */}
+      <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800/90 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="text-slate-300 font-semibold">
+            Progres Penyelesaian Modul Terbaru:{' '}
+            <strong className="text-white font-mono tabular-nums">
+              {completedInNewCourses} / {displayedCourses.length} Topik Selesai
+            </strong>
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-mono font-extrabold text-emerald-400 tabular-nums">
+              {newCoursesProgressPercent}% Tuntas
+            </span>
+            <a
+              href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Buka Folder PDF Semua Mapel</span>
+            </a>
+          </div>
+        </div>
+        <div
+          role="progressbar"
+          aria-valuenow={newCoursesProgressPercent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          className="w-full h-2.5 bg-slate-900 border border-slate-800 rounded-full overflow-hidden p-0.5"
+        >
+          <motion.div
+            className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-sky-400"
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.max(newCoursesProgressPercent, 4)}%` }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          />
         </div>
       </div>
 
@@ -512,26 +563,16 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
                     )}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      downloadGeneratedModulePdf({
-                        title: course.title,
-                        level: course.educationLevel,
-                        classRange: course.classRange,
-                        subject: course.subject,
-                        bookTitle: course.bookSource.title,
-                        publisher: course.bookSource.authorOrPublisher,
-                        catalogUrl: course.bookSource.catalogUrl,
-                        summaryPoints: course.summaryPoints,
-                        formula: course.simulation.formulaDisplay,
-                      })
-                    }
-                    title="Unduh Rangkuman PDF Modul"
-                    className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors"
+                  <a
+                    href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Download PDF Materi ${course.subject} di Google Drive`}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 hover:text-white border border-slate-800 transition-colors flex items-center gap-1 text-[11px] font-bold"
                   >
-                    <Download className="w-3.5 h-3.5 text-emerald-400" />
-                  </button>
+                    <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>PDF</span>
+                  </a>
                 </div>
 
                 <button

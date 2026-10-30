@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ChatMessage, LearningMilestone, MimiUiState } from '../../types/mimi';
+import { DevBadge } from '../DevBadge';
 
 interface CurhatScreenProps {
   uiState: MimiUiState;
@@ -164,8 +165,10 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
               <Heart className="w-4 h-4 shrink-0" />
               <span>Mode Human Random · Empatik, Variatif & Multi-Bahasa</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Gimana Perasaanmu Hari Ini, {uiState.studentName}?
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex flex-wrap items-center gap-2">
+              <span>Gimana Perasaanmu Hari Ini, {uiState.studentName}</span>
+              {uiState.isDev && <DevBadge size="sm" />}
+              <span>?</span>
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
               Di sini Mimi ngobrol layaknya sahabat manusia yang peka dan nggak kaku. Kamu bebas curhat, cerita keseharian, atau eksplorasi kosakata gaul, idiom Inggris, istilah akademik, hingga ungkapan hangat Nusantara.
@@ -283,8 +286,11 @@ export const CurhatScreen: React.FC<CurhatScreenProps> = ({
                   key={`curhat-msg-${msg.id || 'msg'}-${idx}`}
                   className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
                 >
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1 px-1">
-                    <span className="font-semibold">{isUser ? uiState.studentName : 'Mimi'}</span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mb-1 px-1">
+                    <span className="font-semibold inline-flex items-center gap-1">
+                      {isUser ? uiState.studentName : 'Mimi'}
+                      {isUser && uiState.isDev && <DevBadge size="xs" />}
+                    </span>
                     <span aria-hidden="true">·</span>
                     <span className="font-mono tabular-nums">{msg.timestamp}</span>
                   </div>

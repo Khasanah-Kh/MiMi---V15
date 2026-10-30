@@ -155,7 +155,7 @@ const ChatCoreContent: React.FC<MimiChatProps & { showDockToggle: boolean }> = (
             </div>
             <div className="text-[11px] text-emerald-400 font-medium truncate flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>● Response Kilat Gemini Flash · Multi-Model Failover Active</span>
+              <span>● Respon kilat Mimi- V15</span>
             </div>
           </div>
         </div>

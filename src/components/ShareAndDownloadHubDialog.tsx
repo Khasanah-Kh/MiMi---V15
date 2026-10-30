@@ -3,32 +3,27 @@ import {
   X,
   BookOpen,
   Download,
-  Upload,
   RefreshCw,
   ExternalLink,
   Trash2,
   AlertTriangle,
   CheckCircle2,
   Link2,
-  GraduationCap,
+  ShieldCheck,
   Cloud,
 } from 'lucide-react';
 import { MimiUiState, StudyProgress } from '../types/mimi';
 import {
-  ClassroomCourseItem,
-  ClassroomWorkItem,
-  deleteDriveFile,
   downloadDrivePdfBlob,
   downloadGeneratedModulePdf,
   getDriveAccessToken,
   googleDriveSignIn,
   initDriveAuth,
-  listClassroomCourseItems,
-  listClassroomCourses,
   listDrivePdfsInFolder,
   logoutDrive,
-  uploadPdfToDriveFolder,
   verifySharedDriveFolderByLink,
+  SCOPES,
+  OFFICIAL_DRIVE_PDF_FOLDER_URL,
 } from '../services/googleDriveService';
 import { apiFetch } from '../services/ai';
 
@@ -66,40 +61,34 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
   uiState,
   onDismiss,
 }) => {
-  const [activeTab, setActiveTab] = useState<'BOOKS_DRIVE' | 'CLASSROOM' | 'CLOUD_24H'>(
+  const [activeTab, setActiveTab] = useState<'BOOKS_DRIVE' | 'OAUTH_PRIVACY' | 'CLOUD_24H'>(
     'BOOKS_DRIVE'
   );
 
-  // Google Workspace OAuth State (in-memory token via googleDriveService)
+  // Google Workspace OAuth State (strictly minimal read-only token via googleDriveService)
   const [needsGoogleAuth, setNeedsGoogleAuth] = useState<boolean>(true);
   const [googleUserEmail, setGoogleUserEmail] = useState<string | null>(null);
   const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState<boolean>(false);
 
-  // Shared Folder Link & Catalog State
-  const [sharedFolderLinkInput, setSharedFolderLinkInput] = useState<string>('');
+  // Shared Folder Link & Catalog State (pre-filled with official Google Drive PDF folder)
+  const [sharedFolderLinkInput, setSharedFolderLinkInput] = useState<string>(
+    OFFICIAL_DRIVE_PDF_FOLDER_URL
+  );
   const [activeDriveConfig, setActiveDriveConfig] = useState<SharedDriveConfig | null>(
     null
   );
   const [catalogBooks, setCatalogBooks] = useState<CatalogBookItem[]>([]);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [isUploadingPdf, setIsUploadingPdf] = useState<boolean>(false);
-  const [customPdfTitle, setCustomPdfTitle] = useState<string>('');
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
 
-  // Mandatory Confirmation Dialog State for Destructive Action
-  const [bookPendingDelete, setBookPendingDelete] = useState<CatalogBookItem | null>(
+  // Local catalog removal confirmation (never deletes files on user's Google Drive)
+  const [bookPendingRemove, setBookPendingRemove] = useState<CatalogBookItem | null>(
     null
   );
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
-
-  // Google Classroom State
-  const [courses, setCourses] = useState<ClassroomCourseItem[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<ClassroomCourseItem | null>(null);
-  const [courseItems, setCourseItems] = useState<ClassroomWorkItem[]>([]);
-  const [isLoadingClassroom, setIsLoadingClassroom] = useState<boolean>(false);
+  const [isRemoving, setIsRemoving] = useState<boolean>(false);
 
   const fetchServerBookCatalog = useCallback(async () => {
     try {
@@ -121,7 +110,6 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
 
   useEffect(() => {
     fetchServerBookCatalog();
-    // Auto-poll every 12 seconds so web catalog stays updated when Admin adds a book
     const interval = setInterval(fetchServerBookCatalog, 12000);
     return () => clearInterval(interval);
   }, [fetchServerBookCatalog]);
@@ -150,7 +138,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
         setGoogleUserEmail(result.user.email || result.user.displayName || 'Terhubung');
         setStatusBanner({
           type: 'success',
-          text: 'Berhasil terhubung dengan Google Drive & Google Classroom!',
+          text: 'Berhasil masuk! Izin hanya untuk melihat profil dasar & mengunduh file PDF (Read-Only).',
         });
       }
     } catch (err) {
@@ -170,11 +158,9 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
     await logoutDrive();
     setNeedsGoogleAuth(true);
     setGoogleUserEmail(null);
-    setCourses([]);
-    setCourseItems([]);
   };
 
-  // Sync strictly from the single Admin-provided Shared Google Drive Folder Link
+  // Sync strictly from the single Admin-provided Shared Google Drive Folder Link (Read-Only)
   const handleSyncSharedFolderLink = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const linkToUse = sharedFolderLinkInput.trim() || activeDriveConfig?.sharedFolderLink;
@@ -191,7 +177,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
       setNeedsGoogleAuth(true);
       setStatusBanner({
         type: 'error',
-        text: 'Silakan klik tombol "Sign in with Google" terlebih dahulu untuk mengakses folder link.',
+        text: 'Silakan klik tombol "Sign in with Google" terlebih dahulu untuk melihat & mengunduh PDF dari folder link.',
       });
       return;
     }
@@ -225,7 +211,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
         setActiveDriveConfig(data.driveConfig || null);
         setStatusBanner({
           type: 'success',
-          text: `Folder link "${folderInfo.name}" berhasil disinkronkan! ${pdfFiles.length} buku PDF otomatis tampil di web.`,
+          text: `Folder link "${folderInfo.name}" berhasil disinkronkan (Read-Only)! ${pdfFiles.length} buku PDF siap dilihat & diunduh.`,
         });
       }
     } catch (err) {
@@ -244,66 +230,13 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
     }
   };
 
-  const handleUploadPdfToSharedFolder = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const targetFolderId = activeDriveConfig?.folderId;
-    if (!targetFolderId) {
-      setStatusBanner({
-        type: 'error',
-        text: 'Hubungkan link folder Google Drive yang dibagikan terlebih dahulu sebelum mengunggah PDF.',
-      });
-      e.target.value = '';
-      return;
-    }
-
-    setIsUploadingPdf(true);
+  const handleConfirmRemoveFromCatalog = async () => {
+    if (!bookPendingRemove) return;
+    setIsRemoving(true);
     setStatusBanner(null);
     try {
-      await uploadPdfToDriveFolder(
-        file,
-        targetFolderId,
-        customPdfTitle.trim() || undefined
-      );
-      setCustomPdfTitle('');
-      await handleSyncSharedFolderLink();
-      setStatusBanner({
-        type: 'success',
-        text: `Buku PDF "${file.name}" berhasil diunggah ke folder link Google Drive & otomatis terupdate di web!`,
-      });
-    } catch (err) {
-      setStatusBanner({
-        type: 'error',
-        text:
-          err instanceof Error
-            ? err.message
-            : 'Gagal mengunggah file PDF ke Google Drive.',
-      });
-    } finally {
-      setIsUploadingPdf(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleConfirmDeleteBook = async () => {
-    if (!bookPendingDelete) return;
-    setIsDeleting(true);
-    setStatusBanner(null);
-    try {
-      if (
-        bookPendingDelete.sourceType === 'GOOGLE_DRIVE' &&
-        bookPendingDelete.driveFileId
-      ) {
-        const token = await getDriveAccessToken();
-        if (token) {
-          await deleteDriveFile(bookPendingDelete.driveFileId);
-        }
-      }
       const res = await apiFetch(
-        `/api/books/${encodeURIComponent(bookPendingDelete.id)}`,
+        `/api/books/${encodeURIComponent(bookPendingRemove.id)}`,
         { method: 'DELETE' }
       );
       if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
@@ -311,57 +244,17 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
         setCatalogBooks(data.books || []);
         setStatusBanner({
           type: 'success',
-          text: `Buku "${bookPendingDelete.title}" telah dihapus dari katalog.`,
+          text: `Buku "${bookPendingRemove.title}" disembunyikan dari daftar katalog lokal (file asli di Google Drive tetap utuh & aman).`,
         });
       }
     } catch (err) {
       setStatusBanner({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Gagal menghapus buku.',
+        text: err instanceof Error ? err.message : 'Gagal menghapus item dari katalog.',
       });
     } finally {
-      setIsDeleting(false);
-      setBookPendingDelete(null);
-    }
-  };
-
-  const handleLoadClassroom = async () => {
-    setIsLoadingClassroom(true);
-    setStatusBanner(null);
-    try {
-      const list = await listClassroomCourses();
-      setCourses(list);
-      if (list.length > 0) {
-        setSelectedCourse(list[0]);
-        const items = await listClassroomCourseItems(list[0].id);
-        setCourseItems(items);
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message === 'UNAUTHENTICATED_DRIVE') {
-        setNeedsGoogleAuth(true);
-      }
-      setStatusBanner({
-        type: 'error',
-        text:
-          err instanceof Error
-            ? err.message
-            : 'Gagal memuat data Google Classroom.',
-      });
-    } finally {
-      setIsLoadingClassroom(false);
-    }
-  };
-
-  const handleSelectClassroomCourse = async (course: ClassroomCourseItem) => {
-    setSelectedCourse(course);
-    setIsLoadingClassroom(true);
-    try {
-      const items = await listClassroomCourseItems(course.id);
-      setCourseItems(items);
-    } catch {
-      setCourseItems([]);
-    } finally {
-      setIsLoadingClassroom(false);
+      setIsRemoving(false);
+      setBookPendingRemove(null);
     }
   };
 
@@ -372,10 +265,11 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
         <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-5">
           <div className="space-y-1">
             <div className="text-xs text-sky-400 font-bold flex items-center gap-2">
-              <span>Pusat Buku PDF, Google Drive (Link Folder) & Google Classroom</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Pusat Buku PDF &amp; Google Drive (Mode Aman Read-Only)</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-              Perpustakaan Buku Resmi & Sinkronisasi Cloud Otomatis
+              Perpustakaan Buku Resmi &amp; Unduhan PDF Read-Only
             </h2>
           </div>
           <button
@@ -442,25 +336,20 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Buku PDF & Link Folder Drive</span>
+              <span>Buku PDF &amp; Link Folder Drive</span>
             </button>
 
             <button
               type="button"
-              onClick={() => {
-                setActiveTab('CLASSROOM');
-                if (!needsGoogleAuth && courses.length === 0) {
-                  handleLoadClassroom();
-                }
-              }}
+              onClick={() => setActiveTab('OAUTH_PRIVACY')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 ${
-                activeTab === 'CLASSROOM'
+                activeTab === 'OAUTH_PRIVACY'
                   ? 'btn-tactile-sky'
                   : 'bg-[#0B101E] text-slate-300 border border-slate-800'
               }`}
             >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Google Classroom</span>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Jaminan Privasi Login (3 Scope Aman)</span>
             </button>
 
             <button
@@ -518,7 +407,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
             ) : (
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-emerald-400 font-bold">
-                  ● Terhubung: {googleUserEmail}
+                  ● Read-Only: {googleUserEmail}
                 </span>
                 <button
                   type="button"
@@ -555,21 +444,20 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
           </div>
         )}
 
-        {/* TAB 1: BUKU PDF & LINK FOLDER GOOGLE DRIVE */}
+        {/* TAB 1: BUKU PDF & LINK FOLDER GOOGLE DRIVE (READ-ONLY) */}
         {activeTab === 'BOOKS_DRIVE' && (
           <div className="space-y-6">
-            {/* Admin Shared Folder Link Box (Strictly Link-Shared Folder Only!) */}
             <div className="p-5 rounded-2xl bg-[#0B101E] border-2 border-slate-800 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <div className="text-xs font-extrabold text-sky-400 flex items-center gap-1.5">
                     <Link2 className="w-4 h-4" />
                     <span>
-                       Pengaturan Admin: Folder Google Drive yang Dibagikan dengan Link
+                      Sinkronisasi Folder Google Drive (Hanya Lihat &amp; Unduh PDF / Read-Only)
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                    Aplikasi ini menjaga privasimu: hanya membaca file PDF dari satu folder Google Drive yang kamu bagikan menggunakan link (tidak pernah memindai seluruh isi Google Drive).
+                    Aplikasi ini hanya meminta akses melihat profil dasar (nama, email, foto) serta melihat &amp; mengunduh file PDF (Read-Only). Tidak pernah mengedit, menghapus, atau membuat file di Google Drive Anda.
                   </p>
                 </div>
                 {activeDriveConfig && (
@@ -599,48 +487,36 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                   <span>
                     {isSyncing
                       ? 'Menyinkronkan Folder...'
-                      : 'Hubungkan & Sinkronkan Link Folder'}
+                      : 'Baca & Sinkronkan Link Folder'}
                   </span>
                 </button>
               </form>
 
-              {/* Upload PDF directly into the linked shared folder */}
-              {activeDriveConfig && !needsGoogleAuth && (
-                <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <input
-                    type="text"
-                    value={customPdfTitle}
-                    onChange={(e) => setCustomPdfTitle(e.target.value)}
-                    placeholder="Judul buku baru (opsional) sebelum pilih file PDF..."
-                    className="flex-1 px-3.5 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-white placeholder:text-slate-500"
-                  />
-                  <label className="px-4 py-2 rounded-xl btn-tactile-emerald text-xs font-extrabold flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>
-                      {isUploadingPdf
-                        ? 'Mengunggah ke Folder Link...'
-                        : 'Tambah Buku PDF ke Folder Link'}
-                    </span>
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      onChange={handleUploadPdfToSharedFolder}
-                      disabled={isUploadingPdf}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              )}
+              <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-slate-300">
+                  Pilih &amp; download langsung materi PDF sesuai mata pelajaran di Google Drive:
+                </span>
+                <a
+                  href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 rounded-xl btn-tactile-emerald text-slate-950 font-extrabold text-xs flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow"
+                >
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <span>Buka Folder Google Drive Materi PDF</span>
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                </a>
+              </div>
             </div>
 
             {/* Catalog List (Kemendikdasmen + Synced Google Drive PDFs) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-extrabold text-white">
-                  Daftar Buku & Modul PDF Tersedia ({catalogBooks.length} Buku)
+                  Daftar Buku &amp; Modul PDF Tersedia ({catalogBooks.length} Buku)
                 </h3>
                 <span className="text-xs font-bold text-emerald-400">
-                  ● Database Internal Kurikulum Merdeka
+                  ● Mode Unduh Aman (Read-Only)
                 </span>
               </div>
 
@@ -660,7 +536,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                           }`}
                         >
                           {book.sourceType === 'GOOGLE_DRIVE'
-                            ? '● PDF Google Drive (Auto-Update)'
+                            ? '● PDF Google Drive (Read-Only)'
                             : `Buku Resmi ${book.educationLevel} (${book.classLabel})`}
                         </span>
                         <span className="text-slate-500 font-mono">
@@ -688,11 +564,13 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                                 );
                               } catch {
                                 if (book.webViewLink) {
-                                  window.open(
-                                    book.webViewLink,
-                                    '_blank',
-                                    'noopener,noreferrer'
-                                  );
+                                  const a = document.createElement('a');
+                                  a.href = book.webViewLink || OFFICIAL_DRIVE_PDF_FOLDER_URL;
+                                  a.target = '_blank';
+                                  a.rel = 'noopener noreferrer';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
                                 }
                               }
                             }}
@@ -702,29 +580,15 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                             <span>Unduh PDF Drive</span>
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              downloadGeneratedModulePdf({
-                                title: book.title,
-                                level: book.educationLevel,
-                                classRange: book.classLabel,
-                                subject: book.subject,
-                                bookTitle: book.title,
-                                publisher: book.publisher,
-                                catalogUrl: book.catalogUrl,
-                                summaryPoints: [
-                                  `Ringkasan materi resmi dari buku "${book.title}".`,
-                                  `Diterbitkan oleh ${book.publisher}.`,
-                                  `Katalog lengkap tersedia di ${book.catalogUrl}`,
-                                ],
-                              })
-                            }
+                          <a
+                            href={book.webViewLink || OFFICIAL_DRIVE_PDF_FOLDER_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="px-3 py-1.5 rounded-lg btn-tactile-sky text-xs font-extrabold flex items-center gap-1.5"
                           >
                             <Download className="w-3.5 h-3.5" />
-                            <span>Unduh PDF</span>
-                          </button>
+                            <span>Unduh PDF ({book.subject})</span>
+                          </a>
                         )}
 
                         <span className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 text-[11px] text-emerald-300 font-semibold">
@@ -735,9 +599,9 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                       {book.sourceType === 'GOOGLE_DRIVE' && (
                         <button
                           type="button"
-                          onClick={() => setBookPendingDelete(book)}
+                          onClick={() => setBookPendingRemove(book)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800"
-                          title="Hapus buku dari katalog"
+                          title="Sembunyikan dari katalog web"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -750,113 +614,41 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
           </div>
         )}
 
-        {/* TAB 2: GOOGLE CLASSROOM */}
-        {activeTab === 'CLASSROOM' && (
-          <div className="space-y-5">
-            {needsGoogleAuth ? (
-              <div className="p-6 rounded-2xl bg-[#0B101E] border border-slate-800 text-center space-y-3">
-                <GraduationCap className="w-8 h-8 text-sky-400 mx-auto" />
-                <div className="text-sm font-extrabold text-white">
-                  Hubungkan Akun Google Classroom Kamu
+        {/* TAB 2: JAMINAN PRIVASI LOGIN GOOGLE (3 SCOPE MINIMAL) */}
+        {activeTab === 'OAUTH_PRIVACY' && (
+          <div className="p-6 rounded-2xl bg-[#0B101E] border-2 border-sky-500/40 space-y-4">
+            <div className="flex items-center gap-2.5 text-sky-400 font-extrabold text-sm">
+              <ShieldCheck className="w-5 h-5 shrink-0 text-emerald-400" />
+              <span>
+                Jaminan Keamanan OAuth Consent Screen — Hanya 3 Scope Minimal (Read-Only)
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Aplikasi Room Belajar Mimi V15 telah dikonfigurasi agar hanya meminta izin paling minimal saat login menggunakan akun Google:
+            </p>
+            <div className="space-y-2.5 text-xs text-slate-200">
+              {SCOPES.map((scope) => (
+                <div
+                  key={scope}
+                  className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3"
+                >
+                  <code className="text-emerald-400 font-mono text-[11px] sm:text-xs break-all">
+                    {scope}
+                  </code>
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 font-bold text-[11px] shrink-0">
+                    Read-Only Aman
+                  </span>
                 </div>
-                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                  Klik tombol &ldquo;Sign in with Google&rdquo; di bagian atas untuk melihat daftar kelas, materi PDF guru, dan tugas dari Google Classroom secara langsung.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-slate-300">
-                    Daftar Kelas Aktif di Google Classroom ({courses.length} Kelas)
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleLoadClassroom}
-                    disabled={isLoadingClassroom}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5"
-                  >
-                    <RefreshCw
-                      className={`w-3.5 h-3.5 ${
-                        isLoadingClassroom ? 'animate-spin' : ''
-                      }`}
-                    />
-                    <span>Muat Ulang Kelas</span>
-                  </button>
-                </div>
-
-                {courses.length === 0 ? (
-                  <div className="p-5 rounded-2xl bg-[#0B101E] border border-slate-800 text-xs text-slate-400">
-                    {isLoadingClassroom
-                      ? 'Memuat daftar kelas dari Google Classroom...'
-                      : 'Belum ada kelas aktif ditemukan pada akun Google Classroom ini.'}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div className="md:col-span-5 space-y-2">
-                      {courses.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => handleSelectClassroomCourse(c)}
-                          className={`w-full p-3.5 rounded-xl border text-left transition-all ${
-                            selectedCourse?.id === c.id
-                              ? 'bg-sky-500/15 border-sky-400 text-white'
-                              : 'bg-[#0B101E] border-slate-800 text-slate-300'
-                          }`}
-                        >
-                          <div className="text-xs sm:text-sm font-extrabold">
-                            {c.name}
-                          </div>
-                          {c.section && (
-                            <div className="text-[11px] text-slate-400">
-                              {c.section}
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="md:col-span-7 p-4 rounded-2xl bg-[#0B101E] border border-slate-800 space-y-3 max-h-72 overflow-y-auto">
-                      <div className="text-xs font-extrabold text-sky-400">
-                        Tugas & Materi Kelas: {selectedCourse?.name}
-                      </div>
-                      {courseItems.length === 0 ? (
-                        <div className="text-xs text-slate-400">
-                          Belum ada tugas atau materi terpublikasi di kelas ini.
-                        </div>
-                      ) : (
-                        courseItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5"
-                          >
-                            <div className="text-xs font-bold text-white">
-                              {item.title}
-                            </div>
-                            {item.description && (
-                              <p className="text-[11px] text-slate-400 line-clamp-2">
-                                {item.description}
-                              </p>
-                            )}
-                            {item.alternateLink && (
-                              <a
-                                href={item.alternateLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 hover:text-sky-300"
-                              >
-                                <span>Buka di Google Classroom</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+              ))}
+            </div>
+            <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-700/40 text-xs text-emerald-200 space-y-1">
+              <div className="font-extrabold">Apa yang muncul di layar login Google?</div>
+              <p className="text-slate-300">
+                1. Lihat alamat email, nama, dan foto profil dasar Anda (untuk login siswa).
+                <br />
+                2. Melihat dan mendownload file Google Drive Anda secara Read-Only (tidak bisa mengedit, menghapus, atau membuat file, serta tanpa akses Classroom atau Google Photos).
+              </p>
+            </div>
           </div>
         )}
 
@@ -878,7 +670,7 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
                 Saat kamu melakukan Deploy ke Cloud Run, Google Cloud akan menjalankan server Mimi V15 secara mandiri 24 jam sehari, 7 hari seminggu dengan URL publik permanen.
               </div>
               <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                <strong className="text-sky-400">2. Otomatis Menyala Kembali (Auto-Scaling & Always Ready):</strong>{' '}
+                <strong className="text-sky-400">2. Otomatis Menyala Kembali (Auto-Scaling &amp; Always Ready):</strong>{' '}
                 Meskipun laptop atau HP kamu dimatikan total, siswa dari mana saja tetap bisa login, mengobrol dengan Mimi V15, dan mengunduh buku PDF kapan pun.
               </div>
               <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
@@ -889,37 +681,37 @@ export const ShareAndDownloadHubDialog: React.FC<ShareAndDownloadHubDialogProps>
           </div>
         )}
 
-        {/* MANDATORY CONFIRMATION DIALOG FOR DESTRUCTIVE OPERATION */}
-        {bookPendingDelete && (
+        {/* CONFIRMATION DIALOG FOR REMOVING ITEM FROM WEB CATALOG ONLY */}
+        {bookPendingRemove && (
           <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
             <div className="w-full max-w-md p-6 rounded-2xl bg-[#131C31] border-2 border-red-500/60 space-y-4 shadow-2xl">
               <div className="flex items-center gap-2.5 text-red-400 font-extrabold text-base">
                 <AlertTriangle className="w-5 h-5 shrink-0" />
-                <span>Konfirmasi Penghapusan Buku PDF</span>
+                <span>Sembunyikan Buku dari Katalog Web</span>
               </div>
               <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
-                Apakah Anda yakin ingin menghapus buku{' '}
+                Apakah Anda yakin ingin menghapus{' '}
                 <strong className="text-white">
-                  &ldquo;{bookPendingDelete.title}&rdquo;
+                  &ldquo;{bookPendingRemove.title}&rdquo;
                 </strong>{' '}
-                dari katalog web dan folder Google Drive? Tindakan ini tidak dapat dibatalkan.
+                dari daftar tampilan katalog web? (File asli di Google Drive Anda tetap aman dan tidak tersentuh karena aplikasi ini menggunakan mode Read-Only).
               </p>
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  disabled={isDeleting}
-                  onClick={() => setBookPendingDelete(null)}
+                  disabled={isRemoving}
+                  onClick={() => setBookPendingRemove(null)}
                   className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
-                  disabled={isDeleting}
-                  onClick={handleConfirmDeleteBook}
+                  disabled={isRemoving}
+                  onClick={handleConfirmRemoveFromCatalog}
                   className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-extrabold text-white"
                 >
-                  {isDeleting ? 'Menghapus...' : 'Ya, Hapus Buku'}
+                  {isRemoving ? 'Menghapus...' : 'Ya, Sembunyikan'}
                 </button>
               </div>
             </div>

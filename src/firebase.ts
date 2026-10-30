@@ -18,6 +18,7 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
+  initializeFirestore,
   getFirestore,
   Firestore,
   doc,
@@ -127,21 +128,40 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// 3. Initialize Firebase Auth safely
+// 3. Initialize Firebase Auth safely (minimal basic profile & email scopes only)
 export const auth: Auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
+googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// 4. Initialize Cloud Firestore with specified Database ID and fallback guard
+// 4. Initialize Cloud Firestore with experimentalForceLongPolling: true for Cloud Run stability
+const firestoreSettings = {
+  experimentalForceLongPolling: true,
+};
+
 function initFirestoreInstance(firebaseApp: FirebaseApp): Firestore {
+  const dbId =
+    firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+      ? firebaseConfig.firestoreDatabaseId
+      : undefined;
+
   try {
-    if (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)') {
-      return getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
-    }
-    return getFirestore(firebaseApp);
+    return dbId
+      ? initializeFirestore(firebaseApp, firestoreSettings, dbId)
+      : initializeFirestore(firebaseApp, firestoreSettings);
   } catch (err) {
-    console.warn('Named Firestore initialization failed, falling back to default instance:', err);
-    return getFirestore(firebaseApp);
+    // Fallback if Firestore instance was already initialized or if named DB init fails
+    try {
+      return dbId ? getFirestore(firebaseApp, dbId) : getFirestore(firebaseApp);
+    } catch (fallbackErr) {
+      console.warn('Named Firestore initialization failed, falling back to default instance:', err, fallbackErr);
+      try {
+        return initializeFirestore(firebaseApp, firestoreSettings);
+      } catch {
+        return getFirestore(firebaseApp);
+      }
+    }
   }
 }
 

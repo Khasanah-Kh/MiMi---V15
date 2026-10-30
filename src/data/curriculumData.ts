@@ -1662,7 +1662,7 @@ function getSubjectUnitBlueprints(
     if (subjLower.includes('inggris') || subjLower.includes('english')) {
       return [
         {
-          title: 'Cerdas Cermat Bahasa Inggris Umum: Idioms & Phrasal Verbs (HAGO Style)',
+          title: 'Cerdas Cermat Bahasa Inggris Umum: Idioms & Phrasal Verbs (Mimi V15 Style)',
           subtitle: 'Menguasai ungkapan populer sehari-hari (Break a leg, Piece of cake, Figure out)',
           bookTitle: 'Database Cerdas Cermat Bahasa Inggris Umum Mimi V15',
           bookAuthor: 'Kurikulum & Kuis Interaktif Mimi V15',
@@ -1680,7 +1680,7 @@ function getSubjectUnitBlueprints(
           ],
           correctIndex: 0,
           explanation: 'Idiom "a piece of cake" berarti pekerjaan atau soal yang sangat mudah.',
-          simTitle: 'Simulator Mastery Idiom & Phrasal Verbs HAGO',
+          simTitle: 'Simulator Mastery Idiom & Phrasal Verbs Mimi V15',
           simParam: 'Skor Penguasaan Idiom',
           simUnit: 'poin',
           simMin: 20,
@@ -1721,7 +1721,7 @@ function getSubjectUnitBlueprints(
 
     return [
       {
-        title: 'Cerdas Cermat Pengetahuan Umum: Sains, Hukum Newton & Fotosintesis (HAGO Style)',
+        title: 'Cerdas Cermat Pengetahuan Umum: Sains, Hukum Newton & Fotosintesis (Mimi V15 Style)',
         subtitle: 'Fakta sains populer, astronomi, tubuh manusia, dan fenomena alam sehari-hari',
         bookTitle: 'Ensiklopedia Cerdas Cermat Pengetahuan Umum Mimi V15',
         bookAuthor: 'Database Pengetahuan Internal Mimi V15',
@@ -1734,7 +1734,7 @@ function getSubjectUnitBlueprints(
         options: ['Oksigen (O₂)', 'Karbon Dioksida (CO₂)', 'Helium (He)', 'Argon (Ar)'],
         correctIndex: 0,
         explanation: 'Fotosintesis menghasilkan glukosa dan melepaskan gas oksigen (O₂) ke udara.',
-        simTitle: 'Simulator Cerdas Cermat Sains & Alam HAGO',
+        simTitle: 'Simulator Cerdas Cermat Sains & Alam Mimi V15',
         simParam: 'Skor Wawasan Sains',
         simUnit: 'poin',
         simMin: 20,

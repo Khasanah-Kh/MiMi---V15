@@ -14,7 +14,10 @@ import {
   CODING_LESSONS,
   CODING_RESOURCE_BOOKS,
 } from '../../data/curriculumData';
-import { downloadGeneratedModulePdf } from '../../services/googleDriveService';
+import {
+  downloadGeneratedModulePdf,
+  OFFICIAL_DRIVE_PDF_FOLDER_URL,
+} from '../../services/googleDriveService';
 
 interface CodingScreenProps {
   uiState: MimiUiState;
@@ -135,31 +138,53 @@ export const CodingScreen: React.FC<CodingScreenProps> = ({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              downloadGeneratedModulePdf({
-                title: selectedLesson.title,
-                level: uiState.selectedEducationLevel,
-                classRange: selectedLesson.levelTag,
-                subject: `Pemrograman ${selectedLesson.language}`,
-                bookTitle: selectedLesson.bookReference.title,
-                publisher: selectedLesson.bookReference.author,
-                catalogUrl: selectedLesson.bookReference.url,
-                summaryPoints: [
-                  selectedLesson.summary,
-                  selectedLesson.expectedExplanation,
-                  `Tantangan Praktik: ${selectedLesson.challengePrompt}`,
-                ],
-                formula: selectedLesson.sampleOutput,
-              })
-            }
+          <a
+            href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-5 py-3 rounded-2xl btn-tactile-emerald font-extrabold text-xs flex items-center gap-2 whitespace-nowrap shrink-0 self-start md:self-auto"
           >
             <Download className="w-4 h-4 shrink-0" />
             <span>Unduh Modul Coding (PDF)</span>
-          </button>
+          </a>
         </div>
+
+        {/* Visual Progress Bar for Coding Modules */}
+        {(() => {
+          const totalCoding = CODING_LESSONS.length;
+          const doneCoding = completedLessonIds.length;
+          const pctCoding =
+            totalCoding > 0
+              ? Math.min(100, Math.round((doneCoding / totalCoding) * 100))
+              : 0;
+          return (
+            <div className="p-4 rounded-2xl bg-[#0B101E] border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-slate-300">
+                  Progres Penyelesaian Topik Coding:{' '}
+                  <strong className="text-white font-mono tabular-nums">
+                    {doneCoding} dari {totalCoding} Modul Selesai
+                  </strong>
+                </span>
+                <span className="font-mono font-extrabold text-emerald-400 tabular-nums">
+                  {pctCoding}% Selesai
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-valuenow={pctCoding}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="w-full h-3 bg-slate-900 border border-slate-800 rounded-full overflow-hidden p-0.5"
+              >
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-400 to-emerald-400 transition-all duration-300"
+                  style={{ width: `${Math.max(pctCoding, 5)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Lesson Selector Pills */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
@@ -364,28 +389,15 @@ export const CodingScreen: React.FC<CodingScreenProps> = ({
                   <span>● Tersedia di Modul Lokal</span>
                 </span>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadGeneratedModulePdf({
-                      title: book.title,
-                      level: uiState.selectedEducationLevel,
-                      classRange: book.category,
-                      subject: 'Referensi Pemrograman & Informatika',
-                      bookTitle: book.title,
-                      publisher: `${book.author} (${book.publisher})`,
-                      catalogUrl: book.url,
-                      summaryPoints: [
-                        book.description,
-                        `Sumber Katalog Resmi: ${book.url}`,
-                      ],
-                    })
-                  }
+                <a
+                  href={OFFICIAL_DRIVE_PDF_FOLDER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Ringkasan PDF</span>
-                </button>
+                  <span>Unduh PDF ({book.category})</span>
+                </a>
               </div>
             </div>
           ))}
